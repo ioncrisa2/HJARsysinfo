@@ -564,4 +564,21 @@ class DataPembandingResource extends Resource
             'view' => Pages\ViewDataPembanding::route('/{record}'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('view_data::pembanding') ?? false;
+    }
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->can('create_data::pembanding') ?? false;
+    }
+    public static function canEdit($record): bool
+    {
+        return auth()->user()?->can('update_data::pembanding') ?? false;
+    }
+    public static function canDelete($record): bool
+    {
+        return auth()->user()?->can('de;ete_data::pembanding') ?? false;
+    }
 }

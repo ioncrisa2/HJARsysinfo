@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Resources\DataPembandingResource\Widgets\PembandingMap;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use App\Filament\Resources\MapResource\Widgets\PembandingMapWidget;
 use App\Filament\Widgets\Map;
 use Devonab\FilamentEasyFooter\EasyFooterPlugin;
@@ -61,7 +62,8 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->plugins([
+                FilamentShieldPlugin::make(),
                 EasyFooterPlugin::make()->withFooterPosition('footer')->withLoadTime('Halaman ini dimuat dalam')
-            ]);
+            ])->authGuard('web');
     }
 }
