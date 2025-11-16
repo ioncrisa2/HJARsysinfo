@@ -2,17 +2,21 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\UserResource\Pages;
-use App\Models\User;
 use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Resources\Resource;
+use App\Models\User;
 use Filament\Tables;
+use Filament\Forms\Form;
 use Filament\Tables\Table;
-use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\Hash;
+use Filament\Resources\Resource;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
+use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rules\Password;
+use Filament\Tables\Filters\TernaryFilter;
+use App\Filament\Resources\UserResource\Pages;
 
 class UserResource extends Resource
 {
@@ -30,29 +34,32 @@ class UserResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
-                ->label('Nama')
-                ->required()
-                ->maxLength(255),
+                    ->label('Nama')
+                    ->required()
+                    ->maxLength(255),
 
-            Forms\Components\TextInput::make('email')
-                ->label('Email')
-                ->email()
-                ->unique(ignoreRecord: true)
-                ->required()
-                ->maxLength(255),
+                Forms\Components\TextInput::make('email')
+                    ->label('Email')
+                    ->email()
+                    ->unique(ignoreRecord: true)
+                    ->required()
+                    ->maxLength(255),
 
-            Forms\Components\TextInput::make('password')
-                ->label('Password')
-                ->password()
-                ->revealable()
-                ->rule(Password::defaults())
-                ->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
-                ->dehydrated(fn ($state) => filled($state))
-                ->required(fn (string $operation) => $operation === 'create'),
+                Forms\Components\TextInput::make('password')
+                    ->label('Password')
+                    ->password()
+                    ->revealable()
+                    ->rule(Password::defaults())
+                    ->dehydrateStateUsing(fn($state) => filled($state) ? Hash::make($state) : null)
+                    ->dehydrated(fn($state) => filled($state))
+                    ->required(fn(string $operation) => $operation === 'create'),
 
-            Forms\Components\CheckboxList::make('roles')
-                ->relationship('roles', 'name')
-                ->helperText('Pilih satu atau lebih role untuk user ini.'),
+                Select::make('roles')
+                    ->relationship('roles', 'name')
+                    ->multiple() // <-- Tetap bisa pilih banyak role
+                    ->preload()  // <-- Memuat role saat halaman dibuka
+                    ->searchable() // <-- Memudahkan pencarian jika role banyak
+                    ->helperText('Pilih satu atau lebih role untuk user ini.'),
             ])->columns(2);
     }
 
@@ -77,6 +84,12 @@ class UserResource extends Resource
                     ->sortable()
                     ->wrap(),
 
+                Tables\Columns\IconColumn::make('deactivated_at')
+                    ->label('Status')
+                    ->icon(fn($record) => $record->deactivated_at ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
+                    ->color(fn($record) => $record->deactivated_at ? 'danger' : 'success')
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Dibuat')
                     ->since()
@@ -88,8 +101,48 @@ class UserResource extends Resource
                     ->relationship('roles', 'name')
                     ->preload()
                     ->searchable(),
+                TernaryFilter::make('deactivated_at')
+                    ->label('Status')
+                    ->placeholder('Semua Status')
+                    ->trueLabel('Deactivated') // User yang tidak aktif
+                    ->falseLabel('Active') // User yang aktif
+                    ->queries(
+                        true: fn(Builder $query) => $query->inactive(), // Menggunakan scope inactive()
+                        false: fn(Builder $query) => $query->active(),   // Menggunakan scope active()
+                    ),
             ])
             ->actions([
+                Tables\Actions\Action::make('deactivate')
+                    ->label('Deactivate')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->requiresConfirmation() // Tampilkan modal konfirmasi
+                    ->action(function (User $record) {
+                        $record->deactivated_at = now();
+                        $record->save();
+                        Notification::make()
+                            ->title('User Deactivated')
+                            ->success()
+                            ->send();
+                    })
+                    // Hanya tampilkan jika user sedang aktif (deactivated_at == null)
+                    ->visible(fn(User $record): bool => is_null($record->deactivated_at)),
+
+                Tables\Actions\Action::make('activate')
+                    ->label('Activate')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->action(function (User $record) {
+                        $record->deactivated_at = null;
+                        $record->save();
+                        Notification::make()
+                            ->title('User Activated')
+                            ->success()
+                            ->send();
+                    })
+                    // Hanya tampilkan jika user sedang tidak aktif (deactivated_at != null)
+                    ->visible(fn(User $record): bool => !is_null($record->deactivated_at)),
                 Tables\Actions\ViewAction::make()->label(''),
                 Tables\Actions\EditAction::make()->label(''),
                 Tables\Actions\DeleteAction::make()->label(''),
@@ -115,22 +168,5 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
-    }
-
-    public static function canViewAny(): bool
-    {
-        return auth()->user()?->can('view_any_user') ?? false;
-    }
-    public static function canCreate(): bool
-    {
-        return auth()->user()?->can('create_user') ?? false;
-    }
-    public static function canEdit($record): bool
-    {
-        return auth()->user()?->can('update_user') ?? false;
-    }
-    public static function canDelete($record): bool
-    {
-        return auth()->user()?->can('delete_user') ?? false;
     }
 }

@@ -2,87 +2,114 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\JenisListing;
 use App\Models\Pembanding;
-use Webbingbrasil\FilamentMaps\Marker;
-use Webbingbrasil\FilamentMaps\Actions;
-use Webbingbrasil\FilamentMaps\Widgets\MapWidget;
+use Filament\Widgets\Widget;
+use Illuminate\Support\Facades\Storage;
 use App\Filament\Resources\DataPembandingResource;
-use Illuminate\Contracts\Support\Htmlable;
 
-class Map extends MapWidget
+class Map extends Widget
 {
-    protected int | string | array $columnSpan = 2;
-    protected bool $hasBorder = false;
-    protected string|Htmlable|null $heading = "Peta Sebaran Data Pembanding";
+    protected static string $view = 'filament.widgets.custom-map-widget';
+    protected int|string|array $columnSpan = "full";
 
-    protected string | array  $tileLayerUrl = [
-        'MapTiler' => 'https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=tsNmu1udsggoxQXYTlrP',
-        'OpenStreetMap' => 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    ];
+    public ?float $latInput = null;
+    public ?float $lngInput = null;
 
-    protected array $tileLayerOptions = [
-        'MapTiler' => [
-            'attribution' => 'Map data © <a href="https://api.maptiler.com">Map Tiler</a> contributors)',
-        ],
-        'OpenStreetMap' => [
-            'attribution' => 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
-        ],
-    ];
+    public int $radiusInput = 1000;
 
-    public function getMarkers(): array
+    public array $mapCenter = [-2.5489, 118.0149]; // Default Center (Indonesia)
+    public int $mapZoom = 5;
+
+    // Method dipanggil saat tombol "Cari" ditekan
+    public function searchLocation()
     {
-        $pembandingData = Pembanding::query()
+        $this->validate([
+            'latInput' => 'required|numeric',
+            'lngInput' => 'required|numeric',
+        ]);
+
+        $this->mapCenter = [(float) $this->latInput, (float) $this->lngInput];
+        $this->mapZoom = 15;
+
+        $this->dispatch('map-updated');
+    }
+
+    public function getAllMarkers(): array
+    {
+        // 1. Data Database (Biru/Abu)
+        $markers = Pembanding::query()
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
-            ->get(['id', 'alamat_data', 'latitude', 'longitude','image']);
+            ->get(['id', 'alamat_data', 'latitude', 'longitude', 'jenis_listing', 'image'])
+            ->map(function ($item) {
 
+                if ($item->image) {
+                    $imgUrl = Storage::url($item->image);
+                } else {
+                    $imgUrl = 'https://placehold.co/600x400?text=No+Image';
+                }
 
-            return $pembandingData->map(function ($data) {
-            $lat = (float) $data->latitude;
-            $lng = (float) $data->longitude;
+                $statusEnum =   $item->jenis_listing;
+                $labelStatus = $statusEnum?->getLabel() ?? '-';
 
-            $url = DataPembandingResource::getUrl('view',['record' => $data]);
+                $badgeColor = '#64748b'; // Abu-abu default
+                $iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
 
-            $alamat = $data->alamat_data ?? '-';
-            $imgUrl = $data->image ?? 'https://via.placeholder.com/200x120?text=No+Image';
+                if ($statusEnum === JenisListing::Transaksi) {
+                    $badgeColor = '#16a34a'; // Hijau
+                    $iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'; // Icon Hijau
+                } elseif ($statusEnum === JenisListing::Penawaran) {
+                    $badgeColor = '#ea580c'; // Orange
+                    $iconUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png'; // Icon Orange
+                }
 
-            $popupContent = <<<HTML
-                <div style="width: 200px; padding: 5px;">
-                    <img src="{$imgUrl}" style="width:100%; height:auto; border-radius: 4px; margin-bottom: 8px;" alt="Gambar Data">
-                    <p style="margin: 0;"><strong>Alamat:</strong></p>
-                    <p style="margin: 0 0 8px 0;">{$alamat}</p>
-                    <a href="{$url}" target="_blank" style="color: #4f46e5; text-decoration: underline;">Lihat Detail Data</a>
-                </div>
-            HTML;
+                $url = DataPembandingResource::getUrl('view', ['record' => $item]);
 
-            return Marker::make('pembanding-' . $data->id)
-                ->lat($lat)
-                ->lng($lng)
-                ->popup($popupContent);
-        })->toArray();
-    }
+                $popupHtml = <<<HTML
+                    <div style="min-width: 220px; font-family: sans-serif;">
 
-    public function getActions(): array
-    {
-        return [
-            Actions\ZoomAction::make(),
-            Actions\CenterMapAction::make()->zoom(2),
-            Actions\Action::make('mode')
-                ->icon('filamentmapsicon-o-square-3-stack-3d')
-                ->callback('setTileLayer(mode === "OpenStreetMap" ? "MapTiler" : "OpenStreetMap")')
-        ];
-    }
+                        <div style="margin-bottom: 10px; border-radius: 6px; overflow: hidden; border: 1px solid #e5e7eb;">
+                            <img src="{$imgUrl}"
+                                 style="width: 100%; height: 120px; object-fit: cover; display: block;"
+                                 alt="Foto Properti">
+                        </div>
 
-    public function getMapOptions(): array
-    {
-        return [
-            'center' => [-2.5, 118], // Tengah Indonesia
-            'zoom' => 5,
-        ];
-    }
+                        <div style="margin-bottom: 8px;">
+                            <span style="background-color: {$badgeColor}; color: white;
+                                         padding: 2px 8px; border-radius: 4px; font-size: 10px;
+                                         font-weight: bold; text-transform: uppercase;">
+                                {$labelStatus}
+                            </span>
+                        </div>
+                        <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px; line-height: 1.4;">
+                            {$item->alamat_data}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <a href="{$url}" target="_blank" style="color: #3b82f6; font-size: 12px; text-decoration: none; font-weight: 600;">
+                               Lihat Detail &rarr;
+                            </a>
+                        </div>
+                    </div>
+                HTML;
 
-    protected function getTileUrl(): string
-    {
-        return "https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=tsNmu1udsggoxQXYTlrP";
+                return [
+                    'lat' => (float) $item->latitude,
+                    'lng' => (float) $item->longitude,
+                    'popup' => $popupHtml,
+                    'icon' => $iconUrl
+                ];
+            })->toArray();
+
+        if ($this->latInput && $this->lngInput) {
+            $markers[] = [
+                'lat' => (float) $this->latInput,
+                'lng' => (float) $this->lngInput,
+                'popup' => "<b>Lokasi Dicari</b><br>Lat: {$this->latInput}<br>Lng: {$this->lngInput}",
+                'icon' => 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            ];
+        }
+
+        return $markers;
     }
 }

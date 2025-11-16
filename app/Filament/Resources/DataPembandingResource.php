@@ -21,22 +21,30 @@ use Filament\Tables\Table;
 use App\Enums\DokumenTanah;
 use App\Enums\JenisListing;
 use App\Enums\KondisiTanah;
+use Filament\Support\RawJs;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Tabs;
 use Filament\Tables\Filters\Filter;
+use Illuminate\Support\Facades\Auth;
 use App\Enums\StatusPemberiInformasi;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\Grid;
 use Filament\Tables\Columns\TextColumn;
+use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Dotswan\MapPicker\Infolists\MapEntry;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Columns\Layout\Split;
+use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Filters\SelectFilter;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\ImageEntry;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
@@ -44,7 +52,7 @@ use Ysfkaya\FilamentPhoneInput\PhoneInputNumberType;
 use App\Filament\Resources\DataPembandingResource\Pages;
 use Pelmered\FilamentMoneyField\Forms\Components\MoneyInput;
 use Filament\Infolists\Components\Section as ComponentsSection;
-use Filament\Tables\Enums\FiltersLayout;
+use Tgeorgel\FilamentTableLayoutToggle\Table\TableLayoutToggle;
 
 class DataPembandingResource extends Resource
 {
@@ -56,11 +64,13 @@ class DataPembandingResource extends Resource
     protected static ?string $navigationLabel = "Bank Data Pembanding";
     protected static ?string $pluralLabel = "Bank Data Pembanding";
 
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-
+                Hidden::make('created_by')
+                    ->default(Auth::id()),
                 Tabs::make('Tabs')
                     ->tabs([
                         Tabs\Tab::make('Informasi Umum')
@@ -168,15 +178,15 @@ class DataPembandingResource extends Resource
                         Tabs\Tab::make('Detail Data Pembanding')
                             ->icon('heroicon-o-document-text')
                             ->schema([
-                                // image input for foto_url
+
                                 FileUpload::make('image')
-                                    ->label('Foto Properti')
+                                    ->label('Foto Data Pembanding')
                                     ->image()
-                                    ->maxSize(15360) // max 10MB
+                                    ->disk('public')
                                     ->directory('foto_pembanding')
+                                    ->maxSize(15360) // 15MB
                                     ->required()
-                                    ->columnSpanFull()
-                                    ->helperText('Harap diperhatikan maksimal ukuran file di 15 Mb'),
+                                    ->helperText('Unggah foto properti pembanding (maks 5MB).'),
 
                                 Forms\Components\TextInput::make('luas_tanah')
                                     ->label('Luas Tanah')
@@ -194,8 +204,6 @@ class DataPembandingResource extends Resource
 
                                 TextInput::make('tahun_bangun')
                                     ->label('Tahun Bangun')
-                                    ->rule('regex:/^\d{4}$/')
-                                    ->minValue(1900)
                                     ->maxValue((int) now()->format('Y'))
                                     ->helperText('Masukkan tahun 4 digit, misal: 2010'),
 
@@ -212,7 +220,6 @@ class DataPembandingResource extends Resource
                                 Select::make('posisi_tanah')
                                     ->label('Posisi Letak Tanah')
                                     ->options(PosisiTanah::class)->searchable(),
-
 
                                 Select::make('kondisi_tanah')
                                     ->label('Kondisi Lahan / Tanah')
@@ -245,11 +252,21 @@ class DataPembandingResource extends Resource
                                     ->placeholder('KDB/KLB/TL')
                                     ->helperText('Masukkan rasio tapak properti (Floor Area Ratio) jika diketahui'),
 
-                                MoneyInput::make('harga')
-                                    ->currency('IDR')
-                                    ->locale('id_ID')
+                                TextInput::make('harga')
+                                    ->label('Harga Estimasi')
+                                    ->prefix('Rp')
+                                    ->numeric() // Validasi input harus angka
                                     ->minValue(0)
-                                    ->step(1000000),
+
+                                    // 1. TAMPILAN: Kasih titik otomatis (Visual saja)
+                                    ->mask(RawJs::make(<<<'JS'
+                                        $money($input, ',', '.', 0)
+                                    JS))
+
+                                    // 2. PENYIMPANAN: Hapus titik sebelum masuk ke BIGINT
+                                    ->stripCharacters('.')
+
+                                    ->required(),
                             ]),
 
                         Tabs\Tab::make('Catatan Tambahan')
@@ -268,48 +285,58 @@ class DataPembandingResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->contentGrid([
+                'sm' => 1,
+                'md' => 2,
+                'xl' => 3,
+            ])
             ->columns([
-                ImageColumn::make('image')
-                    ->disk('public')
-                    ->label('Foto Data')
-                    ->extraImgAttributes([
-                        'class' => 'object-cover rounded-md',
-                    ])
-                    ->placeholder('—'),
+                Stack::make([
 
-                TextColumn::make('alamat_singkat')
-                    ->label('Letak Data')
-                    ->wrap()
-                    ->badge()
-                    ->tooltip(fn($state) => $state)
-                    ->sortable(false)
-                    ->toggleable(),
+                    ImageColumn::make('image')
+                        ->height('200px')
+                        ->width('100%')
+                        ->extraImgAttributes([
+                            'class' => 'object-cover w-full rounded-t-lg',
+                            'style' => 'border-bottom: 1px solid #f3f4f6;',
+                        ])->defaultImageUrl('https://placehold.co/600x400?text=No+Image'),
 
-                TextColumn::make('jenis_listing')
-                    ->label('Jenis Listing')
-                    ->sortable()
-                    ->badge()
-                    ->color(fn($state) => match ($state) {
-                        JenisListing::Penawaran => 'success',
-                        JenisListing::Transaksi => 'primary',
-                        default => 'secondary',
-                    }),
+                    Stack::make([
 
-                TextColumn::make('jenis_objek')
-                    ->label('Jenis Objek')
-                    ->sortable()
-                    ->badge()
-                    ->color('info'),
+                        TextColumn::make('alamat_singkat')
+                            ->weight('bold')
+                            ->size('lg')
+                            ->limit(60)
+                            ->tooltip(fn($record) => $record->alamat_data)
+                            ->extraAttributes(['class' => 'mb-1 leading-tight']),
 
-                TextColumn::make('luas_tanah')
-                    ->label('Luas Tanah')
-                    ->suffix(' m²')
-                    ->sortable(),
+                        TextColumn::make('harga')
+                            ->money('IDR', divideBy: 1000)
+                            ->weight('black') // Sangat tebal
+                            ->color('primary')
+                            ->size('xl') // Font paling besar
+                            ->extraAttributes(['class' => 'mb-2']),
 
+                        TextColumn::make('luas_tanah')
+                            ->formatStateUsing(fn($state, Pembanding $record) => "LT: {$state} m² • {$record->dokumen_tanah->getLabel()}")
+                            ->color('gray')
+                            ->size('sm')
+                            ->icon('heroicon-m-map'),
+
+                        TextColumn::make('jenis_listing')
+                            ->color('white')
+                            ->size('sm')
+                            ->icon('heroicon-m-newspaper')
+                            ->formatStateUsing(fn($state, Pembanding $record)=> "{$state->getLabel()} - {$record->jenis_objek->getLabel()}")
+
+                    ])->extraAttributes(['class' => 'p-4 space-y-2'])
                 ])
+
+            ])
             ->filters([
                 Filter::make('lokasi')
                     ->form([
+                        //filter berdasarkan lokasi
                         Select::make('province_id')
                             ->label('Provinsi')
                             ->options(fn() => \App\Models\Province::query()->pluck('name', 'id'))
@@ -380,6 +407,7 @@ class DataPembandingResource extends Resource
                         return $chips;
                     }),
 
+                //filter berdasarkan nama jalan
                 Filter::make('nama_jalan')
                     ->form([
                         TextInput::make('q')
@@ -399,13 +427,49 @@ class DataPembandingResource extends Resource
                         filled($data['q'] ?? null) ? ["Jalan: {$data['q']}"] : []
                     ),
 
-            ],layout: FiltersLayout::AboveContentCollapsible)
+                //filter berdasarkan tanggal data
+                Filter::make('tanggal_data')
+                    ->form([
+                        DatePicker::make('dari_tanggal')
+                            ->label('Dari Tanggal'),
+                        DatePicker::make('sampai_tanggal')
+                            ->label('Sampai Tanggal'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['dari_tanggal'],
+                                fn(Builder $query, $date) => $query->whereDate('tanggal_data', '>=', $date),
+                            )
+                            ->when(
+                                $data['sampai_tanggal'],
+                                fn(Builder $query, $date) => $query->whereDate('tanggal_data', '<=', $date),
+                            );
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
+                        if ($data['dari_tanggal'] ?? null) {
+                            $indicators['dari_tanggal'] = 'Dari Tanggal: ' . \Carbon\Carbon::parse($data['dari_tanggal'])->toFormattedDateString();
+                        }
+                        if ($data['sampai_tanggal'] ?? null) {
+                            $indicators['sampai_tanggal'] = 'Sampai Tanggal: ' . \Carbon\Carbon::parse($data['sampai_tanggal'])->toFormattedDateString();
+                        }
+                        return $indicators;
+                    }),
+
+                SelectFilter::make('jenis_objek')
+                    ->label('Jenis Objek')
+                    ->options(JenisObjek::class)
+                    ->native(false)
+                    ->searchable()
+
+            ], layout: FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(4)
             ->persistColumnSearchesInSession()
             ->actions([
                 Tables\Actions\Action::make('map')
                     ->label('')
-                    ->color('info')
+                    ->color('warning')
                     ->icon('heroicon-o-map')
                     ->tooltip('Buka Lokasi di Peta Maps')
                     ->visible(fn(Pembanding $r) => $r->latitude && $r->longitude)
@@ -417,18 +481,21 @@ class DataPembandingResource extends Resource
                     ->color('info'),
                 Tables\Actions\EditAction::make()
                     ->label('')
+                    ->color('white')
                     ->tooltip('Edit Data'),
-                Tables\Actions\DeleteAction::make()
-                    ->label('')
-                    ->tooltip('Hapus Data')
-                    ->icon('heroicon-o-trash')
-                    ->color('danger'),
+                // Tables\Actions\DeleteAction::make()
+                //     ->label('')
+                //     ->tooltip('Hapus Data')
+                //     ->icon('heroicon-o-trash')
+                //     ->color('danger'),
+                // Tables\Actions\ForceDeleteAction::make(),
+                // Tables\Actions\RestoreAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ])->paginated(['5','10','25','50','100','250','all']);
+                // Tables\Actions\BulkActionGroup::make([
+                //     Tables\Actions\DeleteBulkAction::make(),
+                // ]),
+            ])->paginated(['5', '10', '25', '50', '100', '250', 'all']);
     }
 
 
@@ -439,8 +506,8 @@ class DataPembandingResource extends Resource
         $longitude = $infolist->getRecord()->longitude;
 
         return $infolist->schema([
-            Grid::make(12)->schema([
 
+            Grid::make(12)->schema([
                 ComponentsSection::make('Detail Data')
                     ->schema([
 
@@ -455,7 +522,7 @@ class DataPembandingResource extends Resource
 
                             TextEntry::make('harga')
                                 ->label('Harga')
-                                ->money('IDR')
+                                ->money('IDR', divideBy: 100)
                                 ->badge()
                                 ->icon('heroicon-o-banknotes')
                                 ->color('success')
@@ -509,8 +576,11 @@ class DataPembandingResource extends Resource
                             TextEntry::make('rasio_tapak')
                                 ->label('Rasio Lahan'),
 
-
-                        ])
+                        ]),
+                        TextEntry::make('catatan')
+                            ->label('Catatan Tambahan')
+                            ->html()
+                            ->placeholder('—'),
                     ])
                     ->columnSpan(8),
 
@@ -544,7 +614,11 @@ class DataPembandingResource extends Resource
                             ->markerColor("#22c55eff")
                             ->showZoomControl(true)
                             ->tilesUrl("https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=tsNmu1udsggoxQXYTlrP")
-                            ->extraStyles(['border-radius: 20px']),
+                            ->extraStyles([
+                                'border-radius: 20px',
+                                'z-index: 1 !important',
+                                'position: relative',
+                            ]),
 
                         TextEntry::make('koordinat_string')
                             ->label('Koordinat Lokasi'),
@@ -552,6 +626,7 @@ class DataPembandingResource extends Resource
                     ])
                     ->columnSpan(4),
             ]),
+
         ]);
     }
 
@@ -563,22 +638,5 @@ class DataPembandingResource extends Resource
             'edit' => Pages\EditDataPembanding::route('/{record}/edit'),
             'view' => Pages\ViewDataPembanding::route('/{record}'),
         ];
-    }
-
-    public static function canViewAny(): bool
-    {
-        return auth()->user()?->can('view_data::pembanding') ?? false;
-    }
-    public static function canCreate(): bool
-    {
-        return auth()->user()?->can('create_data::pembanding') ?? false;
-    }
-    public static function canEdit($record): bool
-    {
-        return auth()->user()?->can('update_data::pembanding') ?? false;
-    }
-    public static function canDelete($record): bool
-    {
-        return auth()->user()?->can('de;ete_data::pembanding') ?? false;
     }
 }

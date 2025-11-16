@@ -13,83 +13,62 @@ use Illuminate\Support\Facades\Log;
 
 class SyncDataWilayah extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'app:sync-data-wilayah';
-
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
     protected $description = 'Sinkronisasi data wilayah Indonesia dari API ke database lokal';
-
-    /**
-    * Based url for sync data from api
-    *
-    */
     protected $baseUrl = 'https://emsifa.github.io/api-wilayah-indonesia/api';
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
         $this->info('Mulai sinkronisasi data wilayah...');
-        // 1. Sinkronisasi Provinsi
-        $this->syncProvinces();
 
-        // 2. Sinkronisasi Kabupaten/Kota
-        $this->syncRegencies();
+        try {
+            DB::transaction(function () {
+                $this->syncProvinces();
+                $this->syncRegencies();
+                $this->syncDistricts();
+                $this->syncVillages();
+            });
 
-        // 3. Sinkronisasi Kecamatan
-        $this->syncDistricts();
-
-        // 4. Sinkronisasi Desa/Kelurahan
-        $this->syncVillages();
-
-        $this->info('Sinkronisasi data wilayah selesai.');
-        return 0;
+            $this->info('Sinkronisasi data wilayah selesai.');
+            return 0;
+        } catch (\Throwable $e) {
+            $this->error('Sinkronisasi Gagal: ' . $e->getMessage());
+            Log::error('Sync Wilayah Gagal: ' . $e->getMessage(), ['exception' => $e]);
+            return 1;
+        }
     }
 
     private function syncProvinces()
     {
         $this->line('Menyinkronkan Provinsi...');
-        $response = Http::get("{$this->baseUrl}/provinces.json");
+        $response = Http::retry(3, 100)->get("{$this->baseUrl}/provinces.json");
 
         if (!$response->ok()) {
-            $this->error('Gagal mengambil data provinsi.');
-            return;
+            throw new \Exception('Gagal mengambil data provinsi.');
         }
 
         $provinces = $response->json();
-        $bar = $this->output->createProgressBar(count($provinces));
-        $bar->start();
 
-        foreach ($provinces as $data) {
-            Province::updateOrCreate(
-                ['id' => $data['id']],
-                ['name' => $data['name']]
-            );
-            $bar->advance();
-        }
+        $dataToUpsert = collect($provinces)->map(fn ($data) => [
+            'id' => $data['id'],
+            'name' => $data['name']
+        ])->all();
 
-        $bar->finish();
-        $this->newLine(2);
+        Province::upsert($dataToUpsert, ['id'], ['name']);
+
+        $this->info(count($dataToUpsert) . ' Provinsi disinkronkan.');
     }
 
     private function syncRegencies()
     {
         $this->line('Menyinkronkan Kabupaten/Kota...');
-        $provinces = Province::all();
+
+        $provinces = Province::lazy();
         $bar = $this->output->createProgressBar($provinces->count());
         $bar->start();
 
         foreach ($provinces as $province) {
-            $response = Http::get("{$this->baseUrl}/regencies/{$province->id}.json");
+            $response = Http::retry(3, 100)->get("{$this->baseUrl}/regencies/{$province->id}.json");
 
             if (!$response->ok()) {
                 Log::warning("Gagal mengambil data kabupaten untuk provinsi: {$province->name}");
@@ -97,12 +76,19 @@ class SyncDataWilayah extends Command
             }
 
             $regencies = $response->json();
-            foreach ($regencies as $data) {
-                Regency::updateOrCreate(
-                    ['id' => $data['id']],
-                    ['name' => $data['name'], 'province_id' => $province->id]
-                );
+            if (empty($regencies)) {
+                $bar->advance();
+                continue;
             }
+
+            $dataToUpsert = collect($regencies)->map(fn ($data) => [
+                'id' => $data['id'],
+                'name' => $data['name'],
+                'province_id' => $province->id
+            ])->all();
+
+            Regency::upsert($dataToUpsert, ['id'], ['name', 'province_id']);
+
             $bar->advance();
         }
 
@@ -113,12 +99,13 @@ class SyncDataWilayah extends Command
     private function syncDistricts()
     {
         $this->line('Menyinkronkan Kecamatan...');
-        $regencies = Regency::all();
+
+        $regencies = Regency::lazy();
         $bar = $this->output->createProgressBar($regencies->count());
         $bar->start();
 
         foreach ($regencies as $regency) {
-            $response = Http::get("{$this->baseUrl}/districts/{$regency->id}.json");
+            $response = Http::retry(3, 100)->get("{$this->baseUrl}/districts/{$regency->id}.json");
 
             if (!$response->ok()) {
                 Log::warning("Gagal mengambil data kecamatan untuk kabupaten: {$regency->name}");
@@ -126,12 +113,19 @@ class SyncDataWilayah extends Command
             }
 
             $districts = $response->json();
-            foreach ($districts as $data) {
-                District::updateOrCreate(
-                    ['id' => $data['id']],
-                    ['name' => $data['name'], 'regency_id' => $regency->id]
-                );
+            if (empty($districts)) {
+                $bar->advance();
+                continue;
             }
+
+            $dataToUpsert = collect($districts)->map(fn ($data) => [
+                'id' => $data['id'],
+                'name' => $data['name'],
+                'regency_id' => $regency->id
+            ])->all();
+
+            District::upsert($dataToUpsert, ['id'], ['name', 'regency_id']);
+
             $bar->advance();
         }
 
@@ -142,12 +136,13 @@ class SyncDataWilayah extends Command
     private function syncVillages()
     {
         $this->line('Menyinkronkan Desa/Kelurahan...');
-        $districts = District::all();
+
+        $districts = District::lazy();
         $bar = $this->output->createProgressBar($districts->count());
         $bar->start();
 
         foreach ($districts as $district) {
-            $response = Http::get("{$this->baseUrl}/villages/{$district->id}.json");
+            $response = Http::retry(3, 100)->get("{$this->baseUrl}/villages/{$district->id}.json");
 
             if (!$response->ok()) {
                 Log::warning("Gagal mengambil data desa untuk kecamatan: {$district->name}");
@@ -155,12 +150,20 @@ class SyncDataWilayah extends Command
             }
 
             $villages = $response->json();
-            foreach ($villages as $data) {
-                Village::updateOrCreate(
-                    ['id' => $data['id']],
-                    ['name' => $data['name'], 'district_id' => $district->id]
-                );
+            if (empty($villages)) {
+                $bar->advance();
+                continue;
             }
+
+            $dataToUpsert = collect($villages)->map(fn ($data) => [
+                'id' => $data['id'],
+                'name' => $data['name'],
+                'district_id' => $district->id
+            ])->all();
+
+            // 1 Query per kecamatan
+            Village::upsert($dataToUpsert, ['id'], ['name', 'district_id']);
+
             $bar->advance();
         }
 

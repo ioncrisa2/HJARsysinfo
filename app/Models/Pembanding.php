@@ -2,25 +2,30 @@
 
 namespace App\Models;
 
+use App\Enums\Topografi;
 use App\Enums\JenisObjek;
 use App\Enums\Peruntukan;
 use App\Enums\BentukTanah;
-use App\Enums\DokumenTanah;
-use App\Enums\KondisiTanah;
-use App\Enums\JenisListing;
 use App\Enums\PosisiTanah;
+use App\Enums\DokumenTanah;
+use App\Enums\JenisListing;
+use App\Enums\KondisiTanah;
+use Spatie\Activitylog\LogOptions;
 use App\Enums\StatusPemberiInformasi;
-use App\Enums\Topografi;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Traits\PembandingPresenter;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Pembanding extends Model
 {
-    use HasFactory, PembandingPresenter;
+    use HasFactory, PembandingPresenter, SoftDeletes, LogsActivity;
 
     protected $table = 'data_pembanding';
+
+    protected $dates = ['deleted_at'];
 
     protected $fillable = [
         'jenis_listing',
@@ -51,6 +56,7 @@ class Pembanding extends Model
         'alamat_data',
         'latitude',
         'longitude',
+        'create_by',
     ];
 
     public function province(): BelongsTo
@@ -73,6 +79,11 @@ class Pembanding extends Model
         return $this->belongsTo(Village::class, 'village_id', 'id');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     protected $casts = [
         'jenis_listing'             => JenisListing::class,
         'jenis_objek'               => JenisObjek::class,
@@ -86,6 +97,15 @@ class Pembanding extends Model
         'luas_tanah'                => 'float',
         'luas_bangunan'             => 'float',
         'latitude'                  => 'float',
-        'longitude'                 => 'float'
+        'longitude'                 => 'float',
+        'harga'                     => 'float'
     ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll() // Mencatat semua field
+            ->logOnlyDirty() // HANYA mencatat field yang BERUBAH saja
+            ->dontSubmitEmptyLogs(); // Jangan catat jika tidak ada perubahan
+    }
 }

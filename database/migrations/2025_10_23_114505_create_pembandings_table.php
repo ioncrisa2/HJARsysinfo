@@ -40,7 +40,6 @@ return new class extends Migration
             $table->text('catatan')->nullable();
             $table->timestamps();
 
-            $table->index(['jenis_listing','jenis_objek','harga','tanggal_data']);
         });
     }
 
@@ -50,10 +49,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('data_pembanding', function (Blueprint $table) {
-            $table->dropIndex([
-                'jenis_listing','jenis_objek','harga','tanggal_data',
-                'province_id', 'regency_id', 'district_id', 'village_id'
-            ]);
             $table->dropIfExists();
         });
     }
