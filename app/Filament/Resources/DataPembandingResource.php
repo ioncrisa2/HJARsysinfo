@@ -285,6 +285,7 @@ class DataPembandingResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('created_at', 'desc')
             ->contentGrid([
                 'sm' => 1,
                 'md' => 2,
