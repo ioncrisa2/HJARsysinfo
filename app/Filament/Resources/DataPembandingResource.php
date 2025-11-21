@@ -68,6 +68,7 @@ class DataPembandingResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
+            ->persist()
             ->schema([
                 Hidden::make('created_by')
                     ->default(Auth::id()),
@@ -313,13 +314,29 @@ class DataPembandingResource extends Resource
 
                         TextColumn::make('harga')
                             ->money('IDR', divideBy: 1000)
-                            ->weight('black') // Sangat tebal
+                            ->weight('black')
                             ->color('primary')
-                            ->size('xl') // Font paling besar
+                            ->size('xl')
                             ->extraAttributes(['class' => 'mb-2']),
 
                         TextColumn::make('luas_tanah')
-                            ->formatStateUsing(fn($state, Pembanding $record) => "LT: {$state} m² • {$record->dokumen_tanah->getLabel()}")
+                            ->formatStateUsing(function ($state, \App\Models\Pembanding $record) {
+
+                                $luasText = '';
+
+                                if (!is_numeric($state) || $state === null) {
+                                    $luasText = '-';
+                                } if ($state >= 10000) {
+                                    $hektar = $state / 10000;
+                                    $luasText = number_format($hektar, 2, ',', '.') . ' ha';
+                                }else {
+                                    $luasText = number_format($state, 0, ',', '.') . ' m²';
+                                }
+
+                                $dokumenLabel = $record->dokumen_tanah ? $record->dokumen_tanah->getLabel() : 'N/A';
+
+                                return "LT: {$luasText} • {$dokumenLabel}";
+                            })
                             ->color('gray')
                             ->size('sm')
                             ->icon('heroicon-m-map'),
@@ -469,20 +486,20 @@ class DataPembandingResource extends Resource
             ->persistColumnSearchesInSession()
             ->actions([
                 Tables\Actions\Action::make('map')
-                    ->label('')
+                    ->label('Lihat di Maps')
                     ->color('warning')
                     ->icon('heroicon-o-map')
                     ->tooltip('Buka Lokasi di Peta Maps')
                     ->visible(fn(Pembanding $r) => $r->latitude && $r->longitude)
                     ->url(fn(Pembanding $r) => 'https://www.google.com/maps?q=' . $r->latitude . ',' . $r->longitude, true),
                 Tables\Actions\ViewAction::make()
-                    ->label('')
+                    ->label('Detail Data')
                     ->tooltip('Lihat Detail Data')
                     ->icon('heroicon-o-document-magnifying-glass')
                     ->color('info'),
                 Tables\Actions\EditAction::make()
-                    ->label('')
-                    ->color('white')
+                    ->label('Edit Data')
+                    ->color('danger')
                     ->tooltip('Edit Data'),
                 // Tables\Actions\DeleteAction::make()
                 //     ->label('')

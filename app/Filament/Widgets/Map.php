@@ -67,27 +67,21 @@ class Map extends Widget
                 $url = DataPembandingResource::getUrl('view', ['record' => $item]);
 
                 $popupHtml = <<<HTML
-                    <div style="min-width: 220px; font-family: sans-serif;">
-
-                        <div style="margin-bottom: 10px; border-radius: 6px; overflow: hidden; border: 1px solid #e5e7eb;">
-                            <img src="{$imgUrl}"
-                                 style="width: 100%; height: 120px; object-fit: cover; display: block;"
-                                 alt="Foto Properti">
-                        </div>
-
-                        <div style="margin-bottom: 8px;">
-                            <span style="background-color: {$badgeColor}; color: white;
-                                         padding: 2px 8px; border-radius: 4px; font-size: 10px;
-                                         font-weight: bold; text-transform: uppercase;">
+                    <div style="width: 240px; font-family: 'Plus Jakarta Sans', sans-serif;">
+                        <div style="border-radius: 8px; overflow: hidden; margin-bottom: 10px; position: relative;">
+                            <img src="{$imgUrl}" style="width: 100%; height: 140px; object-fit: cover;">
+                            <span style="position: absolute; top: 8px; right: 8px; background: {$badgeColor}; color: white;
+                                padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                                 {$labelStatus}
                             </span>
                         </div>
-                        <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px; line-height: 1.4;">
+                        <div style="font-weight: 700; font-size: 14px; line-height: 1.4; color: #1e293b; margin-bottom: 6px;">
                             {$item->alamat_data}
                         </div>
-                        <div style="margin-top: 10px;">
-                            <a href="{$url}" target="_blank" style="color: #3b82f6; font-size: 12px; text-decoration: none; font-weight: 600;">
-                               Lihat Detail &rarr;
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                            <span style="font-size: 11px; color: #64748b;">Lat: {$item->latitude}, {$item->longitude}</span>
+                            <a href="{$url}" target="_blank" style="color: #f97316; font-size: 12px; font-weight: 600; text-decoration: none;">
+                                Detail &rarr;
                             </a>
                         </div>
                     </div>

@@ -23,24 +23,28 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use App\Filament\Resources\PembandingResource\Widgets\StatsOverview;
-use App\Filament\Resources\PembandingResource\Widgets\CustomLeafletMap;
 use App\Filament\Widgets\Map;
 use Filament\Navigation\MenuItem;
 use BezhanSalleh\FilamentShield\Resources\RoleResource;
 use Hydrat\TableLayoutToggle\Persisters\LocalStoragePersister;
 use Hydrat\TableLayoutToggle\TableLayoutTogglePlugin;
+use App\Filament\Components\CustomUpdatePassword;
+use EightCedars\FilamentInactivityGuard\FilamentInactivityGuardPlugin;
+use Illuminate\Container\Attributes\Auth;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
+
+
         return $panel
             ->default()
             ->id('admin')
             ->path('admin')
             ->login()
             ->passwordReset()
-            ->colors(['primary' => Color::Amber,])->topNavigation()
+            ->colors(['primary' => Color::Amber,])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([Pages\Dashboard::class,])
@@ -76,6 +80,9 @@ class AdminPanelProvider extends PanelProvider
                         hasAvatars: true,
                         slug: 'my-profile'
                     )
+                    ->myProfileComponents([
+                        'update_password' => CustomUpdatePassword::class,
+                    ])
                     ->avatarUploadComponent(fn() => FileUpload::make('avatar_url')->disk('public'))
                     ->passwordUpdateRules(
                         rules: [Pass::default()->mixedCase()->uncompromised(3)],
@@ -91,12 +98,15 @@ class AdminPanelProvider extends PanelProvider
                     ->toggleActionHook('tables::toolbar.search.after') // chose the Filament view hook to render the button on
                     ->listLayoutButtonIcon('heroicon-o-list-bullet')
                     ->gridLayoutButtonIcon('heroicon-o-squares-2x2'),
-                    
+
+                FilamentInactivityGuardPlugin::make()
+
             ])->userMenuItems([
                 MenuItem::make()
                     ->label('Roles & Permissions')
                     ->url(fn (): string => RoleResource::getUrl())
-                    ->icon('heroicon-o-shield-check'),
+                    ->icon('heroicon-o-shield-check')
+                    ,
         ])
             ->authGuard('web');
     }

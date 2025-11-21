@@ -56,7 +56,7 @@ class Pembanding extends Model
         'alamat_data',
         'latitude',
         'longitude',
-        'create_by',
+        'created_by',
     ];
 
     public function province(): BelongsTo
