@@ -12,6 +12,7 @@ use App\Enums\JenisListing;
 use App\Enums\KondisiTanah;
 use Spatie\Activitylog\LogOptions;
 use App\Enums\StatusPemberiInformasi;
+use App\Models\Traits\PembandingFilterTrait;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Traits\PembandingPresenter;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Pembanding extends Model
 {
-    use HasFactory, PembandingPresenter, SoftDeletes, LogsActivity;
+    use HasFactory, PembandingPresenter, SoftDeletes, LogsActivity, PembandingFilterTrait;
 
     protected $table = 'data_pembanding';
 
