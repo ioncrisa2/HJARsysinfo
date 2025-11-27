@@ -68,7 +68,6 @@ class DataPembandingResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            ->persist()
             ->schema([
                 Hidden::make('created_by')
                     ->default(Auth::id()),

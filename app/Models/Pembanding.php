@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Pembanding extends Model
 {
-    use HasFactory, PembandingPresenter, SoftDeletes, LogsActivity, PembandingFilterTrait;
+    use HasFactory, PembandingPresenter, SoftDeletes, LogsActivity;
 
     protected $table = 'data_pembanding';
 
