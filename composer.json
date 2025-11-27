@@ -18,6 +18,7 @@
         "jeffgreco13/filament-breezy": "*",
         "joshembling/image-optimizer": "*",
         "laravel/framework": "^12.0",
+        "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "nben/filament-record-nav": "^1.0",
