@@ -29,7 +29,6 @@ class LatestPembandingTable extends BaseWidget
                 Tables\Columns\TextColumn::make('harga')
                     ->label('Harga')
                     ->money('IDR')
-                    ->money('IDR', divideBy: 100)
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('jenis_listing')
