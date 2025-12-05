@@ -58,6 +58,14 @@ class DataPembandingController extends Controller
             ->orderByDesc('tanggal_data')
             ->paginate($limit);
 
+        $pembandings->getCollection()->transform(function ($item){
+            if ($item->image) {
+                $filename = ltrim($item->image, './');
+                $item->image = asset('storage/foto_pembanding/' . $filename);
+            }
+            return $item;
+        });
+
         return $this->success($pembandings, 'Semua List Data Pembanding', 200);
     }
 
