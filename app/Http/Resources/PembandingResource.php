@@ -9,6 +9,8 @@ class PembandingResource extends JsonResource
 {
     public function toArray($request): array
     {
+
+
         return [
             'id'          => $this->id,
             'jenis_listing' => [
@@ -82,16 +84,23 @@ class PembandingResource extends JsonResource
             'latitude'    => $this->latitude,
             'longitude'   => $this->longitude,
 
-            'image_url'   => $this->image
-                ? (filter_var($this->image, FILTER_VALIDATE_URL)
-                    ? $this->image
-                    : Storage::url($this->image))
-                : null,
+            'image_url'   => $this->getImagePath($this->image),
 
             'created_by' => [
                 'id'   => $this->creator?->id,
                 'name' => $this->creator?->name,
             ],
         ];
+    }
+
+    private function getImagePath($image): ?string
+    {
+        if (!$image) {
+            return null;
+        }
+
+        $filename = ltrim($image, './');
+
+        return asset('public/storage/foto_pembanding/' . $filename);
     }
 }
