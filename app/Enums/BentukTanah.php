@@ -10,8 +10,9 @@ enum BentukTanah: string implements HasLabel
     case Persegi         = 'persegi';
     case Trapesium       = 'trapesium';
     case Segitiga        = 'segitiga';
-    case Lingkaran      = 'lingkaran';
+    case Lingkaran       =   'lingkaran';
     case TidakBeraturan  = 'tidak_beraturan';
+    case LetterL         = 'letter_l';
     case Lainnya         = 'lainnya';
 
     public function getLabel(): ?string
@@ -23,6 +24,7 @@ enum BentukTanah: string implements HasLabel
             self::Segitiga        => 'Segitiga',
             self::Lingkaran       => 'Lingkaran',
             self::TidakBeraturan  => 'Tidak Beraturan',
+            self::LetterL         => 'Letter L',
             self::Lainnya         => 'Lainnya',
         };
     }
