@@ -3,10 +3,11 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DataPembandingController;
 use App\Http\Controllers\Api\PembandingController;
+use App\Http\Middleware\ThrottleAuthAttempts;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('/login',   [AuthController::class, 'login']);
+    Route::post('/login',   [AuthController::class, 'login'])->middleware(ThrottleAuthAttempts::class);
     Route::post('/refresh', [AuthController::class, 'refresh']);
 
     Route::middleware('auth:sanctum')->group(function () {
