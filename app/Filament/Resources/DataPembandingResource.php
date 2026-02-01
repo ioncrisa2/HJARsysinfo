@@ -8,40 +8,31 @@ use App\Models\Regency;
 use App\Models\Village;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use App\Enums\Topografi;
 use App\Models\District;
 use App\Models\Province;
 use Filament\Forms\Form;
-use App\Enums\JenisObjek;
-use App\Enums\Peruntukan;
-use App\Enums\BentukTanah;
-use App\Enums\PosisiTanah;
 use App\Models\Pembanding;
 use Filament\Tables\Table;
-use App\Enums\DokumenTanah;
-use App\Enums\JenisListing;
-use App\Enums\KondisiTanah;
 use Filament\Support\RawJs;
+use Illuminate\Support\Str;
+use App\Supports\MasterLabel;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Tabs;
 use Filament\Tables\Filters\Filter;
 use Illuminate\Support\Facades\Auth;
-use App\Enums\StatusPemberiInformasi;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Fieldset;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\Grid;
 use Filament\Tables\Columns\TextColumn;
-use Illuminate\Support\Facades\Storage;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Dotswan\MapPicker\Infolists\MapEntry;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,9 +41,8 @@ use Filament\Infolists\Components\ImageEntry;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 use Ysfkaya\FilamentPhoneInput\PhoneInputNumberType;
 use App\Filament\Resources\DataPembandingResource\Pages;
-use Pelmered\FilamentMoneyField\Forms\Components\MoneyInput;
 use Filament\Infolists\Components\Section as ComponentsSection;
-use Tgeorgel\FilamentTableLayoutToggle\Table\TableLayoutToggle;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class DataPembandingResource extends Resource
 {
@@ -60,7 +50,6 @@ class DataPembandingResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-circle-stack';
 
-    protected static ?string $navigationGroup = 'Bank Data';
     protected static ?string $navigationLabel = "Bank Data Pembanding";
     protected static ?string $pluralLabel = "Bank Data Pembanding";
 
@@ -76,13 +65,18 @@ class DataPembandingResource extends Resource
                         Tabs\Tab::make('Informasi Umum')
                             ->icon('heroicon-o-information-circle')
                             ->schema([
-                                Select::make('jenis_listing')
+                                Select::make('jenis_listing_id')
                                     ->label('Jenis Listing Properti')
-                                    ->options(['penawaran' => 'Penawaran', 'transaksi' => 'Transaksi'])->required(),
+                                    ->relationship('jenisListing', 'name')->searchable()
+                                    ->preload()
+                                    ->required(),
 
-                                Select::make('jenis_objek')
+                                Select::make('jenis_objek_id')
                                     ->label('Jenis Objek Properti')
-                                    ->options(JenisObjek::class)->searchable()->required(),
+                                    ->relationship('jenisObjek', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(),
 
                                 TextInput::make('nama_pemberi_informasi')
                                     ->label('Nama Pemberi Informasi')
@@ -94,9 +88,11 @@ class DataPembandingResource extends Resource
                                     ->defaultCountry('ID')
                                     ->displayNumberFormat(PhoneInputNumberType::NATIONAL),
 
-                                Select::make('status_pemberi_informasi')
+                                Select::make('status_pemberi_informasi_id')
                                     ->label('Status Pemberi Informasi')
-                                    ->options(StatusPemberiInformasi::class),
+                                    ->relationship('statusPemberiInformasi', 'name')
+                                    ->searchable()
+                                    ->preload(),
 
                                 DatePicker::make('tanggal_data')
                                     ->label('Tanggal Data Pembanding diupload')
@@ -184,9 +180,14 @@ class DataPembandingResource extends Resource
                                     ->image()
                                     ->disk('public')
                                     ->directory('foto_pembanding')
+                                    ->getUploadedFileNameForStorageUsing(
+                                        function (TemporaryUploadedFile $file): string {
+                                            return strtolower(Str::random(40)) . '.' . $file->getClientOriginalExtension();
+                                        }
+                                    )
                                     ->maxSize(15360) // 15MB
                                     ->required()
-                                    ->helperText('Unggah foto properti pembanding (maks 5MB).'),
+                                    ->helperText('Unggah foto properti pembanding (maks 15MB).'),
 
                                 Forms\Components\TextInput::make('luas_tanah')
                                     ->label('Luas Tanah')
@@ -207,27 +208,37 @@ class DataPembandingResource extends Resource
                                     ->maxValue((int) now()->format('Y'))
                                     ->helperText('Masukkan tahun 4 digit, misal: 2010'),
 
-                                Select::make('bentuk_tanah')
+                                Select::make('bentuk_tanah_id')
                                     ->label('Bentuk Tanah')
-                                    ->options(BentukTanah::class)->searchable()->placeholder('Pilih Bentuk Tanah')
+                                    ->relationship('bentukTanah', 'name')
+                                    ->searchable()
+                                    ->preload()
                                     ->required()->helperText('Pilih bentuk tanah properti'),
 
-                                Select::make('dokumen_tanah')
+                                Select::make('dokumen_tanah_id')
                                     ->label('Dokumen Tanah')
-                                    ->options(DokumenTanah::class)->searchable()->placeholder('Pilih Dokumen Tanah')
+                                    ->relationship('dokumenTanah', 'name')
+                                    ->searchable()
+                                    ->preload()
                                     ->required()->helperText('Pilih jenis dokumen legalitas tanah'),
 
-                                Select::make('posisi_tanah')
+                                Select::make('posisi_tanah_id')
                                     ->label('Posisi Letak Tanah')
-                                    ->options(PosisiTanah::class)->searchable(),
+                                    ->relationship('posisiTanah', 'name')
+                                    ->searchable()
+                                    ->preload(),
 
-                                Select::make('kondisi_tanah')
+                                Select::make('kondisi_tanah_id')
                                     ->label('Kondisi Lahan / Tanah')
-                                    ->options(KondisiTanah::class),
+                                    ->relationship('kondisiTanah', 'name')
+                                    ->searchable()
+                                    ->preload(),
 
-                                Select::make('topografi')
-                                    ->label('Pilih Topografi tanah Aset')
-                                    ->options(Topografi::class),
+                                Select::make('topografi_id')
+                                    ->label('Topografi')
+                                    ->relationship('topografiRef', 'name')
+                                    ->searchable()
+                                    ->preload(),
 
                                 Forms\Components\TextInput::make('lebar_depan')
                                     ->label('Lebar Depan Tanah')
@@ -243,9 +254,11 @@ class DataPembandingResource extends Resource
                                     ->placeholder('Contoh: 120')
                                     ->helperText('Masukkan lebar akses jalan depan tanah dalam meter'),
 
-                                Select::make('peruntukan')
-                                    ->label('Pilih Peruntukan Lahan/Bangunan')
-                                    ->options(Peruntukan::class)->searchable()->placeholder('Pilih Peruntukan Lahan/Bangunan'),
+                                Select::make('peruntukan_id')
+                                    ->label('Peruntukan')
+                                    ->relationship('peruntukanRef', 'name')
+                                    ->searchable()
+                                    ->preload()->placeholder('Pilih Peruntukan Lahan/Bangunan'),
 
                                 TextInput::make('rasio_tapak')
                                     ->label('Site Coverage / Plot Ratio')
@@ -295,12 +308,14 @@ class DataPembandingResource extends Resource
                 Stack::make([
 
                     ImageColumn::make('image')
+                        ->disk('public')
                         ->height('200px')
                         ->width('100%')
                         ->extraImgAttributes([
                             'class' => 'object-cover w-full rounded-t-lg',
                             'style' => 'border-bottom: 1px solid #f3f4f6;',
-                        ])->defaultImageUrl('https://placehold.co/600x400?text=No+Image'),
+                        ])
+                        ->defaultImageUrl('https://placehold.co/600x400?text=No+Image'),
 
                     Stack::make([
 
@@ -312,27 +327,62 @@ class DataPembandingResource extends Resource
                             ->extraAttributes(['class' => 'mb-1 leading-tight']),
 
                         TextColumn::make('harga')
-                            ->money('IDR', divideBy: 1000)
+                            ->label('Harga')
                             ->weight('black')
                             ->color('primary')
                             ->size('xl')
-                            ->extraAttributes(['class' => 'mb-2']),
+                            ->extraAttributes(['class' => 'mb-2'])
+                            ->formatStateUsing(function ($state) {
+                                $value = (float) ($state ?? 0);
 
-                        TextColumn::make('luas_tanah')
-                            ->formatStateUsing(function ($state, \App\Models\Pembanding $record) {
+                                $floorTo = function (float $n, int $decimals = 0): float {
+                                    $p = 10 ** $decimals;
+                                    return floor($n * $p) / $p;
+                                };
 
-                                $luasText = '';
+                                $trimZeros = function (string $s): string {
+                                    // hilangkan trailing .0 / .00
+                                    $s = rtrim($s, '0');
+                                    return rtrim($s, '.');
+                                };
 
-                                if (!is_numeric($state) || $state === null) {
-                                    $luasText = '-';
-                                } if ($state >= 10000) {
-                                    $hektar = $state / 10000;
-                                    $luasText = number_format($hektar, 2, ',', '.') . ' ha';
-                                }else {
-                                    $luasText = number_format($state, 0, ',', '.') . ' m²';
+                                // Miliar (>= 1.000.000.000)
+                                if ($value >= 1_000_000_000) {
+                                    $m = $value / 1_000_000_000;          // contoh: 1.610...
+                                    $m = $floorTo($m, 2);                 // 2 desimal, truncate
+                                    $mStr = $trimZeros(number_format($m, 2, '.', ''));
+                                    return "Rp {$mStr} M";
                                 }
 
-                                $dokumenLabel = $record->dokumen_tanah ? $record->dokumen_tanah->getLabel() : 'N/A';
+                                // Juta (>= 1.000.000)
+                                if ($value >= 1_000_000) {
+                                    $j = $value / 1_000_000;
+
+                                    // >= 100 juta -> tanpa desimal (650.55 -> 650)
+                                    // < 100 juta  -> 1 desimal (67.6 -> 67.6)
+                                    if ($j >= 100) {
+                                        $j = (int) floor($j);
+                                        return "Rp {$j} Juta";
+                                    }
+
+                                    $j = $floorTo($j, 1);
+                                    $jStr = $trimZeros(number_format($j, 1, '.', ''));
+                                    return "Rp {$jStr} Juta";
+                                }
+
+                                // Di bawah 1 juta: tampilkan normal Rupiah
+                                return 'Rp ' . number_format((int) $value, 0, ',', '.');
+                            }),
+
+                        TextColumn::make('luas_tanah')
+                            ->formatStateUsing(function ($state, Pembanding $record) {
+                                $luasText = is_numeric($state)
+                                    ? ((float) $state >= 10000
+                                        ? number_format(((float) $state / 10000), 2, ',', '.') . ' ha'
+                                        : number_format((float) $state, 0, ',', '.') . ' m²')
+                                    : '-';
+
+                                $dokumenLabel = $record->dokumenTanah?->name ?? 'N/A';
 
                                 return "LT: {$luasText} • {$dokumenLabel}";
                             })
@@ -341,10 +391,13 @@ class DataPembandingResource extends Resource
                             ->icon('heroicon-m-map'),
 
                         TextColumn::make('jenis_listing')
+                            ->formatStateUsing(
+                                fn($state, Pembanding $record) => ($record->jenisListing?->name ?? '-') . ' - ' . ($record->jenisObjek?->name ?? '-')
+                            )
                             ->color('white')
                             ->size('sm')
                             ->icon('heroicon-m-newspaper')
-                            ->formatStateUsing(fn($state, Pembanding $record)=> "{$state->getLabel()} - {$record->jenis_objek->getLabel()}")
+
 
                     ])->extraAttributes(['class' => 'p-4 space-y-2'])
                 ])
@@ -474,11 +527,17 @@ class DataPembandingResource extends Resource
                         return $indicators;
                     }),
 
-                SelectFilter::make('jenis_objek')
-                    ->label('Jenis Objek')
-                    ->options(JenisObjek::class)
-                    ->native(false)
+                SelectFilter::make('jenis_listing_id')
+                    ->label('Jenis Listing')
+                    ->relationship('jenisListing', 'name')
                     ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('jenis_objek_id')
+                    ->label('Jenis Objek')
+                    ->relationship('jenisObjek', 'name')
+                    ->searchable()
+                    ->preload(),
 
             ], layout: FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(4)
@@ -500,25 +559,12 @@ class DataPembandingResource extends Resource
                     ->label('Edit Data')
                     ->color('danger')
                     ->tooltip('Edit Data'),
-                // Tables\Actions\DeleteAction::make()
-                //     ->label('')
-                //     ->tooltip('Hapus Data')
-                //     ->icon('heroicon-o-trash')
-                //     ->color('danger'),
-                // Tables\Actions\ForceDeleteAction::make(),
-                // Tables\Actions\RestoreAction::make(),
-            ])
-            ->bulkActions([
-                // Tables\Actions\BulkActionGroup::make([
-                //     Tables\Actions\DeleteBulkAction::make(),
-                // ]),
             ])->paginated(['5', '10', '25', '50', '100', '250', 'all']);
     }
 
 
     public static function infolist(Infolist $infolist): Infolist
     {
-
         $latitude = $infolist->getRecord()->latitude;
         $longitude = $infolist->getRecord()->longitude;
 
@@ -529,7 +575,7 @@ class DataPembandingResource extends Resource
                     ->schema([
 
                         Grid::make(2)->schema([
-                            TextEntry::make('jenis_objek')
+                            TextEntry::make('jenisObjek.name')
                                 ->label('Jenis Objek')
                                 ->badge()
                                 ->icon('heroicon-o-home-modern')
@@ -539,7 +585,7 @@ class DataPembandingResource extends Resource
 
                             TextEntry::make('harga')
                                 ->label('Harga')
-                                ->money('IDR', divideBy: 100)
+                                ->money('IDR')
                                 ->badge()
                                 ->icon('heroicon-o-banknotes')
                                 ->color('success')
@@ -558,26 +604,18 @@ class DataPembandingResource extends Resource
 
                             TextEntry::make('luas_bangunan')
                                 ->label('Luas Bangunan')
+                                ->placeholder('—')
                                 ->formatStateUsing(fn(?string $state) => (is_null($state) || $state === '0' || $state === 0) ? '-' : "{$state} m²"),
 
                             TextEntry::make('tahun_bangun')
                                 ->label('Tahun Bangun')
                                 ->placeholder('—'),
 
-                            TextEntry::make('bentuk_tanah')
-                                ->label('Bentuk Tanah'),
-
-                            TextEntry::make('dokumen_tanah')
-                                ->label('Dokumen Legalitas Tanah'),
-
-                            TextEntry::make('posisi_tanah')
-                                ->label('Letak Posisi Tanah'),
-
-                            TextEntry::make('kondisi_tanah')
-                                ->label('Kondisi Tanah'),
-
-                            TextEntry::make('topografi')
-                                ->label('Topografi Tanah'),
+                            TextEntry::make('bentukTanah.name')->label('Bentuk Tanah'),
+                            TextEntry::make('dokumenTanah.name')->label('Dokumen Legalitas Tanah'),
+                            TextEntry::make('posisiTanah.name')->label('Letak Posisi Tanah'),
+                            TextEntry::make('kondisiTanah.name')->label('Kondisi Tanah'),
+                            TextEntry::make('topografiRef.name')->label('Topografi Tanah'),
 
                             TextEntry::make('lebar_depan')
                                 ->label('Lebar Depan Tanah')
@@ -587,11 +625,11 @@ class DataPembandingResource extends Resource
                                 ->label('Lebar Akses Jalan Depan Aset')
                                 ->suffix(' m'),
 
-                            TextEntry::make('peruntukan')
-                                ->label('Pengunaan Aset Saat ini'),
+                            TextEntry::make('peruntukanRef.name')->label('Penggunaan Aset Saat ini'),
 
                             TextEntry::make('rasio_tapak')
-                                ->label('Rasio Lahan'),
+                                ->label('Rasio Lahan')
+                                ->placeholder('—'),
 
                         ]),
                         TextEntry::make('catatan')
@@ -606,10 +644,12 @@ class DataPembandingResource extends Resource
                     ->schema([
 
                         ImageEntry::make('image')
-                            ->label('Foto')
                             ->disk('public')
+                            ->label('Foto')
                             ->height(280)
-                            ->extraImgAttributes(['class' => 'rounded-lg object-cover w-full h-[220px]']),
+                            ->extraImgAttributes([
+                                'class' => 'rounded-lg object-cover w-full h-[220px]'
+                            ]),
 
                         TextEntry::make('tanggal_data')
                             ->label('Tanggal Data')
@@ -644,6 +684,25 @@ class DataPembandingResource extends Resource
                     ->columnSpan(4),
             ]),
 
+        ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with([
+            'jenisListing',
+            'jenisObjek',
+            'statusPemberiInformasi',
+            'bentukTanah',
+            'dokumenTanah',
+            'posisiTanah',
+            'kondisiTanah',
+            'topografiRef',
+            'peruntukanRef',
+            'province',
+            'regency',
+            'district',
+            'village',
         ]);
     }
 

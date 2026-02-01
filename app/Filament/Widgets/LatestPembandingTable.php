@@ -6,7 +6,7 @@ use App\Models\Pembanding;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
-use App\Enums\JenisListing; // Pastikan import Enum Anda
+use App\Models\JenisListing;
 
 class LatestPembandingTable extends BaseWidget
 {
@@ -31,14 +31,10 @@ class LatestPembandingTable extends BaseWidget
                     ->money('IDR')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('jenis_listing')
+               Tables\Columns\TextColumn::make('jenisListing.name')  // ✅ Use relationship
                     ->label('Status')
                     ->badge()
-                    ->color(fn (JenisListing $state): string => match ($state) {
-                        JenisListing::Penawaran => 'success',
-                        JenisListing::Transaksi => 'warning',
-                        default => 'gray',
-                    }),
+                    ->color(fn (Pembanding $record) => $record->jenisListing?->badge_color ?? 'gray'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Waktu Input')

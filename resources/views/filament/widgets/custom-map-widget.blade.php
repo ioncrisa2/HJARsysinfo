@@ -250,7 +250,7 @@
 
             {{-- KOTAK POSISI MOUSE --}}
             <div
-                class="absolute bottom-1 left-4 z-[1000] bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border border-gray-300 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs font-mono text-gray-700 dark:text-gray-200 pointer-events-none transition-opacity duration-200"
+                class="absolute bottom-1 left-4 z-1000 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border border-gray-300 dark:border-gray-700 rounded-md shadow-lg px-3 py-2 text-xs font-mono text-gray-700 dark:text-gray-200 pointer-events-none transition-opacity duration-200"
                 x-show="mouseLat != 0"
                 x-transition
             >

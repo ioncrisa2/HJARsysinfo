@@ -2,11 +2,11 @@
 
 namespace App\Models\Traits;
 
-use Illuminate\Support\Str;
+use App\Models\JenisListing as JenisListingModel;
+use App\Models\StatusPemberiInformasi as StatusPemberiInformasiModel;
 
 trait PembandingPresenter
 {
-
     public function getAlamatLengkapAttribute(): ?string
     {
         $parts = collect([
@@ -25,7 +25,7 @@ trait PembandingPresenter
         $parts = collect([
             $this->alamat_data,
             $this->district->name ?? null,
-            $this->province->name ?? null
+            $this->province->name ?? null,
         ])->filter();
 
         return $parts->isNotEmpty() ? $parts->implode(', ') : null;
@@ -36,7 +36,7 @@ trait PembandingPresenter
         $parts = collect([
             $this->alamat_data,
             $this->district->name ?? null,
-            $this->regency->name ?? null
+            $this->regency->name ?? null,
         ])->filter();
 
         return $parts->isNotEmpty() ? $parts->implode(', ') : null;
@@ -49,21 +49,31 @@ trait PembandingPresenter
 
     public function getNamaPemberiInfoAttribute(): ?string
     {
-        $nama = $this->nama_pemberi_informasi ?? '';
+        $nama = trim((string) ($this->nama_pemberi_informasi ?? ''));
 
-        $status = '';
+        // Prefer relation (new)
+        $status = trim((string) ($this->statusPemberiInformasi?->name ?? ''));
 
-        if ($this->status_pemberi_informasi) {
-            $status = method_exists($this->status_pemberi_informasi, 'getLabel')
-                ? $this->status_pemberi_informasi->getLabel()
-                : $this->status_pemberi_informasi->value;
+        // Fallback to legacy slug (old)
+        if ($status === '') {
+            $slug = $this->status_pemberi_informasi; // legacy string slug
+            if ($slug) {
+                static $statusMap = null;
+                $statusMap ??= StatusPemberiInformasiModel::query()->pluck('name', 'slug')->all();
+                $status = $statusMap[$slug] ?? (string) $slug;
+            }
         }
-        if (empty($nama) && empty($status)) {
+
+        if ($nama === '' && $status === '') {
             return null;
         }
 
-        if (empty($status)) {
+        if ($status === '') {
             return $nama;
+        }
+
+        if ($nama === '') {
+            return $status;
         }
 
         return "{$nama}, ({$status})";
@@ -71,10 +81,27 @@ trait PembandingPresenter
 
     public function getNomerInfoAttribute(): ?string
     {
-        $telp  = (string) $this->nomer_telepon_pemberi_informasi;
-        $label = $this->jenis_listing?->getLabel() ?? '-';
+        $telp = trim((string) ($this->nomer_telepon_pemberi_informasi ?? ''));
 
-        return "{$telp} ({$label})";
+        // Prefer relation (new)
+        $label = trim((string) ($this->jenisListing?->name ?? ''));
+
+        // Fallback to legacy slug (old)
+        if ($label === '') {
+            $slug = $this->jenis_listing; // legacy string slug
+            if ($slug) {
+                static $listingMap = null;
+                $listingMap ??= JenisListingModel::query()->pluck('name', 'slug')->all();
+                $label = $listingMap[$slug] ?? (string) $slug;
+            }
+        }
+
+        if ($telp === '' && $label === '') {
+            return null;
+        }
+
+        $label = $label !== '' ? $label : '-';
+
+        return $telp !== '' ? "{$telp} ({$label})" : "({$label})";
     }
-
 }
