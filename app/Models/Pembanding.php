@@ -183,4 +183,24 @@ class Pembanding extends Model
     {
         return $this->belongsTo(\App\Models\Peruntukan::class, 'peruntukan_id');
     }
+
+    public function scopeFilter(Builder $query, array $filters): Builder
+    {
+        return $query
+            ->when($filters['district_id'] ?? null, function ($query, $value) {
+                $query->where('district_id', $value);
+            })
+            ->when($filters['peruntukan'] ?? null, function ($query, $value) {
+                $query->where('peruntukan', $value);
+            })
+            ->when($filters['jenis_objek'] ?? null, function ($query, $value) {
+                $query->where('jenis_objek', $value);
+            })
+            ->when($filters['min_harga'] ?? null, function ($query, $value) {
+                $query->where('harga', '>=', $value);
+            })
+            ->when($filters['max_harga'] ?? null, function ($query, $value) {
+                $query->where('harga', '<=', $value);
+            });
+    }
 }
