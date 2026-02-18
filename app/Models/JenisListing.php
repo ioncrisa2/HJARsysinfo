@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class JenisListing extends Model
 {
-     protected $table = 'master_jenis_listings';
+     protected $table = 'master_jenis_listing';
 
     protected $fillable = [
         'slug',

@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
-
+use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Builder;
 use App\Models\Traits\PembandingPresenter;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -82,26 +83,6 @@ class Pembanding extends Model
             ->logAll() // Mencatat semua field
             ->logOnlyDirty() // HANYA mencatat field yang BERUBAH saja
             ->dontSubmitEmptyLogs(); // Jangan catat jika tidak ada perubahan
-    }
-
-    public function scopeFilter(Builder $query, array $filters): Builder
-    {
-        return $query
-            ->when($filters['district_id'] ?? null, function ($query, $value) {
-                $query->where('district_id', $value);
-            })
-            ->when($filters['peruntukan'] ?? null, function ($query, $value) {
-                $query->where('peruntukan', $value);
-            })
-            ->when($filters['jenis_objek'] ?? null, function ($query, $value) {
-                $query->where('jenis_objek', $value);
-            })
-            ->when($filters['min_harga'] ?? null, function ($query, $value) {
-                $query->where('harga', '>=', $value);
-            })
-            ->when($filters['max_harga'] ?? null, function ($query, $value) {
-                $query->where('harga', '<=', $value);
-            });
     }
 
     public function province(): BelongsTo
@@ -191,10 +172,14 @@ class Pembanding extends Model
                 $query->where('district_id', $value);
             })
             ->when($filters['peruntukan'] ?? null, function ($query, $value) {
-                $query->where('peruntukan', $value);
+                $query->whereHas('peruntukanRef', function ($relationQuery) use ($value) {
+                    $relationQuery->where('slug', $value);
+                });
             })
             ->when($filters['jenis_objek'] ?? null, function ($query, $value) {
-                $query->where('jenis_objek', $value);
+                $query->whereHas('jenisObjek', function ($relationQuery) use ($value) {
+                    $relationQuery->where('slug', $value);
+                });
             })
             ->when($filters['min_harga'] ?? null, function ($query, $value) {
                 $query->where('harga', '>=', $value);
@@ -202,5 +187,15 @@ class Pembanding extends Model
             ->when($filters['max_harga'] ?? null, function ($query, $value) {
                 $query->where('harga', '<=', $value);
             });
+    }
+
+
+    public function getImagePathAttribute(): ?string  // Must be PUBLIC
+    {
+        if (!$this->image) {
+            return null;
+        }
+    
+        return asset('storage/' . $this->image);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\PembandingResource\Widgets;
+namespace App\Filament\Resources\DataPembandingResource\Widgets;
 
 use App\Models\Pembanding;
 use App\Models\User;
@@ -11,7 +11,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 class StatsOverview extends BaseWidget
 {
     protected ?string $heading = 'Analytics';
-    
+
 
     protected function getStats(): array
     {

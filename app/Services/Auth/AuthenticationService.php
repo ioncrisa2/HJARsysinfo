@@ -54,6 +54,12 @@ class AuthenticationService
 
     protected function createAccessToken(User $user, string $deviceName): string
     {
-        return $user->createToken($deviceName)->plainTextToken;
+        return $user
+            ->createToken(
+                $deviceName,
+                ['*'],
+                $this->responseBuilder->getAccessTokenExpiresAt()
+            )
+            ->plainTextToken;
     }
 }

@@ -7,7 +7,23 @@ use App\Models\User;
 class TokenResponseBuilder
 {
     protected const TOKEN_TYPE = 'Bearer';
-    protected const ACCESS_TOKEN_TTL = 3600; // 1 hour in seconds
+    protected const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 3600;
+
+    public function getAccessTokenTtlSeconds(): int
+    {
+        $sanctumMinutes = config('sanctum.expiration');
+
+        if (is_numeric($sanctumMinutes) && (int) $sanctumMinutes > 0) {
+            return (int) $sanctumMinutes * 60;
+        }
+
+        return self::DEFAULT_ACCESS_TOKEN_TTL_SECONDS;
+    }
+
+    public function getAccessTokenExpiresAt(): \DateTimeInterface
+    {
+        return now()->addSeconds($this->getAccessTokenTtlSeconds());
+    }
 
     public function build(User $user, string $accessToken, string $refreshToken): array
     {
@@ -15,7 +31,7 @@ class TokenResponseBuilder
             'token_type' => self::TOKEN_TYPE,
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
-            'expires_in' => self::ACCESS_TOKEN_TTL,
+            'expires_in' => $this->getAccessTokenTtlSeconds(),
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -30,7 +46,7 @@ class TokenResponseBuilder
             'token_type' => self::TOKEN_TYPE,
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
-            'expires_in' => self::ACCESS_TOKEN_TTL,
+            'expires_in' => $this->getAccessTokenTtlSeconds(),
         ];
     }
 }

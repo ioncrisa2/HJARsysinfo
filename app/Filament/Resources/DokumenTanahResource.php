@@ -2,17 +2,20 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\DokumenTanahResource\Pages;
+use App\Filament\Resources\DokumenTanahResource\RelationManagers;
+use App\Models\DokumenTanah;
 use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
-use App\Supports\Slug;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use App\Models\DokumenTanah;
-use Filament\Resources\Resource;
+use App\Supports\Slug;
 use App\Filament\Clusters\MasterData;
-use App\Filament\Resources\DokumenTanahResource\Pages;
 
 class DokumenTanahResource extends Resource
 {
@@ -33,9 +36,8 @@ class DokumenTanahResource extends Resource
                 ->columns(2)
                 ->schema([
                     Forms\Components\TextInput::make('name')
-                        ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?DokumenTanah $record) {
-                            if ($record && filled($get('slug'))) return;
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
                         }),
 

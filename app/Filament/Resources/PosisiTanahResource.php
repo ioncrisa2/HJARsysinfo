@@ -2,24 +2,28 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\PosisiTanahResource\Pages;
+use App\Filament\Resources\PosisiTanahResource\RelationManagers;
+use App\Models\PosisiTanah;
 use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
-use App\Supports\Slug;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use App\Models\PosisiTanah;
-use Filament\Resources\Resource;
+use App\Supports\Slug;
 use App\Filament\Clusters\MasterData;
-use App\Filament\Resources\PosisiTanahResource\Pages;
 
 class PosisiTanahResource extends Resource
 {
     protected static ?string $model = PosisiTanah::class;
-    protected static ?string $cluster = MasterData::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';
 
+    protected static ?string $cluster = MasterData::class;
     protected static ?int $navigationSort = 15;
 
     protected static ?string $modelLabel = 'Posisi Tanah';
@@ -32,10 +36,9 @@ class PosisiTanahResource extends Resource
             Forms\Components\Section::make('Data')
                 ->columns(2)
                 ->schema([
-                     Forms\Components\TextInput::make('name')
-                        ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?PosisiTanah $record) {
-                            if ($record && filled($get('slug'))) return;
+                      Forms\Components\TextInput::make('name')
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
                         }),
 

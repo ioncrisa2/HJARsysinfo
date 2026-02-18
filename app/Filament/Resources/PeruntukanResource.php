@@ -2,23 +2,27 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\PeruntukanResource\Pages;
+use App\Filament\Resources\PeruntukanResource\RelationManagers;
+use App\Models\Peruntukan;
 use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Supports\Slug;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use App\Models\Peruntukan;
-use Filament\Tables\Table;
-use Filament\Resources\Resource;
 use App\Filament\Clusters\MasterData;
-use App\Filament\Resources\PeruntukanResource\Pages;
 
 class PeruntukanResource extends Resource
 {
     protected static ?string $model = Peruntukan::class;
-    protected static ?string $cluster = MasterData::class;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
+
+    protected static ?string $cluster = MasterData::class;
     protected static ?int $navigationSort = 14;
 
     protected static ?string $modelLabel = 'Peruntukan';
@@ -31,10 +35,9 @@ class PeruntukanResource extends Resource
             Forms\Components\Section::make('Data')
                 ->columns(2)
                 ->schema([
-                     Forms\Components\TextInput::make('name')
+                    Forms\Components\TextInput::make('name')
                         ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?Peruntukan $record) {
-                            if ($record && filled($get('slug'))) return;
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
                         }),
 

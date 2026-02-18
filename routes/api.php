@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DataPembandingController;
-use App\Http\Controllers\Api\PembandingController;
 use App\Http\Middleware\ThrottleAuthAttempts;
 use Illuminate\Support\Facades\Route;
 

@@ -2,139 +2,105 @@
 
 namespace App\Filament\Resources\DataPembandingResource\Pages;
 
-use Filament\Actions;
-use App\Models\SystemSetting;
-use Illuminate\Support\Facades\Hash;
-use Filament\Infolists\Components\Grid;
-use Filament\Forms\Components\Textarea;
-use Filament\Resources\Pages\ViewRecord;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
-use Filament\Infolists\Components\Section;
-use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\ViewEntry;
 use App\Filament\Resources\DataPembandingResource;
-use Filament\Infolists\Components\RepeatableEntry;
-use Nben\FilamentRecordNav\Actions\NextRecordAction;
-use Nben\FilamentRecordNav\Actions\PreviousRecordAction;
-use Nben\FilamentRecordNav\Concerns\WithRecordNavigation;
+use App\Models\SystemSetting;
+use Filament\Actions;
+use Filament\Forms;
+use Filament\Notifications\Notification;
+use Spatie\Activitylog\Models\Activity;
+use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Hash;
 
 class ViewDataPembanding extends ViewRecord
 {
-    use WithRecordNavigation;
-
     protected static string $resource = DataPembandingResource::class;
-    protected static ?string $title = 'Detail Data Pembanding';
+
+    protected static string $view = 'filament.resources.data-pembanding-resource.pages.view-data-pembanding';
 
     protected function getHeaderActions(): array
     {
         return [
             Actions\Action::make('history')
-                ->label('Riwayat Perubahan')
+                ->label('History Perubahan')
                 ->icon('heroicon-o-clock')
                 ->color('gray')
-                ->modalHeading('Riwayat Perubahan Data')
+                ->modalHeading('History Perubahan Data')
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Tutup')
-                ->slideOver()
-                ->infolist([
-                    RepeatableEntry::make('activities')
-                        ->hiddenLabel()
-                        ->contained(false)
-                        ->schema([
-                            Section::make()
-                                ->compact()
-                                ->schema([
-                                    Grid::make(3)->schema([
-                                        TextEntry::make('created_at')
-                                            ->label('Waktu')
-                                            ->dateTime('d M Y, H:i:s', timezone: 'Asia/Jakarta')
-                                            ->icon('heroicon-m-calendar')
-                                            ->color('gray'),
-                                        TextEntry::make('causer.name')
-                                            ->label('Oleh')
-                                            ->icon('heroicon-m-user')
-                                            ->placeholder('Sistem'),
-                                        TextEntry::make('event')
-                                            ->label('Aksi')
-                                            ->badge()
-                                            ->color(fn(string $state): string => match ($state) {
-                                                'created' => 'success',
-                                                'updated' => 'warning',
-                                                'deleted' => 'danger',
-                                                default => 'gray',
-                                            })
-                                            ->formatStateUsing(fn(string $state): string => ucfirst($state)),
-                                    ]),
+                ->modalContent(fn () => view(
+                    'filament.resources.data-pembanding-resource.partials.change-history',
+                    [
+                        'activities' => Activity::query()
+                            ->where('subject_type', \App\Models\Pembanding::class)
+                            ->where('subject_id', $this->record->getKey())
+                            ->latest('created_at')
+                            ->limit(30)
+                            ->get(),
+                    ],
+                )),
 
-                                    ViewEntry::make('properties')
-                                        ->label('Rincian Perubahan')
-                                        ->view('infolists.components.activity-log-table')
-                                        ->visible(fn($record) => $record->event === 'updated' && !empty($record->properties)),
-                                ])
-                        ]),
-                ]),
-            Actions\EditAction::make(),
-            Actions\Action::make('map')
-                ->label('Buka Peta')
-                ->icon('heroicon-o-map-pin')
-                ->color('info')
-                ->url(
-                    fn() => $this->record->latitude && $this->record->longitude
-                        ? "https://www.google.com/maps?q={$this->record->latitude},{$this->record->longitude}"
-                        : null,
-                    true
-                )
-                ->disabled(fn() => ! ($this->record->latitude && $this->record->longitude)),
+            Actions\EditAction::make()
+                ->label('Edit Data')
+                ->icon('heroicon-o-pencil-square')
+                ->color('warning')
+                ->url(fn () => DataPembandingResource::getUrl('edit', ['record' => $this->record])),
 
-            Actions\Action::make('deleteWithPin')
-                ->label('Hapus')
+            Actions\DeleteAction::make()
+                ->label('Hapus Data')
                 ->icon('heroicon-o-trash')
                 ->color('danger')
-                ->modalHeading('Hapus Data Pembanding')
-                ->modalDescription('Masukkan PIN penghapusan. Tindakan ini tidak dapat dibatalkan.')
-                ->modalSubmitActionLabel('Hapus')
                 ->form([
-                    TextInput::make('pin')
-                        ->label('PIN')
+                    Forms\Components\TextInput::make('delete_pin')
+                        ->label('PIN Penghapusan')
                         ->password()
                         ->revealable()
                         ->required()
-                        ->numeric()
-                        ->minLength(4)
-                        ->maxLength(12),
-
-                    Textarea::make('reason')
+                        ->inputMode('numeric')
+                        ->rule('regex:/^[0-9]{4,12}$/')
+                        ->helperText('Masukkan PIN yang diset di menu Security PIN.'),
+                    Forms\Components\Textarea::make('deleted_reason')
                         ->label('Alasan Penghapusan')
                         ->rows(3)
                         ->required()
-                        ->maxLength(1000)
+                        ->maxLength(500),
                 ])
                 ->action(function (array $data): void {
-                    $pinHash = SystemSetting::getValue('deletion_pin_hash');
+                    $storedPinHash = (string) SystemSetting::getValue('deletion_pin_hash', '');
+                    $inputPin = trim((string) ($data['delete_pin'] ?? ''));
 
-                    if (! $pinHash) {
+                    if ($storedPinHash === '') {
                         Notification::make()
-                            ->title('PIN penghapusan belum diset.')
-                            ->body('Minta superadmin mengatur PIN terlebih dahulu.')
+                            ->title('PIN penghapusan belum diset')
+                            ->body('Silakan set PIN terlebih dahulu di menu Security PIN.')
                             ->danger()
                             ->send();
 
                         return;
                     }
 
-                    if (! Hash::check($data['pin'], $pinHash)) {
+                    $isValidPin = Hash::check($inputPin, $storedPinHash)
+                        || hash_equals($storedPinHash, $inputPin); // fallback legacy jika pernah tersimpan plaintext
+
+                    if (! $isValidPin) {
                         Notification::make()
                             ->title('PIN salah')
+                            ->body('PIN penghapusan tidak valid.')
                             ->danger()
                             ->send();
 
                         return;
                     }
 
-                    $this->record->deleted_by_id = auth()->id();
-                    $this->record->deleted_reason = $data['reason'] ?? null;
-                    $this->record->save();
+                    if (hash_equals($storedPinHash, $inputPin)) {
+                        // Upgrade legacy plaintext pin ke hash.
+                        SystemSetting::setValue('deletion_pin_hash', Hash::make($inputPin));
+                    }
+
+                    $this->record->forceFill([
+                        'deleted_by_id' => auth()->id(),
+                        'deleted_reason' => trim((string) ($data['deleted_reason'] ?? '')),
+                    ])->save();
+
                     $this->record->delete();
 
                     Notification::make()
@@ -144,16 +110,6 @@ class ViewDataPembanding extends ViewRecord
 
                     $this->redirect(DataPembandingResource::getUrl('index'));
                 }),
-
-            PreviousRecordAction::make()
-                ->label('← Previous')
-                ->color('secondary')
-                ->size('sm'),
-
-            NextRecordAction::make()
-                ->label('Next →')
-                ->color('secondary')
-                ->size('sm'),
         ];
     }
 }

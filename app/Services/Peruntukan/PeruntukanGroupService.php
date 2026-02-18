@@ -7,137 +7,92 @@ class PeruntukanGroupService
 {
     protected const GROUPS = [
         'perumahan' => [
-            'rumah-tinggal',
-            'villa',
-            'townhouse',
-            'unit-apartemen',
+            Peruntukan::RumahTinggal,
+            Peruntukan::Villa,
+            Peruntukan::Townhouse,
+            Peruntukan::UnitApartemen,
         ],
         'komersial' => [
-            'ruko',
-            'rukan',
-            'mall',
-            'perkantoran',
-            'kios',
+            Peruntukan::Ruko,
+            Peruntukan::Rukan,
+            Peruntukan::Mall,
+            Peruntukan::Perkantoran,
+            Peruntukan::Kios,
         ],
         'industri' => [
-            'pabrik',
-            'gudang',
+            Peruntukan::Pabrik,
+            Peruntukan::Gudang,
         ],
         'campuran' => [
-            'tanah-kosong',
-            'campuran',
-            'lainnya',
+            Peruntukan::TanahKosong,
+            Peruntukan::Campuran,
+            Peruntukan::Lainnya,
         ],
     ];
 
-    protected array $slugToGroup = [];
+    protected array $peruntukanToGroup = [];
 
-    /**
-     * Get allowed peruntukan slugs for a given peruntukan slug
-     *
-     * @param string|null $peruntukanSlug
-     * @return array Array of slug strings
-     */
-    public function getAllowedPeruntukan(?string $peruntukanSlug): array
-    {
-        if (!$peruntukanSlug) {
-            return [];
-        }
-
-        $slug = strtolower($peruntukanSlug);
-
-        return match ($slug) {
-            'ruko' => ['ruko'],
-            'tanah-kosong', 'campuran' => [
-                'tanah-kosong',
-                'campuran',
-            ],
-            'gudang' => ['gudang'],
-            default => $this->getAllowedByGroup($slug),
-        };
-    }
-
-    /**
-     * Get zoning score for two peruntukan slugs
-     *
-     * @param string|null $slugA
-     * @param string|null $slugB
-     * @return int Score (3 = same group, 1 = different group, 0 = no match)
-     */
-    public function getZoningScoreBySlug(?string $slugA, ?string $slugB): int
-    {
-        if (!$slugA || !$slugB) {
-            return 0;
-        }
-
-        $this->buildGroupMapping();
-
-        $slugA = strtolower($slugA);
-        $slugB = strtolower($slugB);
-
-        $groupA = $this->slugToGroup[$slugA] ?? null;
-        $groupB = $this->slugToGroup[$slugB] ?? null;
-
-        return ($groupA && $groupA === $groupB) ? 3 : 1;
-    }
-
-    /**
-     * DEPRECATED: For backwards compatibility with Enum-based code
-     * Use getAllowedPeruntukan() with slug instead
-     */
-    public function getAllowedPeruntukanEnum(?Peruntukan $peruntukan): array
+    public function getAllowedPeruntukan(?Peruntukan $peruntukan): array
     {
         if (!$peruntukan) {
             return [];
         }
 
-        return $this->getAllowedPeruntukan($peruntukan->value);
+        return match ($peruntukan) {
+            // Rumah tinggal dan tanah kosong saling dipakai sebagai pembanding.
+            Peruntukan::RumahTinggal, Peruntukan::TanahKosong => [
+                Peruntukan::RumahTinggal->value,
+                Peruntukan::TanahKosong->value,
+            ],
+            Peruntukan::Ruko => [Peruntukan::Ruko->value],
+            Peruntukan::Campuran => [
+                Peruntukan::TanahKosong->value,
+                Peruntukan::Campuran->value,
+            ],
+            Peruntukan::Gudang => [Peruntukan::Gudang->value],
+            default => $this->getAllowedByGroup($peruntukan),
+        };
     }
 
-    /**
-     * DEPRECATED: For backwards compatibility with Enum-based code
-     * Use getZoningScoreBySlug() instead
-     */
     public function getZoningScore(?Peruntukan $a, ?Peruntukan $b): int
     {
         if (!$a || !$b) {
             return 0;
         }
 
-        return $this->getZoningScoreBySlug($a->value, $b->value);
+        $this->buildGroupMapping();
+
+        $groupA = $this->peruntukanToGroup[$a->value] ?? null;
+        $groupB = $this->peruntukanToGroup[$b->value] ?? null;
+
+        return ($groupA && $groupA === $groupB) ? 3 : 1;
     }
 
-    /**
-     * Get all allowed slugs in the same group as the given slug
-     */
-    protected function getAllowedByGroup(string $slug): array
+    protected function getAllowedByGroup(Peruntukan $peruntukan): array
     {
         $this->buildGroupMapping();
 
-        $group = $this->slugToGroup[$slug] ?? null;
+        $group = $this->peruntukanToGroup[$peruntukan->value] ?? null;
 
         if (!$group) {
             return [];
         }
 
         return array_keys(array_filter(
-            $this->slugToGroup,
+            $this->peruntukanToGroup,
             fn (string $candidateGroup) => $candidateGroup === $group
         ));
     }
 
-    /**
-     * Build mapping of slugs to group names
-     */
     protected function buildGroupMapping(): void
     {
-        if (!empty($this->slugToGroup)) {
+        if (!empty($this->peruntukanToGroup)) {
             return;
         }
 
-        foreach (self::GROUPS as $groupName => $slugs) {
-            foreach ($slugs as $slug) {
-                $this->slugToGroup[$slug] = $groupName;
+        foreach (self::GROUPS as $groupName => $types) {
+            foreach ($types as $type) {
+                $this->peruntukanToGroup[$type->value] = $groupName;
             }
         }
     }

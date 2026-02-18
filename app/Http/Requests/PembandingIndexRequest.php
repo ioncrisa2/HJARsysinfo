@@ -28,6 +28,7 @@ class PembandingIndexRequest extends FormRequest
             'min_harga' => ['nullable', 'numeric', 'min:0'],
             'max_harga' => ['nullable', 'numeric', 'min:0', 'gt:min_harga'],
             'limit' => ['nullable', 'integer', 'min:1'],
+            'range_km' => ['nullable', 'numeric', 'min:0.1', 'max:100'],
         ];
     }
 
@@ -37,6 +38,8 @@ class PembandingIndexRequest extends FormRequest
             'max_harga.gt' => 'Harga maksimal harus lebih besar dari harga minimal',
             'min_harga.min' => 'Harga minimal tidak boleh negatif',
             'max_harga.min' => 'Harga maksimal tidak boleh negatif',
+            'range_km.min' => 'Range minimal adalah 0.1 km',
+            'range_km.max' => 'Range maksimal adalah 100 km',
         ];
     }
 }

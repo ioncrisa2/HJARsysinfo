@@ -15,7 +15,6 @@ use App\Models\Pembanding;
 use Filament\Tables\Table;
 use Filament\Support\RawJs;
 use Illuminate\Support\Str;
-use App\Supports\MasterLabel;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\Tabs;
@@ -29,11 +28,9 @@ use Filament\Infolists\Components\Grid;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Enums\FiltersLayout;
 use Dotswan\MapPicker\Infolists\MapEntry;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Tables\Columns\Layout\Stack;
 use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Infolists\Components\TextEntry;
@@ -49,134 +46,159 @@ class DataPembandingResource extends Resource
     protected static ?string $model = Pembanding::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-circle-stack';
+    protected static ?string $navigationGroup = 'Bank Data';
+    protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = "Bank Data Pembanding";
-    protected static ?string $pluralLabel = "Bank Data Pembanding";
+    protected static ?string $navigationLabel = "Data Pembanding";
+    protected static ?string $pluralLabel = "Daftar Bank Data";
 
 
     public static function form(Form $form): Form
     {
-        return $form
+
+    return $form
             ->schema([
                 Hidden::make('created_by')
                     ->default(Auth::id()),
+
                 Tabs::make('Tabs')
                     ->tabs([
+
                         Tabs\Tab::make('Informasi Umum')
                             ->icon('heroicon-o-information-circle')
                             ->schema([
-                                Select::make('jenis_listing_id')
-                                    ->label('Jenis Listing Properti')
-                                    ->relationship('jenisListing', 'name')->searchable()
-                                    ->preload()
-                                    ->required(),
 
-                                Select::make('jenis_objek_id')
-                                    ->label('Jenis Objek Properti')
-                                    ->relationship('jenisObjek', 'name')
-                                    ->searchable()
-                                    ->preload()
-                                    ->required(),
+                                Fieldset::make('Jenis Properti')
+                                    ->schema([
+                                        Select::make('jenis_listing_id')
+                                            ->label('Jenis Listing')
+                                            ->relationship('jenisListing', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->helperText('Contoh: Penawaran, Transaksi'),
 
-                                TextInput::make('nama_pemberi_informasi')
-                                    ->label('Nama Pemberi Informasi')
-                                    ->required()
-                                    ->maxLength(255),
+                                        Select::make('jenis_objek_id')
+                                            ->label('Jenis Objek')
+                                            ->relationship('jenisObjek', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->helperText('Contoh: Tanah, Ruko, Rumah'),
+                                    ])
+                                    ->columns(2),
 
-                                PhoneInput::make('nomer_telepon_pemberi_informasi')
-                                    ->label('Nomer Telepon Pemberi Informasi')
-                                    ->defaultCountry('ID')
-                                    ->displayNumberFormat(PhoneInputNumberType::NATIONAL),
+                                Fieldset::make('Data Pemberi Informasi')
+                                    ->schema([
+                                        TextInput::make('nama_pemberi_informasi')
+                                            ->label('Nama')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->columnSpan(1),
 
-                                Select::make('status_pemberi_informasi_id')
-                                    ->label('Status Pemberi Informasi')
-                                    ->relationship('statusPemberiInformasi', 'name')
-                                    ->searchable()
-                                    ->preload(),
+                                        PhoneInput::make('nomer_telepon_pemberi_informasi')
+                                            ->label('Nomor Telepon')
+                                            ->defaultCountry('ID')
+                                            ->displayNumberFormat(PhoneInputNumberType::NATIONAL)
+                                            ->columnSpan(1),
 
-                                DatePicker::make('tanggal_data')
-                                    ->label('Tanggal Data Pembanding diupload')
-                                    ->default(now())
-                                    ->required()
-                                    ->default(now()),
+                                        Select::make('status_pemberi_informasi_id')
+                                            ->label('Status')
+                                            ->relationship('statusPemberiInformasi', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->helperText('Contoh: Pemilik, Agen, Broker')
+                                            ->columnSpan(1),
 
+                                        DatePicker::make('tanggal_data')
+                                            ->label('Tanggal Data')
+                                            ->default(now())
+                                            ->required()
+                                            ->columnSpan(1),
+                                    ])
+                                    ->columns(2),
                             ]),
 
                         Tabs\Tab::make('Detail Lokasi')
                             ->icon('heroicon-o-map-pin')
                             ->schema([
+
                                 Textarea::make('alamat_data')
                                     ->label('Alamat Lengkap')
                                     ->required()
                                     ->maxLength(500)
-                                    ->placeholder('Contoh: Jl. Merdeka No.10.'),
+                                    ->placeholder('Contoh: Jl. Merdeka No.10')
+                                    ->rows(2)
+                                    ->columnSpanFull(),
 
+                                Fieldset::make('Wilayah')
+                                    ->schema([
+                                        Select::make('province_id')
+                                            ->label('Provinsi')
+                                            ->options(fn() => Province::all()->pluck('name', 'id'))
+                                            ->searchable()
+                                            ->required()
+                                            ->live()
+                                            ->afterStateUpdated(function (Set $set) {
+                                                $set('regency_id', null);
+                                                $set('district_id', null);
+                                                $set('village_id', null);
+                                            }),
 
-                                Select::make('province_id')
-                                    ->label('Provinsi')
-                                    ->options(fn() => Province::all()->pluck('name', 'id'))
-                                    ->searchable()->required()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set) {
-                                        $set('regency_id', null);
-                                        $set('district_id', null);
-                                        $set('village_id', null);
-                                    }),
+                                        Select::make('regency_id')
+                                            ->label('Kabupaten / Kota')
+                                            ->searchable()
+                                            ->required()
+                                            ->visible(fn(Get $get) => filled($get('province_id')))
+                                            ->live()
+                                            ->afterStateUpdated(function (Set $set) {
+                                                $set('district_id', null);
+                                                $set('village_id', null);
+                                            })
+                                            ->options(fn(Get $get) => Regency::where('province_id', $get('province_id'))->pluck('name', 'id')),
 
+                                        Select::make('district_id')
+                                            ->label('Kecamatan')
+                                            ->searchable()
+                                            ->required()
+                                            ->visible(fn(Get $get) => filled($get('regency_id')))
+                                            ->live()
+                                            ->afterStateUpdated(fn(Set $set) => $set('village_id', null))
+                                            ->options(fn(Get $get) => District::where('regency_id', $get('regency_id'))->pluck('name', 'id')),
 
-                                Select::make('regency_id')
-                                    ->label('Kabupaten / Kota')
-                                    ->searchable()
-                                    ->required()
-                                    ->visible(fn(Get $get) => filled($get('province_id')))
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set) {
-                                        $set('district_id', null);
-                                        $set('village_id', null);
-                                    })->options(fn(Get $get) => Regency::where('province_id', $get('province_id'))->pluck('name', 'id')),
+                                        Select::make('village_id')
+                                            ->label('Desa / Kelurahan')
+                                            ->searchable()
+                                            ->required()
+                                            ->visible(fn(Get $get) => filled($get('district_id')))
+                                            ->options(fn(Get $get) => Village::where('district_id', $get('district_id'))->pluck('name', 'id')),
+                                    ])
+                                    ->columns(2),
 
-                                Select::make('district_id')
-                                    ->label('Kecamatan')
-                                    ->searchable()
-                                    ->required()
-                                    ->visible(fn(Get $get) => filled($get('regency_id')))
-                                    ->live()
-                                    ->afterStateUpdated(fn(Set $set) => $set('village_id', null))
-                                    ->options(fn(Get $get) => District::where('regency_id', $get('regency_id'))->pluck('name', 'id')),
-
-                                Select::make('village_id')
-                                    ->label('Desa/Kelurahan')
-                                    ->searchable()
-                                    ->required()
-                                    ->visible(fn(Get $get) => filled($get('district_id')))
-                                    ->options(
-                                        fn(Get $get) =>
-                                        Village::where('district_id', $get('district_id'))
-                                            ->pluck('name', 'id')
-                                    ),
-
-
-                                Fieldset::make('Koordinat Lokasi')
+                                Fieldset::make('Koordinat GPS')
                                     ->schema([
                                         TextInput::make('latitude')
                                             ->label('Latitude')
                                             ->numeric()
-                                            ->required(),
+                                            ->required()
+                                            ->placeholder('Contoh: -6.200000'),
 
                                         TextInput::make('longitude')
                                             ->label('Longitude')
                                             ->numeric()
-                                            ->required(),
-                                    ]),
-
+                                            ->required()
+                                            ->placeholder('Contoh: 106.816666'),
+                                    ])
+                                    ->columns(2),
                             ]),
 
-                        Tabs\Tab::make('Detail Data Pembanding')
-                            ->icon('heroicon-o-document-text')
+                        Tabs\Tab::make('Detail Properti')
+                            ->icon('heroicon-o-home-modern')
                             ->schema([
 
+                                // ── Foto ───────────────────────────
                                 FileUpload::make('image')
-                                    ->label('Foto Data Pembanding')
+                                    ->label('Foto Properti')
                                     ->image()
                                     ->disk('public')
                                     ->directory('foto_pembanding')
@@ -185,223 +207,214 @@ class DataPembandingResource extends Resource
                                             return strtolower(Str::random(40)) . '.' . $file->getClientOriginalExtension();
                                         }
                                     )
-                                    ->maxSize(15360) // 15MB
+                                    ->maxSize(15360)
                                     ->required()
-                                    ->helperText('Unggah foto properti pembanding (maks 15MB).'),
+                                    ->helperText('Unggah foto properti (maks 15MB)')
+                                    ->columnSpanFull(),
 
-                                Forms\Components\TextInput::make('luas_tanah')
-                                    ->label('Luas Tanah')
-                                    ->suffix('m²')
-                                    ->reactive()
-                                    ->placeholder('Contoh: 120')
-                                    ->helperText('Masukkan luas tanah dalam meter persegi'),
+                                Fieldset::make('Ukuran')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('luas_tanah')
+                                            ->label('Luas Tanah')
+                                            ->suffix('m²')
+                                            ->required()
+                                            ->reactive()
+                                            ->placeholder('Contoh: 120')
+                                            ->helperText('Luas tanah dalam m²'),
 
-                                Forms\Components\TextInput::make('luas_bangunan')
-                                    ->label('Luas Bangunan')
-                                    ->suffix('m²')
-                                    ->reactive()
-                                    ->placeholder('Contoh: 120')
-                                    ->helperText('Masukkan luas bangunan bila property memiliki bangunan'),
+                                        Forms\Components\TextInput::make('luas_bangunan')
+                                            ->label('Luas Bangunan')
+                                            ->suffix('m²')
+                                            ->reactive()
+                                            ->placeholder('Contoh: 80')
+                                            ->helperText('Kosongkan jika tidak ada bangunan'),
 
-                                TextInput::make('tahun_bangun')
-                                    ->label('Tahun Bangun')
-                                    ->maxValue((int) now()->format('Y'))
-                                    ->helperText('Masukkan tahun 4 digit, misal: 2010'),
+                                        Forms\Components\TextInput::make('lebar_depan')
+                                            ->label('Lebar Depan Tanah')
+                                            ->suffix('m')
+                                            ->reactive()
+                                            ->required()
+                                            ->placeholder('Contoh: 8'),
 
-                                Select::make('bentuk_tanah_id')
-                                    ->label('Bentuk Tanah')
-                                    ->relationship('bentukTanah', 'name')
-                                    ->searchable()
-                                    ->preload()
-                                    ->required()->helperText('Pilih bentuk tanah properti'),
+                                        Forms\Components\TextInput::make('lebar_jalan')
+                                            ->label('Lebar Akses Jalan')
+                                            ->suffix('m')
+                                            ->reactive()
+                                            ->required()
+                                            ->placeholder('Contoh: 6'),
 
-                                Select::make('dokumen_tanah_id')
-                                    ->label('Dokumen Tanah')
-                                    ->relationship('dokumenTanah', 'name')
-                                    ->searchable()
-                                    ->preload()
-                                    ->required()->helperText('Pilih jenis dokumen legalitas tanah'),
+                                        TextInput::make('tahun_bangun')
+                                            ->label('Tahun Bangun')
+                                            ->maxValue((int) now()->format('Y'))
+                                            ->placeholder('Contoh: 2010')
+                                            ->helperText('Kosongkan jika tanah kosong'),
 
-                                Select::make('posisi_tanah_id')
-                                    ->label('Posisi Letak Tanah')
-                                    ->relationship('posisiTanah', 'name')
-                                    ->searchable()
-                                    ->preload(),
+                                        TextInput::make('rasio_tapak')
+                                            ->label('Site Coverage / Rasio Tapak')
+                                            ->placeholder('KDB/KLB/TL')
+                                            ->helperText('Floor Area Ratio jika diketahui'),
+                                    ])
+                                    ->columns(3),
 
-                                Select::make('kondisi_tanah_id')
-                                    ->label('Kondisi Lahan / Tanah')
-                                    ->relationship('kondisiTanah', 'name')
-                                    ->searchable()
-                                    ->preload(),
+                                Fieldset::make('Karakteristik Tanah')
+                                    ->schema([
+                                        Select::make('bentuk_tanah_id')
+                                            ->label('Bentuk Tanah')
+                                            ->relationship('bentukTanah', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required(),
 
-                                Select::make('topografi_id')
-                                    ->label('Topografi')
-                                    ->relationship('topografiRef', 'name')
-                                    ->searchable()
-                                    ->preload(),
+                                        Select::make('posisi_tanah_id')
+                                            ->label('Posisi Letak')
+                                            ->relationship('posisiTanah', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required(),
 
-                                Forms\Components\TextInput::make('lebar_depan')
-                                    ->label('Lebar Depan Tanah')
-                                    ->suffix('m')
-                                    ->reactive()
-                                    ->placeholder('Contoh: 120')
-                                    ->helperText('Masukkan panjang lebar depan tanah dalam meter'),
+                                        Select::make('kondisi_tanah_id')
+                                            ->label('Kondisi Lahan')
+                                            ->relationship('kondisiTanah', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required(),
 
-                                Forms\Components\TextInput::make('lebar_jalan')
-                                    ->label('Lebar Akses Jalan Depan Tanah')
-                                    ->suffix('m')
-                                    ->reactive()
-                                    ->placeholder('Contoh: 120')
-                                    ->helperText('Masukkan lebar akses jalan depan tanah dalam meter'),
+                                        Select::make('topografi_id')
+                                            ->label('Topografi')
+                                            ->relationship('topografiRef', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required(),
+                                    ])
+                                    ->columns(2),
 
-                                Select::make('peruntukan_id')
-                                    ->label('Peruntukan')
-                                    ->relationship('peruntukanRef', 'name')
-                                    ->searchable()
-                                    ->preload()->placeholder('Pilih Peruntukan Lahan/Bangunan'),
+                                Fieldset::make('Legalitas & Peruntukan')
+                                    ->schema([
+                                        Select::make('dokumen_tanah_id')
+                                            ->label('Dokumen Tanah')
+                                            ->relationship('dokumenTanah', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->helperText('Jenis legalitas tanah'),
 
-                                TextInput::make('rasio_tapak')
-                                    ->label('Site Coverage / Plot Ratio')
-                                    ->placeholder('KDB/KLB/TL')
-                                    ->helperText('Masukkan rasio tapak properti (Floor Area Ratio) jika diketahui'),
+                                        Select::make('peruntukan_id')
+                                            ->label('Peruntukan Lahan')
+                                            ->relationship('peruntukanRef', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->placeholder('Pilih peruntukan'),
+                                    ])
+                                    ->columns(2),
 
-                                TextInput::make('harga')
-                                    ->label('Harga Estimasi')
-                                    ->prefix('Rp')
-                                    ->numeric() // Validasi input harus angka
-                                    ->minValue(0)
-
-                                    // 1. TAMPILAN: Kasih titik otomatis (Visual saja)
-                                    ->mask(RawJs::make(<<<'JS'
-                                        $money($input, ',', '.', 0)
-                                    JS))
-
-                                    // 2. PENYIMPANAN: Hapus titik sebelum masuk ke BIGINT
-                                    ->stripCharacters('.')
-
-                                    ->required(),
+                                Fieldset::make('Harga')
+                                    ->schema([
+                                        TextInput::make('harga')
+                                            ->label('Estimasi Harga')
+                                            ->prefix('Rp')
+                                            ->numeric()
+                                            ->minValue(0)
+                                            ->mask(RawJs::make(<<<'JS'
+                                                $money($input, ',', '.', 0)
+                                            JS))
+                                            ->stripCharacters('.')
+                                            ->required()
+                                            ->columnSpanFull(),
+                                    ]),
                             ]),
 
-                        Tabs\Tab::make('Catatan Tambahan')
+                        Tabs\Tab::make('Catatan')
                             ->icon('heroicon-o-chat-bubble-bottom-center-text')
                             ->schema([
                                 Textarea::make('catatan')
                                     ->label('Catatan Tambahan')
-                                    ->rows(5)
+                                    ->rows(6)
                                     ->maxLength(1000)
-                                    ->placeholder('Masukkan catatan tambahan di sini...'),
-                            ])
-                    ])->columnSpanFull(),
+                                    ->placeholder('Masukkan catatan tambahan, kondisi khusus, atau informasi lain yang relevan...')
+                                    ->helperText('Opsional — maksimal 1000 karakter')
+                                    ->columnSpanFull(),
+                            ]),
+
+                    ])
+                    ->columnSpanFull()
+                    ->persistTabInQueryString('tab'),
             ]);
+
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->defaultSort('created_at', 'desc')
-            ->contentGrid([
-                'sm' => 1,
-                'md' => 2,
-                'xl' => 3,
-            ])
             ->columns([
-                Stack::make([
+                ImageColumn::make('image')
+                    ->disk('public')
+                    ->width(72)
+                    ->height(54)
+                    ->extraImgAttributes(['class' => 'rounded-lg object-cover'])
+                    ->defaultImageUrl('https://placehold.co/72x54?text=No+Image'),
 
-                    ImageColumn::make('image')
-                        ->disk('public')
-                        ->height('200px')
-                        ->width('100%')
-                        ->extraImgAttributes([
-                            'class' => 'object-cover w-full rounded-t-lg',
-                            'style' => 'border-bottom: 1px solid #f3f4f6;',
-                        ])
-                        ->defaultImageUrl('https://placehold.co/600x400?text=No+Image'),
+                TextColumn::make('alamat_singkat')
+                    ->label('Alamat')
+                    ->weight('bold')
+                    ->url(fn(Pembanding $record): string => static::getUrl('view', ['record' => $record]))
+                    ->description(
+                        fn(Pembanding $record) => ($record->village?->name  ? $record->village->name  . ', ' : '') .
+                            ($record->district?->name ? $record->district->name . ', ' : '') .
+                            ($record->regency?->name  ?? '')
+                    )
+                    ->searchable(
+                        query: fn(Builder $query, string $search) =>
+                        $query->where('alamat_data', 'like', "%{$search}%")
+                    )
+                    ->limit(50)
+                    ->grow(),
 
-                    Stack::make([
+                TextColumn::make('harga')
+                    ->label('Harga')
+                    ->weight('bold')
+                    ->color('warning')
+                    ->formatStateUsing(function ($state) {
+                        $value = (float) ($state ?? 0);
+                        if ($value >= 1_000_000_000) {
+                            $m = floor(($value / 1_000_000_000) * 100) / 100;
+                            return 'Rp ' . rtrim(rtrim(number_format($m, 2, '.', ''), '0'), '.') . ' M';
+                        }
+                        if ($value >= 1_000_000) {
+                            $j = $value / 1_000_000;
+                            if ($j >= 100) return 'Rp ' . (int) floor($j) . ' Juta';
+                            $j = floor($j * 10) / 10;
+                            return 'Rp ' . rtrim(rtrim(number_format($j, 1, '.', ''), '0'), '.') . ' Juta';
+                        }
+                        return 'Rp ' . number_format((int) $value, 0, ',', '.');
+                    })
+                    ->width('120px'),
 
-                        TextColumn::make('alamat_singkat')
-                            ->weight('bold')
-                            ->size('lg')
-                            ->limit(60)
-                            ->tooltip(fn($record) => $record->alamat_data)
-                            ->extraAttributes(['class' => 'mb-1 leading-tight']),
+                TextColumn::make('luas_tanah')
+                    ->label('Luas')
+                    ->formatStateUsing(
+                        fn($state) =>
+                        is_numeric($state)
+                            ? ((float)$state >= 10000
+                                ? number_format((float)$state / 10000, 2, ',', '.') . ' ha'
+                                : number_format((float)$state, 0, ',', '.') . ' m²')
+                            : '-'
+                    )
+                    ->width('90px'),
 
-                        TextColumn::make('harga')
-                            ->label('Harga')
-                            ->weight('black')
-                            ->color('primary')
-                            ->size('xl')
-                            ->extraAttributes(['class' => 'mb-2'])
-                            ->formatStateUsing(function ($state) {
-                                $value = (float) ($state ?? 0);
+                // Listing + Objek merged into one column
+                TextColumn::make('jenisListing.name')
+                    ->label('Tipe')
+                    ->formatStateUsing(
+                        fn($state, Pembanding $record) => ($state ?? '-') . ' · ' . ($record->jenisObjek?->name ?? '-')
+                    )
+                    ->badge()
+                    ->color('info')
+                    ->width('170px'),
 
-                                $floorTo = function (float $n, int $decimals = 0): float {
-                                    $p = 10 ** $decimals;
-                                    return floor($n * $p) / $p;
-                                };
-
-                                $trimZeros = function (string $s): string {
-                                    // hilangkan trailing .0 / .00
-                                    $s = rtrim($s, '0');
-                                    return rtrim($s, '.');
-                                };
-
-                                // Miliar (>= 1.000.000.000)
-                                if ($value >= 1_000_000_000) {
-                                    $m = $value / 1_000_000_000;          // contoh: 1.610...
-                                    $m = $floorTo($m, 2);                 // 2 desimal, truncate
-                                    $mStr = $trimZeros(number_format($m, 2, '.', ''));
-                                    return "Rp {$mStr} M";
-                                }
-
-                                // Juta (>= 1.000.000)
-                                if ($value >= 1_000_000) {
-                                    $j = $value / 1_000_000;
-
-                                    // >= 100 juta -> tanpa desimal (650.55 -> 650)
-                                    // < 100 juta  -> 1 desimal (67.6 -> 67.6)
-                                    if ($j >= 100) {
-                                        $j = (int) floor($j);
-                                        return "Rp {$j} Juta";
-                                    }
-
-                                    $j = $floorTo($j, 1);
-                                    $jStr = $trimZeros(number_format($j, 1, '.', ''));
-                                    return "Rp {$jStr} Juta";
-                                }
-
-                                // Di bawah 1 juta: tampilkan normal Rupiah
-                                return 'Rp ' . number_format((int) $value, 0, ',', '.');
-                            }),
-
-                        TextColumn::make('luas_tanah')
-                            ->formatStateUsing(function ($state, Pembanding $record) {
-                                $luasText = is_numeric($state)
-                                    ? ((float) $state >= 10000
-                                        ? number_format(((float) $state / 10000), 2, ',', '.') . ' ha'
-                                        : number_format((float) $state, 0, ',', '.') . ' m²')
-                                    : '-';
-
-                                $dokumenLabel = $record->dokumenTanah?->name ?? 'N/A';
-
-                                return "LT: {$luasText} • {$dokumenLabel}";
-                            })
-                            ->color('gray')
-                            ->size('sm')
-                            ->icon('heroicon-m-map'),
-
-                        TextColumn::make('jenis_listing')
-                            ->formatStateUsing(
-                                fn($state, Pembanding $record) => ($record->jenisListing?->name ?? '-') . ' - ' . ($record->jenisObjek?->name ?? '-')
-                            )
-                            ->color('white')
-                            ->size('sm')
-                            ->icon('heroicon-m-newspaper')
-
-
-                    ])->extraAttributes(['class' => 'p-4 space-y-2'])
-                ])
-
+                // Tanggal — hidden (toggleable if needed)
+                // Dokumen — hidden (visible in detail view)
             ])
             ->filters([
                 Filter::make('lokasi')
@@ -539,29 +552,40 @@ class DataPembandingResource extends Resource
                     ->searchable()
                     ->preload(),
 
-            ], layout: FiltersLayout::AboveContentCollapsible)
-            ->filtersFormColumns(4)
-            ->persistColumnSearchesInSession()
+            ])
             ->actions([
-                Tables\Actions\Action::make('map')
-                    ->label('Lihat di Maps')
-                    ->color('warning')
-                    ->icon('heroicon-o-map')
-                    ->tooltip('Buka Lokasi di Peta Maps')
-                    ->visible(fn(Pembanding $r) => $r->latitude && $r->longitude)
-                    ->url(fn(Pembanding $r) => 'https://www.google.com/maps?q=' . $r->latitude . ',' . $r->longitude, true),
-                Tables\Actions\ViewAction::make()
-                    ->label('Detail Data')
-                    ->tooltip('Lihat Detail Data')
-                    ->icon('heroicon-o-document-magnifying-glass')
-                    ->color('info'),
-                Tables\Actions\EditAction::make()
-                    ->label('Edit Data')
-                    ->color('danger')
-                    ->tooltip('Edit Data'),
-            ])->paginated(['5', '10', '25', '50', '100', '250', 'all']);
-    }
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('map')
+                        ->label('Lihat di Maps')
+                        ->color('warning')
+                        ->icon('heroicon-o-map')
+                        ->visible(fn(Pembanding $r) => $r->latitude && $r->longitude)
+                        ->url(
+                            fn(Pembanding $r) =>
+                            'https://www.google.com/maps?q=' . $r->latitude . ',' . $r->longitude,
+                            true
+                        ),
 
+                    Tables\Actions\ViewAction::make()
+                        ->label('Detail Data')
+                        ->icon('heroicon-o-document-magnifying-glass')
+                        ->color('info')
+                        ->url(fn(Pembanding $record): string => static::getUrl('view', ['record' => $record])),
+
+                    Tables\Actions\EditAction::make()
+                        ->label('Edit Data')
+                        ->icon('heroicon-o-pencil-square')
+                        ->color('danger')
+                        ->url(fn(Pembanding $record): string => static::getUrl('edit', ['record' => $record])),
+                ])
+                    ->tooltip('Aksi')
+                    ->icon('heroicon-m-ellipsis-horizontal')
+                    ->color('gray')
+                    ->size(\Filament\Support\Enums\ActionSize::Small),
+            ])
+            ->actionsColumnLabel('') // no column heading for the actions column
+            ->paginated(['10', '25', '50', '100', '250', 'all']);
+    }
 
     public static function infolist(Infolist $infolist): Infolist
     {
@@ -709,7 +733,7 @@ class DataPembandingResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListDataPembandings::route('/'),
+            'index' => Pages\BrowseDataPembandings::route('/'),
             'create' => Pages\CreateDataPembanding::route('/create'),
             'edit' => Pages\EditDataPembanding::route('/{record}/edit'),
             'view' => Pages\ViewDataPembanding::route('/{record}'),

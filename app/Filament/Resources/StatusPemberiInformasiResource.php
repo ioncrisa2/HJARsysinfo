@@ -2,24 +2,28 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\StatusPemberiInformasiResource\Pages;
+use App\Filament\Resources\StatusPemberiInformasiResource\RelationManagers;
+use App\Models\StatusPemberiInformasi;
 use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Supports\Slug;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use Filament\Resources\Resource;
 use App\Filament\Clusters\MasterData;
-use App\Models\StatusPemberiInformasi;
-use App\Filament\Resources\StatusPemberiInformasiResource\Pages;
 
 class StatusPemberiInformasiResource extends Resource
 {
     protected static ?string $model = StatusPemberiInformasi::class;
-    protected static ?string $cluster = MasterData::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
+    protected static ?string $cluster = MasterData::class;
     protected static ?int $navigationSort = 16;
 
     protected static ?string $modelLabel = 'Status Pemberi Informasi';
@@ -32,10 +36,9 @@ class StatusPemberiInformasiResource extends Resource
             Forms\Components\Section::make('Data')
                 ->columns(2)
                 ->schema([
-                     Forms\Components\TextInput::make('name')
+                    Forms\Components\TextInput::make('name')
                         ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?StatusPemberiInformasi $record) {
-                            if ($record && filled($get('slug'))) return;
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
                         }),
 

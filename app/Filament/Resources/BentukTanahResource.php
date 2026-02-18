@@ -2,23 +2,26 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Clusters\MasterData;
 use App\Filament\Resources\BentukTanahResource\Pages;
+use App\Filament\Resources\BentukTanahResource\RelationManagers;
 use App\Models\BentukTanah;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use App\Supports\Slug;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Clusters\MasterData;
 
 class BentukTanahResource extends Resource
 {
     protected static ?string $model = BentukTanah::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-square-3-stack-3d';
+       protected static ?string $navigationIcon = 'heroicon-o-square-3-stack-3d';
 
     protected static ?string $cluster = MasterData::class;
     protected static ?int $navigationSort = 10;
@@ -35,8 +38,7 @@ class BentukTanahResource extends Resource
                 ->schema([
                      Forms\Components\TextInput::make('name')
                         ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?BentukTanah $record) {
-                            if ($record && filled($get('slug'))) return;
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
                         }),
 

@@ -17,12 +17,12 @@ use Illuminate\Support\Facades\DB;
 
 class BackfillPembandingMasterIds extends Command
 {
-    protected $signature = 'pembanding:backfill-master-ids
+    protected $signature = 'pembanding:backfill-master-ids 
                             {--dry-run : Run without making changes}
                             {--report : Show detailed report of unmatched slugs}
                             {--create-missing : Create missing master data entries}
                             {--export-unmatched : Export unmatched data to CSV}';
-
+    
     protected $description = 'Backfill pembandings master *_id fields from existing slug columns with detailed reporting';
 
     protected array $unmatchedData = [];
@@ -130,7 +130,7 @@ class BackfillPembandingMasterIds extends Command
     protected function processPembandings(array $maps, bool $dryRun): void
     {
         $this->info('🔄 Processing pembanding records...');
-
+        
         $progressBar = $this->output->createProgressBar(
             Pembanding::withTrashed()->count()
         );
@@ -191,7 +191,7 @@ class BackfillPembandingMasterIds extends Command
 
         foreach ($fields as $slugField => $idField) {
             $result = $this->matchSlugToId($row, $slugField, $idField, $maps[$slugField]);
-
+            
             if ($result['matched'] && $result['id']) {
                 $payload[$idField] = $result['id'];
             }
@@ -231,7 +231,7 @@ class BackfillPembandingMasterIds extends Command
         // No match found - track this
         $this->stats['unmatched_slugs']++;
         $this->trackUnmatchedSlug($row->id, $slugField, $slug);
-
+        
         return ['matched' => false, 'id' => null];
     }
 
@@ -287,7 +287,7 @@ class BackfillPembandingMasterIds extends Command
             $hasUnmatched = true;
 
             $this->warn("⚠️  Unmatched slugs for: {$field}");
-
+            
             $tableData = [];
             foreach ($slugs as $data) {
                 $sampleIds = array_slice($data['pembanding_ids'], 0, 5);
@@ -323,7 +323,7 @@ class BackfillPembandingMasterIds extends Command
     protected function exportUnmatchedToCsv(): void
     {
         $filename = storage_path('app/unmatched_pembanding_slugs_' . now()->format('Y-m-d_His') . '.csv');
-
+        
         $handle = fopen($filename, 'w');
         fputcsv($handle, ['Master Table', 'Slug Value', 'Occurrences', 'Sample Pembanding IDs']);
 
@@ -379,7 +379,7 @@ class BackfillPembandingMasterIds extends Command
 
             foreach ($slugs as $data) {
                 $slug = $data['slug'];
-
+                
                 // Create with basic data
                 $model::create([
                     'slug' => $slug,

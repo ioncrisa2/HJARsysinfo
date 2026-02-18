@@ -46,15 +46,19 @@ class SecurityPin extends Page
                         ->password()
                         ->revealable()
                         ->required()
-                        ->numeric()
+                        ->inputMode('numeric')
+                        ->rule('regex:/^[0-9]{4,12}$/')
                         ->minLength(4)
-                        ->maxLength(12),
+                        ->maxLength(12)
+                        ->helperText('Gunakan 4-12 digit angka.'),
 
                     Forms\Components\TextInput::make('confirm_pin')
                         ->label('Ulangi PIN')
                         ->password()
                         ->revealable()
                         ->required()
+                        ->inputMode('numeric')
+                        ->rule('regex:/^[0-9]{4,12}$/')
                         ->same('new_pin'),
                 ]),
         ]);

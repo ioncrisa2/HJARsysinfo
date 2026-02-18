@@ -2,27 +2,28 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\TopografiResource\Pages;
+use App\Filament\Resources\TopografiResource\RelationManagers;
+use App\Models\Topografi;
 use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Supports\Slug;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use App\Models\Topografi;
-use Filament\Tables\Table;
-use Filament\Resources\Resource;
 use App\Filament\Clusters\MasterData;
-use Illuminate\Database\Eloquent\Builder;
-use App\Filament\Resources\TopografiResource\Pages;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Resources\TopografiResource\RelationManagers;
 
 class TopografiResource extends Resource
 {
     protected static ?string $model = Topografi::class;
-    protected static ?string $cluster = MasterData::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-globe-asia-australia';
 
+    protected static ?string $cluster = MasterData::class;
     protected static ?int $navigationSort = 17;
 
     protected static ?string $modelLabel = 'Topografi';
@@ -35,10 +36,9 @@ class TopografiResource extends Resource
             Forms\Components\Section::make('Data')
                 ->columns(2)
                 ->schema([
-                     Forms\Components\TextInput::make('name')
+                   Forms\Components\TextInput::make('name')
                         ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?Topografi $record) {
-                            if ($record && filled($get('slug'))) return;
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
                         }),
 

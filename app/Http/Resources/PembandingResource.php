@@ -7,8 +7,6 @@ class PembandingResource extends JsonResource
 {
     public function toArray($request): array
     {
-
-
         return [
             'id' => $this->id,
 
@@ -16,8 +14,6 @@ class PembandingResource extends JsonResource
                 'id' => $this->jenisListing?->id,
                 'slug' => $this->jenisListing?->slug,
                 'name' => $this->jenisListing?->name,
-                'badge_color' => $this->jenisListing?->badge_color ?? null,
-                'marker_icon_url' => $this->jenisListing?->marker_icon_url ?? null,
             ],
 
             'jenis_objek' => [
@@ -68,7 +64,6 @@ class PembandingResource extends JsonResource
                 'name' => $this->topografiRef?->name,
             ],
 
-            // Basic info fields
             'nama_pemberi_informasi' => $this->nama_pemberi_informasi,
             'nomer_telepon_pemberi_informasi' => $this->nomer_telepon_pemberi_informasi,
             'luas_tanah' => $this->luas_tanah,
@@ -78,10 +73,9 @@ class PembandingResource extends JsonResource
             'lebar_jalan' => $this->lebar_jalan,
             'rasio_tapak' => $this->rasio_tapak,
             'harga' => $this->harga,
-            'tanggal_data' => optional($this->tanggal_data)->toDateString(),
+            'tanggal_data' => $this->tanggal_data,
             'catatan' => $this->catatan,
 
-            // Lokasi administrasi
             'province' => [
                 'id' => $this->province?->id,
                 'name' => $this->province?->name,
@@ -103,7 +97,8 @@ class PembandingResource extends JsonResource
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
 
-            'image_url' => $this->getImagePath($this->image),
+            // 'image' => $this->image,
+            'image_url' => $this->image_url,
 
             'created_by' => [
                 'id' => $this->creator?->id,
@@ -112,14 +107,4 @@ class PembandingResource extends JsonResource
         ];
     }
 
-    private function getImagePath($image): ?string
-    {
-        if (!$image) {
-            return null;
-        }
-
-        $filename = ltrim($image, './');
-
-        return asset('public/storage/foto_pembanding/' . $filename);
-    }
 }

@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Models\Pembanding;
-use App\Models\Peruntukan;
-use App\Models\DokumenTanah;
-use App\Models\PosisiTanah;
-use App\Models\KondisiTanah;
+use App\Enums\Peruntukan;
+use App\Enums\DokumenTanah;
+use App\Enums\PosisiTanah;
+use App\Enums\KondisiTanah;
 
 class PembandingFactory
 {
@@ -24,33 +24,25 @@ class PembandingFactory
         $pembanding->lebar_jalan = $data['lebar_jalan'] ?? 0;
         $pembanding->harga = $data['harga'] ?? null;
 
-        // Master data foreign keys (lookup by slug)
-        $pembanding->peruntukan_id = $this->lookupMasterId($data, 'peruntukan', Peruntukan::class);
-        $pembanding->dokumen_tanah_id = $this->lookupMasterId($data, 'dokumen_tanah', DokumenTanah::class);
-        $pembanding->posisi_tanah_id = $this->lookupMasterId($data, 'posisi_tanah', PosisiTanah::class);
-        $pembanding->kondisi_tanah_id = $this->lookupMasterId($data, 'kondisi_tanah', KondisiTanah::class);
+        // Enum fields
+        $pembanding->peruntukan = $this->parseEnum($data, 'peruntukan', Peruntukan::class);
+        $pembanding->dokumen_tanah = $this->parseEnum($data, 'dokumen_tanah', DokumenTanah::class);
+        $pembanding->posisi_tanah = $this->parseEnum($data, 'posisi_tanah', PosisiTanah::class);
+        $pembanding->kondisi_tanah = $this->parseEnum($data, 'kondisi_tanah', KondisiTanah::class);
 
         return $pembanding;
     }
 
-    /**
-     * Look up master data ID by slug value
-     */
-    protected function lookupMasterId(array $data, string $key, string $modelClass): ?int
+    protected function parseEnum(array $data, string $key, string $enumClass): mixed
     {
         if (!isset($data[$key])) {
             return null;
         }
 
-        $slug = $data[$key];
-
-        static $cache = [];
-        $cacheKey = $modelClass . ':' . $slug;
-
-        if (!isset($cache[$cacheKey])) {
-            $cache[$cacheKey] = $modelClass::where('slug', $slug)->value('id');
+        try {
+            return $enumClass::from($data[$key]);
+        } catch (\ValueError) {
+            return null;
         }
-
-        return $cache[$cacheKey];
     }
 }

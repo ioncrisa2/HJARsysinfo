@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class PembandingRepository
 {
     protected const DEFAULT_LIMIT = 300;
-    protected const MAX_DISTANCE_METERS = 10000;
+    protected const DEFAULT_RADIUS_METERS = 10000;
 
     public function __construct(
         protected GeoDistanceCalculator $distanceCalculator,
@@ -22,47 +22,56 @@ class PembandingRepository
     public function getGeoCandidates(
         Pembanding $input,
         int $limit = self::DEFAULT_LIMIT,
-        array $allowedPeruntukanSlugs = [],
-        ?int $districtId = null,
-        ?int $regencyId = null,
+        array $allowedPeruntukan = [],
+        ?string $districtId = null,
+        ?string $regencyId = null,
         ?float $minTotalArea = null,
         ?float $maxTotalArea = null,
+        ?int $radiusMeters = null,
     ): Collection {
+        $effectiveRadius = $radiusMeters ?? self::DEFAULT_RADIUS_METERS;
+
         $bounds = $this->boundingBox->calculate(
             $input->latitude,
             $input->longitude,
-            self::MAX_DISTANCE_METERS
+            $effectiveRadius
         );
 
-        $query = $this->buildBaseQuery($input, $bounds);
+        $query = $this->buildBaseQuery($input, $bounds, $effectiveRadius);
 
         $this->applyLocationFilters($query, $districtId ?? $input->district_id, $regencyId ?? $input->regency_id);
-        $this->applyPeruntukanFilter($query, $allowedPeruntukanSlugs);
+        $this->applyPeruntukanFilter($query, $allowedPeruntukan);
         $this->applyAreaFilter($query, $minTotalArea, $maxTotalArea);
         $this->excludeInput($query, $input);
 
         return $query
-            ->orderBy('sql_distance')
+            ->orderBy('distance')
             ->limit($limit)
             ->get();
     }
 
-    protected function buildBaseQuery(Pembanding $input, array $bounds): Builder
+    protected function buildBaseQuery(Pembanding $input, array $bounds, int $radiusMeters): Builder
     {
         $distanceExpression = $this->distanceCalculator->getSqlExpression(
             $input->latitude,
             $input->longitude
         );
 
+        $bindings = [(float) $input->latitude, (float) $input->longitude, (float) $input->latitude];
+
         return Pembanding::selectRaw(
-            "data_pembanding.*, {$distanceExpression} AS sql_distance",
-            [$input->latitude, $input->longitude, $input->latitude]
+            "data_pembanding.*, {$distanceExpression} AS distance",
+            $bindings
         )
             ->whereBetween('latitude', [$bounds['min_lat'], $bounds['max_lat']])
-            ->whereBetween('longitude', [$bounds['min_lng'], $bounds['max_lng']]);
+            ->whereBetween('longitude', [$bounds['min_lng'], $bounds['max_lng']])
+            ->whereRaw(
+                "{$distanceExpression} <= ?",
+                array_merge($bindings, [$radiusMeters])
+            );
     }
 
-    protected function applyLocationFilters(Builder $query, ?int $districtId, ?int $regencyId): void
+    protected function applyLocationFilters(Builder $query, ?string $districtId, ?string $regencyId): void
     {
         if ($districtId) {
             $query->where('district_id', $districtId);
@@ -74,15 +83,14 @@ class PembandingRepository
         }
     }
 
-    protected function applyPeruntukanFilter(Builder $query, array $allowedPeruntukanSlugs): void
+    protected function applyPeruntukanFilter(Builder $query, array $allowedPeruntukan): void
     {
-        if (empty($allowedPeruntukanSlugs)) {
+        if (empty($allowedPeruntukan)) {
             return;
         }
 
-        // Filter using relationship and slugs
-        $query->whereHas('peruntukanRef', function ($q) use ($allowedPeruntukanSlugs) {
-            $q->whereIn('slug', $allowedPeruntukanSlugs);
+        $query->whereHas('peruntukanRef', function (Builder $relationQuery) use ($allowedPeruntukan) {
+            $relationQuery->whereIn('slug', $allowedPeruntukan);
         });
     }
 

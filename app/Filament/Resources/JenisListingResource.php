@@ -2,17 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\JenisListingResource\Pages;
+use App\Models\JenisListing;
 use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Table;
 use App\Supports\Slug;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
-use Filament\Forms\Form;
-use Filament\Tables\Table;
-use App\Models\JenisListing;
-use Filament\Resources\Resource;
 use App\Filament\Clusters\MasterData;
-use App\Filament\Resources\JenisListingResource\Pages;
 
 class JenisListingResource extends Resource
 {
@@ -32,13 +32,12 @@ class JenisListingResource extends Resource
             Forms\Components\Section::make('Data')
                 ->columns(2)
                 ->schema([
-                    Forms\Components\TextInput::make('name')
-                        ->live(onBlur: true) // instead of debounce typing
-                        ->afterStateUpdated(function (?string $state, Set $set, Get $get, ?JenisListing $record) {
-                            if ($record && filled($get('slug'))) return;
+                   Forms\Components\TextInput::make('name')
+                        ->live(onBlur: true)
+                        ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
                             $set('slug', Slug::snake($state));
-                        }),
-
+                        }), 
+                        
                     Forms\Components\TextInput::make('slug')
                         ->required()
                         ->regex('/^[a-z0-9]+(?:_[a-z0-9]+)*$/')

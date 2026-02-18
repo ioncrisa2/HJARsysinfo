@@ -11,8 +11,13 @@ use App\Models\JenisListing;
 class LatestPembandingTable extends BaseWidget
 {
     protected static ?string $heading = 'Data Terbaru Masuk';
-    protected static ?int $sort = 4;
-    protected int | string | array $columnSpan = 'full';
+    protected static ?int $sort = 2;
+    
+    protected int|string|array $columnSpan = [
+        'default' => 'full',
+        'md' => 'full',
+        'sm' => 'full'
+    ];
 
     public function table(Table $table): Table
     {
@@ -31,8 +36,7 @@ class LatestPembandingTable extends BaseWidget
                     ->money('IDR')
                     ->sortable(),
 
-               Tables\Columns\TextColumn::make('jenisListing.name')  // ✅ Use relationship
-                    ->label('Status')
+               Tables\Columns\TextColumn::make('jenisListing.name')
                     ->badge()
                     ->color(fn (Pembanding $record) => $record->jenisListing?->badge_color ?? 'gray'),
 

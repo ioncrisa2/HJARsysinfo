@@ -2,6 +2,8 @@
 
 namespace App\Services\Geo;
 
+use Illuminate\Support\Facades\DB;
+
 class GeoDistanceCalculator
 {
     protected const EARTH_RADIUS_METERS = 6371000;
@@ -12,6 +14,16 @@ class GeoDistanceCalculator
     public function getSqlExpression(float $lat, float $lng): string
     {
         $radius = self::EARTH_RADIUS_METERS;
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return "
+                (
+                    (ABS(latitude - ?) * 111320) +
+                    (ABS(longitude - ?) * 111320) +
+                    (? * 0)
+                )
+            ";
+        }
 
         return "
             ({$radius} * ACOS(

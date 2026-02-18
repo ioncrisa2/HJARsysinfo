@@ -4,12 +4,17 @@ namespace App\Services\Auth;
 
 use App\Models\RefreshToken;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class RefreshTokenService
 {
     protected const TOKEN_LENGTH = 64;
     protected const TOKEN_EXPIRY_DAYS = 30;
+
+    public function __construct(
+        protected TokenResponseBuilder $responseBuilder
+    ) {}
 
     public function create(int $userId): string
     {
@@ -26,39 +31,29 @@ class RefreshTokenService
 
     public function refresh(string $plainToken, string $deviceName): ?array
     {
-        $storedToken = $this->findValidToken($plainToken);
+        return DB::transaction(function () use ($plainToken, $deviceName) {
+            $storedToken = RefreshToken::query()
+                ->where('token_hash', $this->hash($plainToken))
+                ->lockForUpdate()
+                ->first();
 
-        if (!$storedToken) {
-            return null;
-        }
+            if (! $storedToken || $storedToken->revoked || $this->isExpired($storedToken)) {
+                return null;
+            }
 
-        $user = $storedToken->user;
+            $user = $storedToken->user;
 
-        // Rotate token: revoke old, create new
-        $this->revoke($storedToken);
-        $newRefreshToken = $this->create($user->id);
-        $newAccessToken = $user->createToken($deviceName)->plainTextToken;
+            if (! $user) {
+                return null;
+            }
 
-        return app(TokenResponseBuilder::class)->buildRefresh($newAccessToken, $newRefreshToken);
-    }
+            // Rotate token atomically: revoke old, then issue new pair.
+            $this->revoke($storedToken);
+            $newRefreshToken = $this->create($user->id);
+            $newAccessToken = $this->createAccessToken($user, $deviceName);
 
-    public function findValidToken(string $plainToken): ?RefreshToken
-    {
-        $hash = $this->hash($plainToken);
-
-        $token = RefreshToken::where('token_hash', $hash)
-            ->where('revoked', false)
-            ->first();
-
-        if (!$token) {
-            return null;
-        }
-
-        if ($this->isExpired($token)) {
-            return null;
-        }
-
-        return $token;
+            return $this->responseBuilder->buildRefresh($newAccessToken, $newRefreshToken);
+        }, 3);
     }
 
     public function revoke(RefreshToken $token): void
@@ -81,5 +76,16 @@ class RefreshTokenService
     protected function isExpired(RefreshToken $token): bool
     {
         return $token->expires_at && $token->expires_at->isPast();
+    }
+
+    protected function createAccessToken(User $user, string $deviceName): string
+    {
+        return $user
+            ->createToken(
+                $deviceName,
+                ['*'],
+                $this->responseBuilder->getAccessTokenExpiresAt()
+            )
+            ->plainTextToken;
     }
 }

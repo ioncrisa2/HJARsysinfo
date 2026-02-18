@@ -39,6 +39,7 @@ class FindSimilarPembandingRequest extends FormRequest
             'kondisi_tanah' => ['nullable', 'string', Rule::enum(KondisiTanah::class)],
             'harga' => ['nullable', 'numeric', 'min:0'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'range_km' => ['nullable', 'numeric', 'min:0.1', 'max:100'],
         ];
     }
 
@@ -51,6 +52,8 @@ class FindSimilarPembandingRequest extends FormRequest
             'dokumen_tanah.enum' => 'Dokumen tanah tidak valid',
             'posisi_tanah.enum' => 'Posisi tanah tidak valid',
             'kondisi_tanah.enum' => 'Kondisi tanah tidak valid',
+            'range_km.min' => 'Range minimal adalah 0.1 km',
+            'range_km.max' => 'Range maksimal adalah 100 km',
         ];
     }
 }

@@ -21,6 +21,7 @@ class DataPembandingController extends Controller
     protected const DEFAULT_INDEX_LIMIT = 50;
     protected const MAX_SIMILAR_LIMIT = 1000;
     protected const DEFAULT_SIMILAR_LIMIT = 100;
+    protected const DEFAULT_RANGE_KM = 10.0;
 
     public function __construct(
         protected PembandingService $similarityService,
@@ -44,10 +45,6 @@ class DataPembandingController extends Controller
             ->orderByDesc('tanggal_data')
             ->paginate($limit);
 
-        $pembandings->getCollection()->transform(
-            fn($item) => $this->transformImage($item)
-        );
-
         return $this->success($pembandings, 'Semua List Data Pembanding');
     }
 
@@ -61,7 +58,16 @@ class DataPembandingController extends Controller
             'regency',
             'district',
             'village',
-            'creator'
+            'creator',
+            'jenisListing',
+            'jenisObjek',
+            'statusPemberiInformasi',
+            'bentukTanah',
+            'dokumenTanah',
+            'posisiTanah',
+            'kondisiTanah',
+            'topografiRef',
+            'peruntukanRef',
         ])->find($id);
 
         if (!$pembanding) {
@@ -91,7 +97,13 @@ class DataPembandingController extends Controller
             self::MAX_SIMILAR_LIMIT
         );
 
-        return $this->getSimilarResults($pembanding, $limit);
+        $rangeKm = $request->filled('range_km')
+            ? (float) $request->input('range_km')
+            : null;
+
+        $radiusMeters = $this->calculateRadiusMeters($rangeKm);
+
+        return $this->getSimilarResults($pembanding, $limit, $radiusMeters);
     }
 
     /**
@@ -104,13 +116,17 @@ class DataPembandingController extends Controller
         $input = $this->factory->createFromArray($validated);
 
         $limit = $validated['limit'] ?? self::DEFAULT_SIMILAR_LIMIT;
+        $rangeKm = array_key_exists('range_km', $validated)
+            ? (float) $validated['range_km']
+            : null;
+        $radiusMeters = $this->calculateRadiusMeters($rangeKm);
 
-        return $this->getSimilarResults($input, $limit);
+        return $this->getSimilarResults($input, $limit, $radiusMeters);
     }
 
-    protected function getSimilarResults(Pembanding $input, int $limit)
+    protected function getSimilarResults(Pembanding $input, int $limit, int $radiusMeters)
     {
-        $scored = $this->similarityService->findSimilar($input, $limit);
+        $scored = $this->similarityService->findSimilar($input, $limit, $radiusMeters);
 
         if ($scored->isEmpty()) {
             return $this->success([], 'Tidak ada data pembanding yang cocok');
@@ -134,13 +150,11 @@ class DataPembandingController extends Controller
         return min($requested, $max);
     }
 
-    protected function transformImage(Pembanding $item): Pembanding
+    protected function calculateRadiusMeters(?float $rangeKm): int
     {
-        if ($item->image) {
-            $filename = ltrim($item->image, 'foto_pembanding/');
-            $item->image = asset('storage/foto_pembanding/' . $filename);
-        }
+        $effectiveRangeKm = $rangeKm ?? self::DEFAULT_RANGE_KM;
 
-        return $item;
+        return (int) round($effectiveRangeKm * 1000);
     }
+
 }

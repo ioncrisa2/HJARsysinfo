@@ -18,7 +18,7 @@ class Map extends Widget
 
     public int $radiusInput = 1000;
 
-    public array $mapCenter = [-2.5489, 118.0149]; // Default Center (Indonesia)
+    public array $mapCenter = [-2.5489, 118.0149];
     public int $mapZoom = 5;
 
     public function searchLocation(): void

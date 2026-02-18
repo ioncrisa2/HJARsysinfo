@@ -22,14 +22,4 @@ class GeoBoundingBox
         ];
     }
 
-    /**
-     * Check if a point is within the bounding box
-     */
-    public function contains(array $bounds, float $lat, float $lng): bool
-    {
-        return $lat >= $bounds['min_lat'] &&
-            $lat <= $bounds['max_lat'] &&
-            $lng >= $bounds['min_lng'] &&
-            $lng <= $bounds['max_lng'];
-    }
 }
