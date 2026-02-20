@@ -6,12 +6,16 @@ use App\Filament\Resources\VillageResource;
 use App\Services\Location\LocationIdGenerator;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\QueryException;
-use RuntimeException;
+use Illuminate\Support\Facades\DB;
 
 class CreateVillage extends CreateRecord
 {
     protected static string $resource = VillageResource::class;
+
+    public function __construct(private readonly LocationIdGenerator $generator)
+    {
+        parent::__construct();
+    }
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
@@ -22,27 +26,10 @@ class CreateVillage extends CreateRecord
 
     protected function handleRecordCreation(array $data): Model
     {
-        $generator = app(LocationIdGenerator::class);
+        return DB::transaction(function () use ($data): Model {
+            $data['id'] = $this->generator->nextVillageId((string) $data['district_id']);
 
-        for ($attempt = 0; $attempt < 3; $attempt++) {
-            $data['id'] = $generator->nextVillageId((string) $data['district_id']);
-
-            try {
-                return static::getModel()::query()->create($data);
-            } catch (QueryException $exception) {
-                if (! $this->isDuplicateKeyException($exception) || $attempt === 2) {
-                    throw $exception;
-                }
-            }
-        }
-
-        throw new RuntimeException('Gagal membuat data Desa / Kelurahan.');
-    }
-
-    private function isDuplicateKeyException(QueryException $exception): bool
-    {
-        $sqlState = $exception->errorInfo[0] ?? null;
-
-        return in_array($sqlState, ['23000', '23505'], true);
+            return static::getModel()::query()->create($data);
+        });
     }
 }
