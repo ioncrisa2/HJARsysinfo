@@ -21,11 +21,6 @@ const props = defineProps({
 const activeTab = ref("kamus");
 const toast     = useToast();
 
-/**
- * Track which tabs have been visited so we mount each component only once.
- * v-if on first visit → v-show (keep-alive in DOM) on subsequent visits.
- * This prevents re-fetching all dictionary data when switching tabs back and forth.
- */
 const visitedTabs = ref(new Set(["kamus"])); // "kamus" is the default tab, mount immediately
 
 const onTabChange = (value) => {
