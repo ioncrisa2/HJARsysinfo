@@ -57,12 +57,17 @@ class Pembanding extends Model
         'deleted_reason',
     ];
 
+    protected $hidden = [
+        'image',
+    ];
+
     protected $casts = [
         'luas_tanah'                => 'float',
         'luas_bangunan'             => 'float',
         'latitude'                  => 'float',
         'longitude'                 => 'float',
-        'harga'                     => 'float'
+        'harga'                     => 'float',
+        'tanggal_data'              => 'date:Y-m-d',
     ];
 
     protected $with = [
@@ -75,6 +80,10 @@ class Pembanding extends Model
         'kondisiTanah',
         'topografiRef',
         'peruntukanRef',
+    ];
+
+    protected $appends = [
+        'image_path',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -108,6 +117,11 @@ class Pembanding extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function deletedBy(): BelongsTo
@@ -195,7 +209,7 @@ class Pembanding extends Model
         if (!$this->image) {
             return null;
         }
-    
+
         return asset('storage/' . $this->image);
     }
 }

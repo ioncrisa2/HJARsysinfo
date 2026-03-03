@@ -125,7 +125,7 @@ class MasterDataSeeder extends Seeder
             ['slug' => 'matang',             'name' => 'Matang',              'sort_order' => 1],
             ['slug' => 'rawa',               'name' => 'Rawa',                'sort_order' => 2],
             ['slug' => 'sawah',              'name' => 'Sawah',               'sort_order' => 3],
-            ['slug' => 'belum_dikembangkan', 'name' => 'Belum Dikembangkan',  'sort_order' => 4],
+            ['slug' => 'belum_berkembang',   'name' => 'Belum Dikembangkan',  'sort_order' => 4],
             ['slug' => 'lainnya',            'name' => 'Lainnya',             'sort_order' => 5],
         ]);
     }

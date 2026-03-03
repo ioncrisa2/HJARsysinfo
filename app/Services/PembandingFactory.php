@@ -3,10 +3,6 @@
 namespace App\Services;
 
 use App\Models\Pembanding;
-use App\Enums\Peruntukan;
-use App\Enums\DokumenTanah;
-use App\Enums\PosisiTanah;
-use App\Enums\KondisiTanah;
 
 class PembandingFactory
 {
@@ -24,25 +20,23 @@ class PembandingFactory
         $pembanding->lebar_jalan = $data['lebar_jalan'] ?? 0;
         $pembanding->harga = $data['harga'] ?? null;
 
-        // Enum fields
-        $pembanding->peruntukan = $this->parseEnum($data, 'peruntukan', Peruntukan::class);
-        $pembanding->dokumen_tanah = $this->parseEnum($data, 'dokumen_tanah', DokumenTanah::class);
-        $pembanding->posisi_tanah = $this->parseEnum($data, 'posisi_tanah', PosisiTanah::class);
-        $pembanding->kondisi_tanah = $this->parseEnum($data, 'kondisi_tanah', KondisiTanah::class);
+        // Dictionary slug fields
+        $pembanding->peruntukan = $this->parseSlug($data, 'peruntukan');
+        $pembanding->dokumen_tanah = $this->parseSlug($data, 'dokumen_tanah');
+        $pembanding->posisi_tanah = $this->parseSlug($data, 'posisi_tanah');
+        $pembanding->kondisi_tanah = $this->parseSlug($data, 'kondisi_tanah');
 
         return $pembanding;
     }
 
-    protected function parseEnum(array $data, string $key, string $enumClass): mixed
+    protected function parseSlug(array $data, string $key): ?string
     {
-        if (!isset($data[$key])) {
+        if (!array_key_exists($key, $data) || !is_string($data[$key])) {
             return null;
         }
 
-        try {
-            return $enumClass::from($data[$key]);
-        } catch (\ValueError) {
-            return null;
-        }
+        $value = strtolower(trim($data[$key]));
+
+        return $value !== '' ? $value : null;
     }
 }

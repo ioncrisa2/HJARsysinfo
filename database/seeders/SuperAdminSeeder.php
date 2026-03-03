@@ -14,8 +14,11 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        // Buat atau cari role "super admin"
-        $role = Role::firstOrCreate(['name' => 'super admin', 'guard_name' => 'web']);
+        $superAdminRoleName = config('filament-shield.super_admin.name', 'super_admin');
+        $role = Role::firstOrCreate([
+            'name' => $superAdminRoleName,
+            'guard_name' => 'web',
+        ]);
 
         // Buat user admin
         // firstOrCreate akan mencari user dengan email ini, jika tidak ada, baru dibuat
@@ -28,7 +31,6 @@ class SuperAdminSeeder extends Seeder
             ]
         );
 
-        // Berikan role ke user
         $admin->assignRole($role);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Auth;
 
+use Filament\Facades\Filament;
 use Filament\Pages\Auth\Login as BaseLogin;
 
 class CustomLogin extends BaseLogin
@@ -19,6 +20,25 @@ class CustomLogin extends BaseLogin
      * @var string
      */
     protected static string $view = 'filament.admin.pages.auth.login';
+
+    public function mount(): void
+    {
+        if (Filament::auth()->check()) {
+            $user = Filament::auth()->user();
+
+            if ($user && method_exists($user, 'hasRole') && (! $user->hasRole('super_admin'))) {
+                redirect()->to(route('home.dashboard'));
+
+                return;
+            }
+
+            redirect()->intended(Filament::getUrl());
+
+            return;
+        }
+
+        $this->form->fill();
+    }
 
     public function hasLogo(): bool
     {

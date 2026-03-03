@@ -56,6 +56,8 @@ class PembandingSelectionExport implements FromCollection, WithHeadings, WithMap
     public function map($row): array
     {
         $imageUrl = $row->image ? Storage::disk('public')->url($row->image) : null;
+        $tanggalRaw = $row->getRawOriginal('tanggal_data');
+        $tanggalData = $tanggalRaw ? \Carbon\Carbon::parse($tanggalRaw)->format('Y-m-d') : null;
 
         return [
             $row->id,
@@ -72,7 +74,7 @@ class PembandingSelectionExport implements FromCollection, WithHeadings, WithMap
             $row->luas_tanah,
             $row->luas_bangunan,
             $row->harga,
-            optional($row->tanggal_data)?->format('Y-m-d'),
+            $tanggalData,
             $row->latitude,
             $row->longitude,
             $imageUrl,

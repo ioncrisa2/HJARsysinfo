@@ -31,6 +31,7 @@ it('returns 401 for protected pembanding endpoints without token', function (str
         ->assertStatus(401)
         ->assertJsonPath('message', 'Unauthenticated.');
 })->with([
+    ['GET', '/api/v1/dictionaries/peruntukan'],
     ['GET', '/api/v1/pembandings'],
     ['GET', '/api/v1/pembandings/1'],
     ['GET', '/api/v1/pembandings/1/similar'],

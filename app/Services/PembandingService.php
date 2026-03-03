@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\Peruntukan;
 use App\Models\Pembanding;
 use App\Repositories\PembandingRepository;
 use App\Services\Scoring\PembandingScorer;
@@ -26,9 +25,9 @@ class PembandingService
         ?int $radiusMeters = null
     ): Collection
     {
-        $inputPeruntukan = $this->resolvePeruntukanEnum($input);
+        $inputPeruntukan = $this->resolvePeruntukanSlug($input);
 
-        $results = $inputPeruntukan === Peruntukan::Gudang
+        $results = $inputPeruntukan === 'gudang'
             ? $this->findSimilarForGudang($input, $limit, $radiusMeters)
             : $this->findSimilarDefault($input, $limit, $inputPeruntukan, $radiusMeters);
 
@@ -37,7 +36,7 @@ class PembandingService
         }
 
         // Ruko harus tetap strict: tanpa fallback lintas peruntukan.
-        if ($inputPeruntukan === Peruntukan::Ruko) {
+        if ($inputPeruntukan === 'ruko') {
             return $results;
         }
 
@@ -47,7 +46,7 @@ class PembandingService
     protected function findSimilarDefault(
         Pembanding $input,
         int $limit,
-        ?Peruntukan $inputPeruntukan,
+        ?string $inputPeruntukan,
         ?int $radiusMeters = null
     ): Collection
     {
@@ -84,7 +83,7 @@ class PembandingService
 
         // Priority 1: Direct warehouse matches
         $results = $results->merge(
-            $this->fetchPriorityCandidates($input, Peruntukan::Gudang, 1, $limit, $radiusMeters)
+            $this->fetchPriorityCandidates($input, 'gudang', 1, $limit, $radiusMeters)
         );
 
         // Priority 2: Empty land with similar area
@@ -106,13 +105,13 @@ class PembandingService
 
     protected function fetchPriorityCandidates(
         Pembanding $input,
-        Peruntukan $peruntukan,
+        string $peruntukan,
         int $priority,
         int $limit,
         ?int $radiusMeters = null
     ): Collection {
         return $this->repository
-            ->getGeoCandidates($input, $limit, [$peruntukan->value], radiusMeters: $radiusMeters)
+            ->getGeoCandidates($input, $limit, [$peruntukan], radiusMeters: $radiusMeters)
             ->map(fn (Pembanding $item) => $this->setPriority($item, $priority));
     }
 
@@ -128,7 +127,7 @@ class PembandingService
             ->getGeoCandidates(
                 $input,
                 $limit,
-                [Peruntukan::TanahKosong->value],
+                ['tanah_kosong'],
                 districtId: $input->district_id,
                 regencyId: $input->regency_id,
                 minTotalArea: $minArea,
@@ -150,7 +149,7 @@ class PembandingService
         $candidates = $this->repository->getGeoCandidates(
             $input,
             $limit,
-            [Peruntukan::Campuran->value],
+            ['campuran'],
             districtId: $input->district_id,
             regencyId: $input->regency_id,
             minTotalArea: $minArea,
@@ -163,7 +162,7 @@ class PembandingService
             $candidates = $this->repository->getGeoCandidates(
                 $input,
                 $limit,
-                [Peruntukan::Campuran->value],
+                ['campuran'],
                 districtId: null,
                 regencyId: $input->regency_id,
                 minTotalArea: $minArea,
@@ -238,18 +237,20 @@ class PembandingService
             ->values();
     }
 
-    protected function resolvePeruntukanEnum(Pembanding $item): ?Peruntukan
+    protected function resolvePeruntukanSlug(Pembanding $item): ?string
     {
         $raw = $item->peruntukanRef?->slug ?? ($item->peruntukan ?? null);
-
-        if ($raw instanceof Peruntukan) {
-            return $raw;
-        }
 
         if ($raw instanceof BackedEnum) {
             $raw = $raw->value;
         }
 
-        return is_string($raw) ? Peruntukan::tryFrom($raw) : null;
+        if (!is_string($raw)) {
+            return null;
+        }
+
+        $slug = strtolower(trim($raw));
+
+        return $slug !== '' ? $slug : null;
     }
 }   

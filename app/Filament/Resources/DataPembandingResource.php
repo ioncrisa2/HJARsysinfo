@@ -577,6 +577,11 @@ class DataPembandingResource extends Resource
                         ->icon('heroicon-o-pencil-square')
                         ->color('danger')
                         ->url(fn(Pembanding $record): string => static::getUrl('edit', ['record' => $record])),
+
+                    Tables\Actions\DeleteAction::make()
+                        ->label('Hapus Data')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger'),
                 ])
                     ->tooltip('Aksi')
                     ->icon('heroicon-m-ellipsis-horizontal')

@@ -77,7 +77,8 @@ class User extends Authenticatable implements FilamentUser
             return false;
         }
 
-        return true;
+        // Hanya super_admin atau yang punya izin khusus yang boleh ke Admin panel
+        return $this->hasRole('super_admin') || $this->can('can_access_admin_panel') || $this->can('can_access_admin');
     }
 
     public function scopeActive(Builder $query): void

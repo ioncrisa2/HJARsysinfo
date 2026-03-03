@@ -98,7 +98,7 @@ class PembandingResource extends JsonResource
             'longitude' => $this->longitude,
 
             // 'image' => $this->image,
-            'image_url' => $this->image_url,
+            'image_url' => $this->image_path,
 
             'created_by' => [
                 'id' => $this->creator?->id,

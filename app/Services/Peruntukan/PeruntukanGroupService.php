@@ -1,80 +1,83 @@
 <?php
 namespace App\Services\Peruntukan;
 
-use App\Enums\Peruntukan;
-
 class PeruntukanGroupService
 {
     protected const GROUPS = [
         'perumahan' => [
-            Peruntukan::RumahTinggal,
-            Peruntukan::Villa,
-            Peruntukan::Townhouse,
-            Peruntukan::UnitApartemen,
+            'rumah_tinggal',
+            'villa',
+            'townhouse',
+            'unit_apartemen',
         ],
         'komersial' => [
-            Peruntukan::Ruko,
-            Peruntukan::Rukan,
-            Peruntukan::Mall,
-            Peruntukan::Perkantoran,
-            Peruntukan::Kios,
+            'ruko',
+            'rukan',
+            'mall',
+            'perkantoran',
+            'kios',
         ],
         'industri' => [
-            Peruntukan::Pabrik,
-            Peruntukan::Gudang,
+            'pabrik',
+            'gudang',
         ],
         'campuran' => [
-            Peruntukan::TanahKosong,
-            Peruntukan::Campuran,
-            Peruntukan::Lainnya,
+            'tanah_kosong',
+            'campuran',
+            'lainnya',
         ],
     ];
 
     protected array $peruntukanToGroup = [];
 
-    public function getAllowedPeruntukan(?Peruntukan $peruntukan): array
+    public function getAllowedPeruntukan(?string $peruntukanSlug): array
     {
-        if (!$peruntukan) {
+        if (! $peruntukanSlug) {
             return [];
         }
 
-        return match ($peruntukan) {
+        $peruntukanSlug = strtolower($peruntukanSlug);
+
+        return match ($peruntukanSlug) {
             // Rumah tinggal dan tanah kosong saling dipakai sebagai pembanding.
-            Peruntukan::RumahTinggal, Peruntukan::TanahKosong => [
-                Peruntukan::RumahTinggal->value,
-                Peruntukan::TanahKosong->value,
+            'rumah_tinggal', 'tanah_kosong' => [
+                'rumah_tinggal',
+                'tanah_kosong',
             ],
-            Peruntukan::Ruko => [Peruntukan::Ruko->value],
-            Peruntukan::Campuran => [
-                Peruntukan::TanahKosong->value,
-                Peruntukan::Campuran->value,
+            'ruko' => ['ruko'],
+            'campuran' => [
+                'tanah_kosong',
+                'campuran',
             ],
-            Peruntukan::Gudang => [Peruntukan::Gudang->value],
-            default => $this->getAllowedByGroup($peruntukan),
+            'gudang' => ['gudang'],
+            default => $this->getAllowedByGroup($peruntukanSlug),
         };
     }
 
-    public function getZoningScore(?Peruntukan $a, ?Peruntukan $b): int
+    public function getZoningScore(?string $a, ?string $b): int
     {
-        if (!$a || !$b) {
+        if (! $a || ! $b) {
             return 0;
         }
 
         $this->buildGroupMapping();
 
-        $groupA = $this->peruntukanToGroup[$a->value] ?? null;
-        $groupB = $this->peruntukanToGroup[$b->value] ?? null;
+        $a = strtolower($a);
+        $b = strtolower($b);
+
+        $groupA = $this->peruntukanToGroup[$a] ?? null;
+        $groupB = $this->peruntukanToGroup[$b] ?? null;
 
         return ($groupA && $groupA === $groupB) ? 3 : 1;
     }
 
-    protected function getAllowedByGroup(Peruntukan $peruntukan): array
+    protected function getAllowedByGroup(string $peruntukanSlug): array
     {
         $this->buildGroupMapping();
 
-        $group = $this->peruntukanToGroup[$peruntukan->value] ?? null;
+        $group = $this->peruntukanToGroup[$peruntukanSlug] ?? null;
 
-        if (!$group) {
+        if (! $group) {
             return [];
         }
 
@@ -92,7 +95,7 @@ class PeruntukanGroupService
 
         foreach (self::GROUPS as $groupName => $types) {
             foreach ($types as $type) {
-                $this->peruntukanToGroup[$type->value] = $groupName;
+                $this->peruntukanToGroup[$type] = $groupName;
             }
         }
     }

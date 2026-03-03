@@ -345,6 +345,47 @@ it('does not use fallback for ruko when there are no ruko candidates', function 
         ->assertJsonCount(0, 'data');
 });
 
+it('accepts active dictionary slugs in similar payload', function () {
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'peruntukan' => 'rumah_tinggal',
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 10,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonMissingPath('errors');
+});
+
+it('returns 422 when similar payload uses inactive dictionary slug', function () {
+    Peruntukan::query()->whereKey($this->refs['peruntukan_rumah_id'])->update([
+        'is_active' => false,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'peruntukan' => 'rumah_tinggal',
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 10,
+    ]);
+
+    $response
+        ->assertStatus(422)
+        ->assertJsonValidationErrors([
+            'peruntukan',
+        ]);
+});
+
 it('returns 422 when similar payload is invalid', function () {
     $response = $this->postJson('/api/v1/pembandings/similar', [
         'latitude' => 120,

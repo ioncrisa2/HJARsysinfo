@@ -4,8 +4,69 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.vue';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Light override for PrimeVue inputs inside .filter-light */
+.filter-light .p-inputtext,
+.filter-light .p-dropdown,
+.filter-light .p-dropdown-label,
+.filter-light .p-dropdown-trigger,
+.filter-light .p-dropdown-trigger-icon,
+.filter-light .p-dropdown-clear-icon,
+.filter-light .p-calendar input {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
+.filter-light .p-dropdown .p-dropdown-label,
+.filter-light .p-inputtext::placeholder,
+.filter-light .p-calendar input::placeholder {
+    color: #94a3b8 !important;
+}
+
+.filter-light .p-dropdown-panel {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+
+.filter-light .p-dropdown-item {
+    color: #0f172a !important;
+    background: #ffffff !important;
+}
+
+.filter-light .p-dropdown-item.p-highlight {
+    background: #f8fafc !important;
+    color: #0f172a !important;
+}
+
+.filter-light .p-dropdown:not(.p-disabled):hover,
+.filter-light .p-inputtext:not(.p-disabled):hover,
+.filter-light .p-calendar input:not(:disabled):hover {
+    border-color: #94a3b8 !important;
+}
+
+.filter-light .p-dropdown.p-disabled .p-dropdown-label,
+.filter-light .p-dropdown.p-disabled .p-dropdown-trigger,
+.filter-light .p-inputtext:disabled,
+.filter-light .p-calendar input:disabled {
+    background-color: #f8fafc !important;
+    color: #94a3b8 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+    z-index: 400 !important; /* Leaflet default is 1000, drop it below navbar */
+}
+
+/* Keep toast above sticky top navbar */
+.p-toast {
+    z-index: 11000 !important;
+    top: 72px !important;
 }

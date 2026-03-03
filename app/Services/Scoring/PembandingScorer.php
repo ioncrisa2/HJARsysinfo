@@ -2,7 +2,6 @@
 
 namespace App\Services\Scoring;
 
-use App\Enums\Peruntukan;
 use App\Models\Pembanding;
 use App\Services\Peruntukan\PeruntukanGroupService;
 use BackedEnum;
@@ -61,8 +60,8 @@ class PembandingScorer
 
     protected function scoreZoning(Pembanding $input, Pembanding $data): float
     {
-        $inputPeruntukan = $this->resolvePeruntukanEnum($input);
-        $dataPeruntukan = $this->resolvePeruntukanEnum($data);
+        $inputPeruntukan = $this->resolvePeruntukanSlug($input);
+        $dataPeruntukan = $this->resolvePeruntukanSlug($data);
 
         if (! $inputPeruntukan || ! $dataPeruntukan) {
             return 0;
@@ -164,6 +163,8 @@ class PembandingScorer
             'matang' => 3,
             'rawa' => 2,
             'belum_berkembang' => 2,
+            // Backward compatibility for legacy slug.
+            'belum_dikembangkan' => 2,
             'sawah' => 1,
             'lainnya' => 0,
         ];
@@ -224,19 +225,21 @@ class PembandingScorer
         return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
-    protected function resolvePeruntukanEnum(Pembanding $item): ?Peruntukan
+    protected function resolvePeruntukanSlug(Pembanding $item): ?string
     {
         $raw = $item->peruntukanRef?->slug ?? ($item->peruntukan ?? null);
-
-        if ($raw instanceof Peruntukan) {
-            return $raw;
-        }
 
         if ($raw instanceof BackedEnum) {
             $raw = $raw->value;
         }
 
-        return is_string($raw) ? Peruntukan::tryFrom($raw) : null;
+        if (! is_string($raw)) {
+            return null;
+        }
+
+        $slug = strtolower(trim($raw));
+
+        return $slug !== '' ? $slug : null;
     }
 
     protected function resolveDokumenSlug(Pembanding $item): ?string

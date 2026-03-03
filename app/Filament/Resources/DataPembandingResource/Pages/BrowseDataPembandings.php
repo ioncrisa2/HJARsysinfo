@@ -9,6 +9,7 @@ use App\Models\JenisObjek;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\Village;
+use App\Services\Pembanding\PembandingBrowseFilterService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -127,13 +128,7 @@ class BrowseDataPembandings extends Page implements HasTable, HasForms
 
     public function updatedFilters(mixed $value = null, ?string $key = null): void
     {
-        if ($key === 'q') {
-            $this->filters['q'] = trim((string) ($this->filters['q'] ?? ''));
-
-            if ($this->filters['q'] === '') {
-                $this->filters['q'] = null;
-            }
-        }
+        $this->filters = $this->filterService()->normalize($this->filters ?? []);
 
         $this->flushCachedTableRecords();
         $this->resetPage();
@@ -162,48 +157,19 @@ class BrowseDataPembandings extends Page implements HasTable, HasForms
 
     protected function buildFilteredQuery(): Builder
     {
-        $filters = $this->filters;
-        $search = trim((string) ($filters['q'] ?? ''));
-
-        return DataPembandingResource::getEloquentQuery()
-            ->when($filters['province_id'] ?? null, fn (Builder $query, $value) => $query->where('province_id', $value))
-            ->when($filters['regency_id'] ?? null, fn (Builder $query, $value) => $query->where('regency_id', $value))
-            ->when($filters['district_id'] ?? null, fn (Builder $query, $value) => $query->where('district_id', $value))
-            ->when($filters['village_id'] ?? null, fn (Builder $query, $value) => $query->where('village_id', $value))
-            ->when(
-                $search !== '',
-                fn (Builder $query) => $query->where('alamat_data', 'like', '%' . $search . '%')
-            )
-            ->when(
-                $filters['dari_tanggal'] ?? null,
-                fn (Builder $query, $date) => $query->whereDate('tanggal_data', '>=', $date),
-            )
-            ->when(
-                $filters['sampai_tanggal'] ?? null,
-                fn (Builder $query, $date) => $query->whereDate('tanggal_data', '<=', $date),
-            )
-            ->when(
-                $filters['jenis_listing_id'] ?? null,
-                fn (Builder $query, $value) => $query->where('jenis_listing_id', $value),
-            )
-            ->when(
-                $filters['jenis_objek_id'] ?? null,
-                fn (Builder $query, $value) => $query->where('jenis_objek_id', $value),
-            );
+        return $this->filterService()->apply(
+            DataPembandingResource::getEloquentQuery(),
+            $this->filters ?? [],
+        );
     }
 
     protected function defaultFilters(): array
     {
-        return [
-            'province_id' => null,
-            'regency_id' => null,
-            'district_id' => null,
-            'village_id' => null,
-            'q' => null,
-            'dari_tanggal' => null,
-            'sampai_tanggal' => null,
-            'jenis_listing_id' => null,
-            'jenis_objek_id' => null,
-        ];
+        return $this->filterService()->defaults();
+    }
+
+    private function filterService(): PembandingBrowseFilterService
+    {
+        return app(PembandingBrowseFilterService::class);
     }
 }

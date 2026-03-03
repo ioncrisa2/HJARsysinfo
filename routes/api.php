@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DataPembandingController;
+use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Middleware\ThrottleAuthAttempts;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')
     ->prefix('v1')
     ->group(function () {
+        Route::get('/dictionaries/{type}', [DictionaryController::class, 'index']);
         Route::get('/pembandings', [DataPembandingController::class, 'index']);
         Route::get('/pembandings/{id}', [DataPembandingController::class, 'show']);
         Route::get('/pembandings/{pembanding}/similar', [DataPembandingController::class, 'similarById']);
