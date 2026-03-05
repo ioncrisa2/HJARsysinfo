@@ -25,6 +25,12 @@ const navItems = computed(() =>
             permission: "view_any_data::pembanding",
         },
         {
+            label: "Non Properti",
+            href: "/home/non-properti",
+            icon: "pi pi-briefcase",
+            permission: "view_any_data::non_property_comparable",
+        },
+        {
             label: "Master Data",
             href: "/home/master-data",
             icon: "pi pi-sitemap",

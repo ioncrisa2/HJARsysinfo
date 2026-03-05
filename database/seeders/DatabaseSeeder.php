@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             AdminAccessPermissionSeeder::class,
             AdminPanelPermissionSeeder::class,
             MasterDataPermissionSeeder::class,
+            NonPropertyPermissionSeeder::class,
         ]);
     }
 }

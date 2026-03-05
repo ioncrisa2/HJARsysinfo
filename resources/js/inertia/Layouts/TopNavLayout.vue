@@ -7,13 +7,33 @@ import ScrollTop from "primevue/scrolltop";
 const page = usePage();
 
 const user = computed(() => page.props.auth?.user ?? {});
+const permissions = computed(() => page.props.auth?.permissions ?? []);
 const initials = computed(() => (user.value.name ?? "U").slice(0, 1).toUpperCase());
 
-const menuItems = [
-    { label: "Dashboard", href: "/home" },
-    { label: "Bank Data", href: "/home/pembanding" },
-    { label: "Master Data", href: "/home/master-data" },
-];
+const menuItems = computed(() =>
+    [
+        {
+            label: "Dashboard",
+            href: "/home",
+            permission: "view_any_data::pembanding",
+        },
+        {
+            label: "Bank Data",
+            href: "/home/pembanding",
+            permission: "view_any_data::pembanding",
+        },
+        {
+            label: "Non Properti",
+            href: "/home/non-properti",
+            permission: "view_any_data::non_property_comparable",
+        },
+        {
+            label: "Master Data",
+            href: "/home/master-data",
+            permission: "view_any_data::pembanding",
+        },
+    ].filter((item) => permissions.value.includes(item.permission))
+);
 
 const isActive = (href) => {
     if (href === "/home") return page.url === "/home";

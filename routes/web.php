@@ -3,6 +3,7 @@
 use App\Http\Controllers\App\DashboardController;
 use App\Http\Controllers\App\GeoLookupController;
 use App\Http\Controllers\App\MasterDataPageController;
+use App\Http\Controllers\App\NonPropertyComparableController;
 use App\Http\Controllers\App\DictionaryApiController;
 use App\Http\Controllers\App\LocationApiController;
 use App\Http\Controllers\App\PembandingExportController;
@@ -51,6 +52,30 @@ Route::middleware('auth')->group(function () {
     Route::put('/home/pembanding/{pembanding}', [PembandingController::class, 'update'])
         ->middleware(['app.user', 'permission:update_data::pembanding'])
         ->name('home.pembanding.update');
+    Route::get('/home/non-properti', [NonPropertyComparableController::class, 'index'])
+        ->middleware(['app.user', 'permission:view_any_data::non_property_comparable'])
+        ->name('home.non-properti.index');
+    Route::get('/home/non-properti/create', [NonPropertyComparableController::class, 'create'])
+        ->middleware(['app.user', 'permission:create_data::non_property_comparable'])
+        ->name('home.non-properti.create');
+    Route::post('/home/non-properti', [NonPropertyComparableController::class, 'store'])
+        ->middleware(['app.user', 'permission:create_data::non_property_comparable'])
+        ->name('home.non-properti.store');
+    Route::get('/home/non-properti/{comparable}/history', [NonPropertyComparableController::class, 'history'])
+        ->middleware(['app.user', 'permission:view_any_data::non_property_comparable'])
+        ->name('home.non-properti.history');
+    Route::get('/home/non-properti/{comparable}', [NonPropertyComparableController::class, 'show'])
+        ->middleware(['app.user', 'permission:view_any_data::non_property_comparable'])
+        ->name('home.non-properti.show');
+    Route::get('/home/non-properti/{comparable}/edit', [NonPropertyComparableController::class, 'edit'])
+        ->middleware(['app.user', 'permission:update_data::non_property_comparable'])
+        ->name('home.non-properti.edit');
+    Route::put('/home/non-properti/{comparable}', [NonPropertyComparableController::class, 'update'])
+        ->middleware(['app.user', 'permission:update_data::non_property_comparable'])
+        ->name('home.non-properti.update');
+    Route::delete('/home/non-properti/{comparable}', [NonPropertyComparableController::class, 'destroy'])
+        ->middleware(['app.user', 'permission:delete_data::non_property_comparable'])
+        ->name('home.non-properti.destroy');
     // Master Data unified page
     Route::get('/home/master-data', MasterDataPageController::class)
         ->middleware(['app.user', 'role_or_permission:surveyor|manage_master_data'])
