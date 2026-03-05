@@ -13,6 +13,7 @@ use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
 use App\Models\Pembanding;
+use App\Models\PembandingDeleteRequest;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
 use App\Models\Province;
@@ -160,6 +161,18 @@ class PembandingController extends Controller
             'updater:id,name,email',
         ]);
 
+        $latestDeleteRequest = $pembanding->deleteRequests()
+            ->with([
+                'requestedBy:id,name',
+                'reviewedBy:id,name',
+            ])
+            ->latest('id')
+            ->first();
+
+        $hasPendingDeleteRequest = $pembanding->deleteRequests()
+            ->where('status', PembandingDeleteRequest::STATUS_PENDING)
+            ->exists();
+
         return Inertia::render('Pembanding/Show', [
             'record' => [
                 'id'                             => $pembanding->id,
@@ -202,6 +215,17 @@ class PembandingController extends Controller
                 'updated_by'                     => $pembanding->updater?->name,
                 'created_at'                     => optional($pembanding->created_at)->toDateTimeString(),
                 'updated_at'                     => optional($pembanding->updated_at)->toDateTimeString(),
+                'has_pending_delete_request'     => $hasPendingDeleteRequest,
+                'delete_request'                 => $latestDeleteRequest ? [
+                    'id' => $latestDeleteRequest->id,
+                    'status' => $latestDeleteRequest->status,
+                    'reason' => $latestDeleteRequest->reason,
+                    'review_note' => $latestDeleteRequest->review_note,
+                    'requested_by' => $latestDeleteRequest->requestedBy?->name,
+                    'reviewed_by' => $latestDeleteRequest->reviewedBy?->name,
+                    'requested_at' => optional($latestDeleteRequest->created_at)->toDateTimeString(),
+                    'reviewed_at' => optional($latestDeleteRequest->reviewed_at)->toDateTimeString(),
+                ] : null,
             ],
         ]);
     }
@@ -283,6 +307,36 @@ class PembandingController extends Controller
         return redirect()
             ->route('home.pembanding.show', $pembanding)
             ->with('success', 'Data pembanding berhasil diperbarui.');
+    }
+
+    public function requestDelete(Request $request, Pembanding $pembanding): RedirectResponse
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'reason.required' => 'Alasan penghapusan wajib diisi.',
+        ]);
+
+        $alreadyPending = $pembanding->deleteRequests()
+            ->where('status', PembandingDeleteRequest::STATUS_PENDING)
+            ->exists();
+
+        if ($alreadyPending) {
+            return redirect()
+                ->route('home.pembanding.show', $pembanding)
+                ->with('error', 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi super_admin.');
+        }
+
+        PembandingDeleteRequest::create([
+            'pembanding_id' => $pembanding->id,
+            'requested_by_id' => $request->user()->id,
+            'reason' => trim($data['reason']),
+            'status' => PembandingDeleteRequest::STATUS_PENDING,
+        ]);
+
+        return redirect()
+            ->route('home.pembanding.show', $pembanding)
+            ->with('success', 'Permintaan hapus berhasil dikirim dan menunggu evaluasi super_admin.');
     }
 
     // ── History ───────────────────────────────────────────────────────────────

@@ -10,7 +10,17 @@ defineProps({
         type: String,
         default: "n/a",
     },
+    canRequestDelete: {
+        type: Boolean,
+        default: true,
+    },
+    hasPendingDeleteRequest: {
+        type: Boolean,
+        default: false,
+    },
 });
+
+defineEmits(["request-delete"]);
 </script>
 
 <template>
@@ -49,6 +59,21 @@ defineProps({
                     <i class="pi pi-history text-[11px]" />
                     <span class="hidden sm:inline">Riwayat</span>
                 </Link>
+                <button
+                    type="button"
+                    :disabled="!canRequestDelete"
+                    class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition"
+                    :class="canRequestDelete
+                        ? 'border-red-200 bg-white text-red-600 hover:bg-red-50'
+                        : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'"
+                    @click="$emit('request-delete')"
+                >
+                    <i class="pi pi-trash text-[11px]" />
+                    <span class="hidden sm:inline">
+                        {{ hasPendingDeleteRequest ? "Menunggu Approval" : "Request Hapus" }}
+                    </span>
+                    <span class="sm:hidden">Hapus</span>
+                </button>
                 <Link
                     :href="`/home/pembanding/${record.id}/edit`"
                     class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600"

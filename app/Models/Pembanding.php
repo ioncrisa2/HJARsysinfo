@@ -11,6 +11,7 @@ use App\Models\Traits\PembandingPresenter;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Pembanding extends Model
@@ -127,6 +128,11 @@ class Pembanding extends Model
     public function deletedBy(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'deleted_by_id');
+    }
+
+    public function deleteRequests(): HasMany
+    {
+        return $this->hasMany(PembandingDeleteRequest::class, 'pembanding_id');
     }
 
     public function jenisListing(): BelongsTo

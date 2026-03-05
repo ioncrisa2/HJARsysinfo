@@ -39,6 +39,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/home/pembanding/{pembanding}/history', [PembandingController::class, 'history'])
         ->middleware(['app.user', 'permission:view_any_data::pembanding'])
         ->name('home.pembanding.history');
+    Route::post('/home/pembanding/{pembanding}/delete-request', [PembandingController::class, 'requestDelete'])
+        ->middleware(['app.user', 'permission:view_any_data::pembanding'])
+        ->name('home.pembanding.delete-request');
     Route::get('/home/pembanding/{pembanding}', [PembandingController::class, 'show'])
         ->middleware(['app.user', 'permission:view_any_data::pembanding'])
         ->name('home.pembanding.show');
