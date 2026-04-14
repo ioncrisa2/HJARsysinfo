@@ -64,8 +64,8 @@ const formatRelativeTime = (value) => {
                 <i class="pi pi-clock text-amber-500 text-xs" />
                 Data Terbaru
             </div>
-            <Link href="/home/pembanding" class="text-xs font-medium text-amber-600 hover:text-amber-800 transition-colors">
-                Lihat Semua →
+            <Link href="/home/pembanding" class="text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors">
+                Lihat Semua ->
             </Link>
         </div>
 
@@ -73,23 +73,23 @@ const formatRelativeTime = (value) => {
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="border-b border-slate-100 bg-slate-50/60 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        <th class="px-4 py-2.5">Foto</th>
-                        <th class="px-4 py-2.5">Alamat</th>
-                        <th class="px-4 py-2.5">Jenis</th>
-                        <th class="px-4 py-2.5">Harga</th>
-                        <th class="px-4 py-2.5">Diinput</th>
-                        <th class="px-4 py-2.5"></th>
+                    <tr class="border-b border-slate-100 bg-slate-50/60 text-left text-xs font-semibold text-slate-500">
+                        <th class="px-3 py-2">Foto</th>
+                        <th class="px-3 py-2">Alamat</th>
+                        <th class="px-3 py-2">Jenis</th>
+                        <th class="px-3 py-2">Harga</th>
+                        <th class="px-3 py-2">Diinput</th>
+                        <th class="px-3 py-2"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
                     <tr
                         v-for="item in data"
                         :key="item.id"
-                        class="transition hover:bg-slate-50/60"
+                        class="hover:bg-slate-50/60"
                     >
                         <!-- Foto -->
-                        <td class="px-4 py-3">
+                        <td class="px-3 py-2.5">
                             <div class="h-12 w-16 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                                 <img
                                     v-if="item.image_url"
@@ -105,39 +105,39 @@ const formatRelativeTime = (value) => {
                         </td>
 
                         <!-- Alamat -->
-                        <td class="px-4 py-3">
+                        <td class="px-3 py-2.5">
                             <p class="max-w-[200px] truncate font-medium text-slate-800">
                                 {{ item.alamat || "Tanpa alamat" }}
                             </p>
                         </td>
 
                         <!-- Jenis badges -->
-                        <td class="px-4 py-3">
+                        <td class="px-3 py-2.5">
                             <div class="flex flex-wrap gap-1">
-                                <span v-if="item.jenis_listing" class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                <span v-if="item.jenis_listing" class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                                     {{ item.jenis_listing }}
                                 </span>
-                                <span v-if="item.jenis_objek" class="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                <span v-if="item.jenis_objek" class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                                     {{ item.jenis_objek }}
                                 </span>
                             </div>
                         </td>
 
                         <!-- Harga -->
-                        <td class="px-4 py-3 font-semibold text-amber-600">
+                        <td class="ui-tabular px-3 py-2.5 font-semibold text-slate-900">
                             {{ formatCurrency(item.harga) }}
                         </td>
 
                         <!-- Diinput -->
-                        <td class="px-4 py-3 text-xs text-slate-400">
+                        <td class="px-3 py-2.5 text-xs text-slate-500">
                             {{ formatRelativeTime(item.created_at) }}
                         </td>
 
                         <!-- Action -->
-                        <td class="px-4 py-3">
+                        <td class="px-3 py-2.5">
                             <Link
                                 :href="`/home/pembanding/${item.id}`"
-                                class="text-xs font-semibold text-amber-600 hover:text-amber-800 transition-colors"
+                                class="text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors"
                             >
                                 Detail
                             </Link>

@@ -9,6 +9,85 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* UI tokens */
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+
+    /* Focus */
+    --focus-ring: color-mix(in oklab, #f59e0b 24%, transparent);
+    --focus-outline: color-mix(in oklab, #f59e0b 70%, #0f172a);
+
+    /* Two-layer shadow (ambient + direct). Keep subtle for product UI. */
+    --shadow-surface: 0 1px 0 rgba(15, 23, 42, 0.04), 0 12px 30px rgba(15, 23, 42, 0.06);
+    --shadow-surface-hover: 0 1px 0 rgba(15, 23, 42, 0.05), 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+@layer base {
+    html {
+        color-scheme: light;
+        text-rendering: geometricPrecision;
+    }
+
+    /* Visible keyboard focus everywhere. */
+    :where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+        outline: 2px solid var(--focus-outline);
+        outline-offset: 2px;
+    }
+
+    /* Group focus (e.g. composite controls). */
+    :where([data-focus-group]):focus-within {
+        outline: 2px solid var(--focus-outline);
+        outline-offset: 2px;
+        border-radius: var(--radius-md);
+    }
+
+    /* Reduce "double tap zoom" issues and improve tap feedback. */
+    :where(a, button, [role="button"]) {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: color-mix(in oklab, #0f172a 12%, transparent);
+    }
+}
+
+@layer components {
+    /* Skip link: only visible when keyboard users need it. */
+    .ui-skip-link {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        z-index: 2147483647;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: #0f172a;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        transform: translateY(-180%);
+        transition: transform 150ms ease;
+    }
+
+    .ui-skip-link:focus-visible {
+        transform: translateY(0);
+    }
+
+    /* Numeric scanning. Apply to KPI blocks, tables, and comparisons. */
+    .ui-tabular {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Minimum hit target helpers (use on icon buttons). */
+    .ui-hit {
+        min-width: 24px;
+        min-height: 24px;
+    }
+
+    @media (pointer: coarse) {
+        .ui-hit {
+            min-width: 44px;
+            min-height: 44px;
+        }
+    }
 }
 
 /* Light override for PrimeVue inputs inside .filter-light */

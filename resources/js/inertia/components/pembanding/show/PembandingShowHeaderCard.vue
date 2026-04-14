@@ -1,5 +1,6 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
+import UiSurface from "../../ui/UiSurface.vue";
 
 defineProps({
     record: {
@@ -24,93 +25,92 @@ defineEmits(["request-delete"]);
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-        <!-- Top action bar -->
-        <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-5 py-3">
-            <!-- Type badges -->
-            <div class="flex items-center gap-2 mr-auto flex-wrap">
+    <UiSurface padding="none" class="overflow-hidden">
+        <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+            <div class="mr-auto flex flex-wrap items-center gap-2">
                 <span
                     v-if="record.jenis_listing"
-                    class="rounded-full bg-emerald-500 px-3 py-0.5 text-[11px] font-bold uppercase text-white shadow-sm"
+                    class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
                 >
+                    <span class="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
                     {{ record.jenis_listing }}
                 </span>
+
                 <span
                     v-if="record.jenis_objek"
-                    class="rounded-full bg-amber-500 px-3 py-0.5 text-[11px] font-bold uppercase text-white shadow-sm"
+                    class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
                 >
+                    <span class="size-1.5 rounded-full bg-slate-400" aria-hidden="true" />
                     {{ record.jenis_objek }}
                 </span>
+
                 <span
                     v-if="record.latitude && record.longitude"
-                    class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
                 >
-                    <i class="pi pi-map-marker text-[9px]" /> GPS Tersedia
+                    <i class="pi pi-map-marker text-[11px] text-amber-600" aria-hidden="true" />
+                    GPS tersedia
                 </span>
             </div>
 
-            <!-- Actions -->
             <div class="flex shrink-0 items-center gap-2">
                 <Link
                     :href="`/home/pembanding/${record.id}/history`"
-                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                    class="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 >
-                    <i class="pi pi-history text-[11px]" />
+                    <i class="pi pi-history text-[12px]" aria-hidden="true" />
                     <span class="hidden sm:inline">Riwayat</span>
                 </Link>
+
                 <button
                     type="button"
                     :disabled="!canRequestDelete"
-                    class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition"
-                    :class="canRequestDelete
-                        ? 'border-red-200 bg-white text-red-600 hover:bg-red-50'
-                        : 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'"
+                    class="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-semibold transition
+                        disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                    :class="canRequestDelete ? 'border-red-200 bg-white text-red-700 hover:bg-red-50' : ''"
                     @click="$emit('request-delete')"
                 >
-                    <i class="pi pi-trash text-[11px]" />
+                    <i class="pi pi-trash text-[12px]" aria-hidden="true" />
                     <span class="hidden sm:inline">
                         {{ hasPendingDeleteRequest ? "Menunggu Approval" : "Request Hapus" }}
                     </span>
                     <span class="sm:hidden">Hapus</span>
                 </button>
+
                 <Link
                     :href="`/home/pembanding/${record.id}/edit`"
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600"
+                    class="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-amber-500 px-3 text-xs font-semibold text-white transition hover:bg-amber-600"
                 >
-                    <i class="pi pi-pencil text-[11px]" />
-                    Edit Data
+                    <i class="pi pi-pencil text-[12px]" aria-hidden="true" />
+                    Edit
                 </Link>
             </div>
         </div>
 
-        <!-- Main content -->
-        <div class="px-5 py-5">
-            <h1 class="text-lg font-black leading-snug text-slate-900 sm:text-2xl">
+        <div class="px-4 py-4">
+            <h1 class="text-balance text-lg font-semibold leading-snug text-slate-900 sm:text-2xl">
                 {{ record.alamat ?? "Tanpa Alamat" }}
             </h1>
-            <p v-if="record.location" class="mt-1 flex items-center gap-1 text-xs text-slate-400">
-                <i class="pi pi-map-marker text-[10px]" />
+            <p v-if="record.location" class="mt-1 flex items-center gap-1.5 text-pretty text-xs text-slate-500">
+                <i class="pi pi-map-marker text-[11px]" aria-hidden="true" />
                 {{ record.location }}
             </p>
 
-            <!-- Metadata row -->
-            <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+            <div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-slate-100 pt-4 text-xs text-slate-500">
                 <span class="flex items-center gap-1.5">
-                    <i class="pi pi-user text-[10px]" />
-                    Dibuat oleh
-                    <strong class="font-semibold text-slate-600">{{ record.created_by ?? "n/a" }}</strong>
+                    <i class="pi pi-user text-[11px]" aria-hidden="true" />
+                    Dibuat oleh <span class="font-semibold text-slate-700">{{ record.created_by ?? "n/a" }}</span>
                 </span>
                 <span class="flex items-center gap-1.5">
-                    <i class="pi pi-calendar text-[10px]" />
+                    <i class="pi pi-calendar text-[11px]" aria-hidden="true" />
                     {{ createdAtLabel }}
                 </span>
                 <span v-if="record.updated_by" class="flex items-center gap-1.5">
-                    <i class="pi pi-refresh text-[10px]" />
-                    Diperbarui oleh
-                    <strong class="font-semibold text-slate-600">{{ record.updated_by }}</strong>
+                    <i class="pi pi-refresh text-[11px]" aria-hidden="true" />
+                    Diperbarui oleh <span class="font-semibold text-slate-700">{{ record.updated_by }}</span>
                 </span>
             </div>
         </div>
-    </div>
+    </UiSurface>
 </template>
+

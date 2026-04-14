@@ -231,7 +231,7 @@ loadProvinces();
 
                 <!-- ── Provinsi ── -->
                 <div class="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Provinsi</p>
+                    <p class="text-balance text-sm font-semibold text-slate-800">Provinsi</p>
                     <div class="grid gap-2">
                         <label class="text-xs text-slate-500">Kode (2 digit)</label>
                         <InputText v-model="forms.province.id" class="w-full" placeholder="mis. 11" maxlength="2" />
@@ -251,7 +251,7 @@ loadProvinces();
 
                 <!-- ── Kabupaten / Kota ── -->
                 <div class="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Kabupaten / Kota (ID auto)</p>
+                    <p class="text-balance text-sm font-semibold text-slate-800">Kabupaten / Kota</p>
                     <div class="grid gap-2">
                         <div class="flex items-center gap-2">
                             <label class="text-xs text-slate-500">Cari</label>
@@ -265,6 +265,7 @@ loadProvinces();
                                 icon="pi pi-search"
                                 severity="secondary"
                                 text
+                                aria-label="Cari kabupaten/kota"
                                 :loading="regencySearch.loading.value"
                                 @click="loadRegencies(forms.regency.province_id, regencySearch.query.value)"
                             />
@@ -296,7 +297,7 @@ loadProvinces();
 
                 <!-- ── Kecamatan ── -->
                 <div class="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Kecamatan (ID auto)</p>
+                    <p class="text-balance text-sm font-semibold text-slate-800">Kecamatan</p>
                     <div class="grid gap-2">
                         <div class="flex items-center gap-2">
                             <label class="text-xs text-slate-500">Cari</label>
@@ -310,6 +311,7 @@ loadProvinces();
                                 icon="pi pi-search"
                                 severity="secondary"
                                 text
+                                aria-label="Cari kecamatan"
                                 :loading="districtSearch.loading.value"
                                 @click="loadDistricts(forms.district.regency_id, districtSearch.query.value)"
                             />
@@ -341,7 +343,7 @@ loadProvinces();
 
                 <!-- ── Desa / Kelurahan ── -->
                 <div class="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Desa / Kelurahan (ID auto)</p>
+                    <p class="text-balance text-sm font-semibold text-slate-800">Desa / Kelurahan</p>
                     <div class="grid gap-2">
                         <label class="text-xs text-slate-500">Provinsi</label>
                         <Dropdown

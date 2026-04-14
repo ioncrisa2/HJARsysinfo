@@ -31,7 +31,7 @@ const dateRangeModel = computed({
 <template>
     <!-- Keyword -->
     <div>
-        <label class="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-400">
+        <label class="mb-1.5 block text-xs font-semibold text-slate-600">
             Nama Jalan / Kata Kunci
         </label>
         <InputText v-model="props.filters.q" class="w-full" placeholder="mis. Jl. Merdeka" />
@@ -41,7 +41,7 @@ const dateRangeModel = computed({
 
     <!-- Lokasi -->
     <div class="space-y-3">
-        <p class="text-xs font-bold uppercase tracking-widest text-slate-400">Lokasi</p>
+        <p class="text-xs font-semibold text-slate-600">Lokasi</p>
         <div>
             <label class="mb-1 block text-xs font-semibold text-slate-500">Provinsi</label>
             <Select
@@ -117,7 +117,7 @@ const dateRangeModel = computed({
 
     <!-- Date range -->
     <div>
-        <label class="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-400">
+        <label class="mb-1.5 block text-xs font-semibold text-slate-600">
             Rentang Tanggal
         </label>
         <Calendar
@@ -135,7 +135,7 @@ const dateRangeModel = computed({
 
     <!-- Per page -->
     <div>
-        <label class="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-400">
+        <label class="mb-1.5 block text-xs font-semibold text-slate-600">
             Data Per Halaman
         </label>
         <Listbox

@@ -1,41 +1,50 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import InputText from "primevue/inputtext";
 import Checkbox from "primevue/checkbox";
 import Dropdown from "primevue/dropdown";
 import Button from "primevue/button";
-import Tag from "primevue/tag";
+import Dialog from "primevue/dialog";
+import UiSurface from "../ui/UiSurface.vue";
+import UiSectionHeader from "../ui/UiSectionHeader.vue";
+import UiField from "../ui/UiField.vue";
+import UiEmptyState from "../ui/UiEmptyState.vue";
 import { apiRequest } from "../../utils/apiRequest";
 
 const props = defineProps({
     type: { type: String, required: true },
     label: { type: String, required: true },
     icon: { type: String, default: "pi-tag" },
-    extra: { type: Array, default: () => [] }, // e.g. ['badge_color_token','marker_icon_url']
+    extra: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(["success", "error"]);
 
-// ─── Granular loading states ──────────────────────────────────────────────────
-const loadingFetch    = ref(false);
-const loadingSubmit   = ref(false);
-const loadingReorder  = ref(false);
-const deletingId      = ref(null); // tracks which item is being deleted
+const loadingFetch = ref(false);
+const loadingSubmit = ref(false);
+const loadingReorder = ref(false);
+const deletingId = ref(null);
 
-const isAnyLoading = computed(() =>
-    loadingFetch.value || loadingSubmit.value || loadingReorder.value || deletingId.value !== null
-);
-// ─────────────────────────────────────────────────────────────────────────────
+const items = ref([]);
+const originalOrderIds = ref([]);
 
-const items              = ref([]);
-const editingId          = ref(null);
-const activeInputId      = computed(() => `is_active_${props.type}`);
-const originalOrderIds   = ref([]);
-const dragSourceIndex    = ref(null);
-const dragOverIndex      = ref(null);
+const query = ref("");
+const selectedId = ref(null);
 
-// Snapshot taken just before a drag-save attempt — used for auto-rollback
-let reorderSnapshot = null;
+const deleteDialogVisible = ref(false);
+const pendingDeleteId = ref(null);
+const errorMessage = ref("");
+
+const activeInputId = computed(() => `is_active_${props.type}`);
+
+const badgeOptions = [
+    { label: "Gray", value: "gray" },
+    { label: "Primary", value: "primary" },
+    { label: "Info", value: "info" },
+    { label: "Success", value: "success" },
+    { label: "Warning", value: "warning" },
+    { label: "Danger", value: "danger" },
+];
 
 const form = reactive({
     name: "",
@@ -44,323 +53,434 @@ const form = reactive({
     marker_icon_url: "",
 });
 
-const badgeOptions = [
-    { label: "Gray",    value: "gray"    },
-    { label: "Primary", value: "primary" },
-    { label: "Info",    value: "info"    },
-    { label: "Success", value: "success" },
-    { label: "Warning", value: "warning" },
-    { label: "Danger",  value: "danger"  },
-];
+const isAnyLoading = computed(
+    () => loadingFetch.value || loadingSubmit.value || loadingReorder.value || deletingId.value !== null,
+);
 
-const resetForm = () => {
-    editingId.value        = null;
-    form.name              = "";
-    form.is_active         = true;
-    form.badge_color_token = null;
-    form.marker_icon_url   = "";
-};
-
-const hasOrderChanges = computed(() => {
-    const currentIds = items.value.map((item) => item.id);
-    if (currentIds.length !== originalOrderIds.value.length) return true;
-    return currentIds.some((id, index) => id !== originalOrderIds.value[index]);
+const filteredItems = computed(() => {
+    const q = query.value.trim().toLowerCase();
+    const list = items.value ?? [];
+    if (!q) return list;
+    return list.filter((item) => `${item.name ?? ""}`.toLowerCase().includes(q) || `${item.slug ?? ""}`.toLowerCase().includes(q));
 });
 
-// ─── Data loading ─────────────────────────────────────────────────────────────
-const loadItems = async () => {
+const selectedItem = computed(() => {
+    const id = selectedId.value;
+    if (!id) return null;
+    return (items.value ?? []).find((i) => i.id === id) ?? null;
+});
+
+const isEditing = computed(() => Boolean(selectedItem.value));
+
+const hasOrderChanges = computed(() => {
+    const currentIds = (items.value ?? []).map((item) => item.id);
+    const baselineIds = originalOrderIds.value ?? [];
+    if (currentIds.length !== baselineIds.length) return true;
+    return currentIds.some((id, index) => id !== baselineIds[index]);
+});
+
+const resetForm = () => {
+    form.name = "";
+    form.is_active = true;
+    form.badge_color_token = null;
+    form.marker_icon_url = "";
+};
+
+const selectNew = () => {
+    selectedId.value = null;
+    resetForm();
+};
+
+const selectItem = (item) => {
+    selectedId.value = item?.id ?? null;
+    form.name = item?.name ?? "";
+    form.is_active = Boolean(item?.is_active ?? true);
+    form.badge_color_token = item?.badge_color_token ?? null;
+    form.marker_icon_url = item?.marker_icon_url ?? "";
+};
+
+const loadItems = async ({ preserveSelection = true } = {}) => {
     loadingFetch.value = true;
     try {
         const payload = await apiRequest(`/home/master-data/dictionaries/${props.type}`);
-        items.value          = payload;
-        originalOrderIds.value = payload.map((item) => item.id);
+        items.value = payload ?? [];
+        originalOrderIds.value = (payload ?? []).map((item) => item.id);
+
+        if (!preserveSelection) {
+            selectNew();
+            return;
+        }
+
+        const currentSelectedId = selectedId.value;
+        if (!currentSelectedId) return;
+        const stillExists = (items.value ?? []).some((i) => i.id === currentSelectedId);
+        if (!stillExists) selectNew();
+        else selectItem((items.value ?? []).find((i) => i.id === currentSelectedId));
     } catch (e) {
-        emit("error", e.message || "Gagal memuat data");
+        const message = e?.message || "Gagal memuat data";
+        errorMessage.value = message;
+        emit("error", message);
+        items.value = [];
+        originalOrderIds.value = [];
     } finally {
         loadingFetch.value = false;
     }
 };
 
-// ─── Submit (add / edit) ──────────────────────────────────────────────────────
 const submit = async () => {
+    const name = form.name.trim();
+    if (!name) return;
+
     loadingSubmit.value = true;
     try {
-        const isEditing = Boolean(editingId.value);
-        const payload   = { name: form.name, is_active: form.is_active };
+        errorMessage.value = "";
+        const payload = {
+            name,
+            is_active: Boolean(form.is_active),
+        };
 
-        if (props.extra.includes("badge_color_token")) payload.badge_color_token = form.badge_color_token;
-        if (props.extra.includes("marker_icon_url"))   payload.marker_icon_url   = form.marker_icon_url || null;
+        if (props.extra.includes("badge_color_token")) payload.badge_color_token = form.badge_color_token || null;
+        if (props.extra.includes("marker_icon_url")) payload.marker_icon_url = form.marker_icon_url?.trim() || null;
 
-        await apiRequest(
-            `/home/master-data/dictionaries/${props.type}${editingId.value ? "/" + editingId.value : ""}`,
-            { method: editingId.value ? "PUT" : "POST", body: payload }
-        );
+        if (isEditing.value) {
+            await apiRequest(`/home/master-data/dictionaries/${props.type}/${selectedId.value}`, {
+                method: "PUT",
+                body: payload,
+            });
+            emit("success", "Data diperbarui");
+        } else {
+            const created = await apiRequest(`/home/master-data/dictionaries/${props.type}`, {
+                method: "POST",
+                body: payload,
+            });
+            emit("success", "Data ditambahkan");
+            await loadItems({ preserveSelection: false });
+            if (created?.id) {
+                const match = (items.value ?? []).find((i) => i.id === created.id);
+                if (match) selectItem(match);
+            }
+            return;
+        }
 
-        await loadItems();
-        resetForm();
-        emit("success", isEditing ? "Berhasil diperbarui" : "Berhasil ditambahkan");
+        await loadItems({ preserveSelection: true });
     } catch (e) {
-        emit("error", e.message || "Gagal menyimpan");
+        const message = e?.message || "Gagal menyimpan data";
+        errorMessage.value = message;
+        emit("error", message);
     } finally {
         loadingSubmit.value = false;
     }
 };
 
-// ─── Edit / Delete ────────────────────────────────────────────────────────────
-const editItem = (item) => {
-    editingId.value        = item.id;
-    form.name              = item.name;
-    form.is_active         = Boolean(item.is_active);
-    form.badge_color_token = item.badge_color_token ?? null;
-    form.marker_icon_url   = item.marker_icon_url   ?? "";
+const openDelete = (id) => {
+    if (!id || isAnyLoading.value) return;
+    pendingDeleteId.value = id;
+    deleteDialogVisible.value = true;
 };
 
-const deleteItem = async (id) => {
-    if (!confirm("Hapus data ini?")) return;
+const confirmDelete = async () => {
+    const id = pendingDeleteId.value;
+    if (!id) return;
     deletingId.value = id;
     try {
+        errorMessage.value = "";
         await apiRequest(`/home/master-data/dictionaries/${props.type}/${id}`, { method: "DELETE" });
-        await loadItems();
-        emit("success", "Berhasil dihapus");
+        emit("success", "Data dihapus");
+        deleteDialogVisible.value = false;
+        pendingDeleteId.value = null;
+        if (selectedId.value === id) selectNew();
+        await loadItems({ preserveSelection: true });
     } catch (e) {
-        emit("error", e.message || "Gagal menghapus");
+        const message = e?.message || "Gagal menghapus data";
+        errorMessage.value = message;
+        emit("error", message);
     } finally {
         deletingId.value = null;
     }
 };
 
-// ─── Drag & drop reorder ──────────────────────────────────────────────────────
-const moveItem = (fromIndex, toIndex) => {
-    if (fromIndex === toIndex) return;
-    if (fromIndex < 0 || toIndex < 0) return;
-    if (fromIndex >= items.value.length || toIndex >= items.value.length) return;
+const moveItem = (id, direction) => {
+    if (!id) return;
+    if (query.value.trim()) return; // avoid reordering in filtered state
+    const list = items.value ?? [];
+    const index = list.findIndex((i) => i.id === id);
+    if (index === -1) return;
 
-    const reordered    = [...items.value];
-    const [moved]      = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved);
-    items.value        = reordered;
-};
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= list.length) return;
 
-const onDragStart = (event, index) => {
-    dragSourceIndex.value = index;
-    event.dataTransfer?.setData("text/plain", String(items.value[index]?.id ?? ""));
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-};
-
-const onDragOver = (event, index) => {
-    event.preventDefault();
-    dragOverIndex.value = index;
-    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-};
-
-const onDrop = (event, index) => {
-    event.preventDefault();
-    const fromIndex = dragSourceIndex.value;
-    if (fromIndex === null) return;
-    moveItem(fromIndex, index);
-    dragSourceIndex.value = null;
-    dragOverIndex.value   = null;
-};
-
-const onDragEnd = () => {
-    dragSourceIndex.value = null;
-    dragOverIndex.value   = null;
+    const copy = [...list];
+    const tmp = copy[index];
+    copy[index] = copy[nextIndex];
+    copy[nextIndex] = tmp;
+    items.value = copy;
 };
 
 const resetOrder = () => {
-    if (!hasOrderChanges.value) return;
-    const mapById  = new Map(items.value.map((item) => [item.id, item]));
-    items.value    = originalOrderIds.value
-        .map((id) => mapById.get(id))
-        .filter(Boolean);
+    const baseline = originalOrderIds.value ?? [];
+    const byId = new Map((items.value ?? []).map((i) => [i.id, i]));
+    items.value = baseline.map((id) => byId.get(id)).filter(Boolean);
 };
 
 const saveOrder = async () => {
     if (!hasOrderChanges.value) return;
-
-    // Take a snapshot before touching the server — enables auto-rollback
-    reorderSnapshot        = [...items.value];
-    loadingReorder.value   = true;
-
+    loadingReorder.value = true;
     try {
-        const ids = items.value.map((item) => item.id);
+        errorMessage.value = "";
         await apiRequest(`/home/master-data/dictionaries/${props.type}/reorder`, {
             method: "POST",
-            body: { ids },
+            body: { ids: (items.value ?? []).map((i) => i.id) },
         });
-
-        emit("success", "Urutan berhasil disimpan");
-        await loadItems(); // refresh so originalOrderIds is updated
+        emit("success", "Urutan disimpan");
+        await loadItems({ preserveSelection: true });
     } catch (e) {
-        // Auto-rollback: restore the list to pre-save state
-        if (reorderSnapshot) {
-            items.value = reorderSnapshot;
-        }
-        emit("error", e.message || "Gagal menyimpan urutan");
+        const message = e?.message || "Gagal menyimpan urutan";
+        errorMessage.value = message;
+        emit("error", message);
+        await loadItems({ preserveSelection: true });
     } finally {
-        reorderSnapshot      = null;
         loadingReorder.value = false;
     }
 };
 
-onMounted(loadItems);
+onMounted(() => {
+    loadItems({ preserveSelection: false });
+});
+
+watch(
+    () => props.type,
+    () => {
+        query.value = "";
+        selectNew();
+        loadItems({ preserveSelection: false });
+    },
+);
 </script>
 
 <template>
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <i :class="['pi', icon, 'text-amber-500', 'text-xs']" />
-                {{ label }}
-            </div>
-            <div class="flex items-center gap-2">
-                <Button
-                    label="Simpan Urutan"
-                    icon="pi pi-check"
-                    size="small"
-                    :disabled="!hasOrderChanges || isAnyLoading"
-                    :loading="loadingReorder"
-                    @click="saveOrder"
-                />
-                <Button
-                    label="Batalkan Urutan"
-                    icon="pi pi-undo"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :disabled="!hasOrderChanges || isAnyLoading"
-                    @click="resetOrder"
-                />
-                <Tag :value="`${items.length} data`" severity="secondary" />
-            </div>
+    <UiSurface padding="none" class="overflow-hidden">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+            <UiSectionHeader :title="label" subtitle="Tambah, edit, nonaktifkan, dan urutkan master data." :icon="`pi ${icon}`">
+                <template #actions>
+                    <Button
+                        label="Tambah"
+                        icon="pi pi-plus"
+                        size="small"
+                        :disabled="isAnyLoading"
+                        @click="selectNew"
+                    />
+                </template>
+            </UiSectionHeader>
         </div>
 
-        <div class="grid gap-4 p-4 md:grid-cols-[320px_1fr]">
-            <!-- ── Form panel ── -->
-            <div class="space-y-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {{ editingId ? "Ubah" : "Tambah" }} {{ label }}
-                </p>
-
-                <div class="space-y-2">
-                    <label class="text-xs text-slate-500">Nama</label>
-                    <InputText v-model="form.name" class="w-full" />
-                </div>
-
-                <div class="flex items-end gap-2 pt-1">
-                    <Checkbox v-model="form.is_active" :input-id="activeInputId" binary />
-                    <label :for="activeInputId" class="text-xs text-slate-600">Aktif</label>
-                </div>
-
-                <div v-if="props.extra.includes('badge_color_token')" class="space-y-1">
-                    <label class="text-xs text-slate-500">Badge Color</label>
-                    <Dropdown
-                        v-model="form.badge_color_token"
-                        :options="badgeOptions"
-                        option-label="label"
-                        option-value="value"
-                        placeholder="Auto"
-                        class="w-full"
-                        show-clear
-                    />
-                </div>
-
-                <div v-if="props.extra.includes('marker_icon_url')" class="space-y-1">
-                    <label class="text-xs text-slate-500">Marker Icon URL</label>
-                    <InputText v-model="form.marker_icon_url" class="w-full" placeholder="https://..." />
-                </div>
-
-                <div class="flex gap-2">
+        <div class="grid gap-4 p-4 lg:grid-cols-[360px_1fr]">
+            <div class="space-y-3">
+                <div class="flex items-center gap-2">
+                    <InputText v-model="query" placeholder="Cari nama atau slug..." class="w-full filter-light" />
                     <Button
-                        :label="editingId ? 'Update' : 'Simpan'"
-                        icon="pi pi-save"
-                        :loading="loadingSubmit"
-                        :disabled="isAnyLoading"
-                        @click="submit"
-                    />
-                    <Button
-                        label="Reset"
                         icon="pi pi-refresh"
                         severity="secondary"
                         outlined
-                        :disabled="loadingSubmit"
-                        @click="resetForm"
+                        size="small"
+                        aria-label="Muat ulang"
+                        :loading="loadingFetch"
+                        :disabled="isAnyLoading"
+                        @click="loadItems({ preserveSelection: true })"
                     />
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <Button
+                        label="Simpan urutan"
+                        icon="pi pi-sort"
+                        severity="secondary"
+                        outlined
+                        size="small"
+                        :loading="loadingReorder"
+                        :disabled="isAnyLoading || !hasOrderChanges"
+                        @click="saveOrder"
+                    />
+                    <Button
+                        label="Reset urutan"
+                        icon="pi pi-undo"
+                        severity="secondary"
+                        outlined
+                        size="small"
+                        :disabled="isAnyLoading || !hasOrderChanges"
+                        @click="resetOrder"
+                    />
+                    <span v-if="query.trim()" class="text-xs text-slate-500">
+                        Urutkan nonaktif saat pencarian.
+                    </span>
+                </div>
+
+                <UiEmptyState
+                    v-if="!loadingFetch && filteredItems.length === 0"
+                    title="Tidak ada data"
+                    description="Coba ubah kata kunci pencarian atau tambah data baru."
+                    icon="pi pi-inbox"
+                >
+                    <template #actions>
+                        <Button label="Tambah data" icon="pi pi-plus" size="small" @click="selectNew" />
+                    </template>
+                </UiEmptyState>
+
+                <div v-else class="overflow-hidden rounded-[var(--radius-lg)] border border-slate-200 bg-white">
+                    <div class="divide-y divide-slate-100">
+                        <button
+                            v-for="item in filteredItems"
+                            :key="item.id"
+                            type="button"
+                            class="w-full px-3 py-3 text-left"
+                            :class="item.id === selectedId ? 'bg-slate-50' : 'hover:bg-slate-50/60'"
+                            @click="selectItem(item)"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-semibold text-slate-900">
+                                        {{ item.name }}
+                                    </p>
+                                    <p class="ui-tabular mt-0.5 truncate text-xs text-slate-500">
+                                        {{ item.slug }}
+                                    </p>
+                                </div>
+
+                                <div class="flex shrink-0 items-center gap-1.5">
+                                    <span
+                                        class="ui-tabular rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                                        :class="item.is_active ? 'border-slate-200 bg-white text-slate-600' : 'border-slate-200 bg-slate-50 text-slate-500'"
+                                    >
+                                        {{ item.is_active ? "Aktif" : "Nonaktif" }}
+                                    </span>
+
+                                    <button
+                                        type="button"
+                                        class="ui-hit inline-flex items-center justify-center rounded-[var(--radius-sm)] border border-slate-200 bg-white px-2 text-slate-700 hover:bg-slate-50"
+                                        :disabled="isAnyLoading || query.trim()"
+                                        aria-label="Pindahkan ke atas"
+                                        @click.stop="moveItem(item.id, 'up')"
+                                    >
+                                        <i class="pi pi-arrow-up text-[12px]" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="ui-hit inline-flex items-center justify-center rounded-[var(--radius-sm)] border border-slate-200 bg-white px-2 text-slate-700 hover:bg-slate-50"
+                                        :disabled="isAnyLoading || query.trim()"
+                                        aria-label="Pindahkan ke bawah"
+                                        @click.stop="moveItem(item.id, 'down')"
+                                    >
+                                        <i class="pi pi-arrow-down text-[12px]" aria-hidden="true" />
+                                    </button>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- ── Table panel ── -->
-            <div class="overflow-hidden rounded-xl border border-slate-100">
-                <table class="w-full text-sm">
-                    <thead class="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th class="w-10 px-3 py-2 text-center">Geser</th>
-                            <th class="px-3 py-2 text-left">Nama</th>
-                            <th class="px-3 py-2 text-left">Slug</th>
-                            <th class="px-3 py-2 text-center">Urutan</th>
-                            <th class="px-3 py-2 text-center">Aktif</th>
-                            <th class="px-3 py-2 text-right">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr
-                            v-for="(item, index) in items"
-                            :key="item.id"
-                            draggable="true"
-                            class="hover:bg-slate-50"
-                            :class="{
-                                'bg-amber-50/70': dragOverIndex === index,
-                                'opacity-70':     dragSourceIndex === index,
-                            }"
-                            @dragstart="onDragStart($event, index)"
-                            @dragover="onDragOver($event, index)"
-                            @drop="onDrop($event, index)"
-                            @dragend="onDragEnd"
-                        >
-                            <td class="px-3 py-2 text-center text-slate-400">
-                                <i class="pi pi-bars text-xs" />
-                            </td>
-                            <td class="px-3 py-2 font-medium text-slate-800">{{ item.name }}</td>
-                            <td class="px-3 py-2 text-xs text-slate-500">{{ item.slug }}</td>
-                            <td class="px-3 py-2 text-center text-xs">{{ index + 1 }}</td>
-                            <td class="px-3 py-2 text-center">
-                                <Tag
-                                    :value="item.is_active ? 'Aktif' : 'Nonaktif'"
-                                    :severity="item.is_active ? 'success' : 'secondary'"
-                                />
-                            </td>
-                            <td class="px-3 py-2 text-right space-x-2">
-                                <Button
-                                    icon="pi pi-pencil"
-                                    size="small"
-                                    text
-                                    :disabled="isAnyLoading"
-                                    @click="editItem(item)"
-                                />
-                                <Button
-                                    icon="pi pi-trash"
-                                    size="small"
-                                    text
-                                    severity="danger"
-                                    :loading="deletingId === item.id"
-                                    :disabled="isAnyLoading"
-                                    @click="deleteItem(item.id)"
-                                />
-                            </td>
-                        </tr>
-                        <tr v-if="!items.length && !loadingFetch">
-                            <td colspan="6" class="px-3 py-4 text-center text-xs text-slate-400">
-                                Tidak ada data
-                            </td>
-                        </tr>
-                        <tr v-if="loadingFetch">
-                            <td colspan="6" class="px-3 py-4 text-center text-xs text-slate-400">
-                                <i class="pi pi-spin pi-spinner mr-1" /> Memuat data...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <UiSurface padding="none" class="overflow-hidden">
+                <div class="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                    <UiSectionHeader
+                        :title="isEditing ? 'Edit data' : 'Tambah data'"
+                        :subtitle="isEditing ? `#${selectedId}` : 'Buat entri baru di kamus.'"
+                        icon="pi pi-pencil"
+                    />
+                </div>
+
+                <div class="space-y-4 p-4">
+                    <UiField id="md_name" label="Nama" :required="true">
+                        <InputText v-model="form.name" id="md_name" class="w-full filter-light" placeholder="Tulis nama..." />
+                    </UiField>
+
+                    <div class="flex items-center gap-2">
+                        <Checkbox v-model="form.is_active" :input-id="activeInputId" binary />
+                        <label :for="activeInputId" class="text-sm font-medium text-slate-700">Aktif</label>
+                    </div>
+
+                    <div v-if="props.extra.includes('badge_color_token')" class="grid gap-4 sm:grid-cols-2">
+                        <UiField id="md_badge" label="Badge color" help="Hanya untuk Jenis Listing.">
+                            <Dropdown
+                                v-model="form.badge_color_token"
+                                :options="badgeOptions"
+                                option-label="label"
+                                option-value="value"
+                                placeholder="Pilih"
+                                show-clear
+                                class="w-full filter-light"
+                                inputId="md_badge"
+                            />
+                        </UiField>
+
+                        <UiField id="md_marker" label="Marker icon URL" :error="null">
+                            <InputText
+                                v-model="form.marker_icon_url"
+                                id="md_marker"
+                                class="w-full filter-light"
+                                placeholder="https://..."
+                            />
+                        </UiField>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                        <Button
+                            :label="isEditing ? 'Simpan perubahan' : 'Tambah data'"
+                            icon="pi pi-save"
+                            :loading="loadingSubmit"
+                            :disabled="isAnyLoading || !form.name.trim()"
+                            @click="submit"
+                        />
+                        <Button
+                            label="Reset"
+                            icon="pi pi-refresh"
+                            severity="secondary"
+                            outlined
+                            :disabled="isAnyLoading"
+                            @click="isEditing ? selectItem(selectedItem) : resetForm()"
+                        />
+
+                        <Button
+                            v-if="isEditing"
+                            label="Hapus"
+                            icon="pi pi-trash"
+                            severity="danger"
+                            outlined
+                            class="sm:ml-auto"
+                            :disabled="isAnyLoading"
+                            @click="openDelete(selectedId)"
+                        />
+                    </div>
+
+                    <p v-if="errorMessage" class="text-pretty text-xs font-medium text-red-600">
+                        {{ errorMessage }}
+                    </p>
+                </div>
+            </UiSurface>
         </div>
-    </div>
+    </UiSurface>
+
+    <Dialog v-model:visible="deleteDialogVisible" :modal="true" :closable="false" :draggable="false" style="width: min(520px, 100%)">
+        <template #header>
+            <div class="space-y-1">
+                <h3 class="text-balance text-base font-semibold text-slate-900">Hapus data?</h3>
+                <p class="text-pretty text-xs text-slate-500">Aksi ini akan menghapus entri dari kamus.</p>
+            </div>
+        </template>
+
+        <p class="text-pretty text-sm text-slate-700">
+            Data yang dihapus mungkin memengaruhi form pembanding jika masih digunakan.
+        </p>
+
+        <template #footer>
+            <div class="flex justify-end gap-2">
+                <Button label="Batal" severity="secondary" outlined :disabled="deletingId !== null" @click="deleteDialogVisible = false" />
+                <Button
+                    label="Hapus"
+                    icon="pi pi-trash"
+                    severity="danger"
+                    :loading="deletingId !== null"
+                    @click="confirmDelete"
+                />
+            </div>
+        </template>
+    </Dialog>
 </template>

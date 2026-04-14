@@ -1,4 +1,7 @@
 <script setup>
+import UiSurface from "../../ui/UiSurface.vue";
+import UiSectionHeader from "../../ui/UiSectionHeader.vue";
+
 defineProps({
     note: {
         type: String,
@@ -8,21 +11,16 @@ defineProps({
 </script>
 
 <template>
-    <div
-        v-if="note"
-        class="overflow-hidden rounded-2xl border border-amber-100 bg-amber-50 shadow-sm"
-    >
-        <!-- Header -->
-        <div class="flex items-center gap-2.5 border-b border-amber-100 px-4 py-3">
-            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-200">
-                <i class="pi pi-file-edit text-amber-700" style="font-size: 12px" />
-            </div>
-            <span class="text-sm font-bold text-amber-800">Catatan Tambahan</span>
+    <UiSurface v-if="note" variant="inset" padding="none" class="overflow-hidden">
+        <div class="border-b border-slate-200/60 px-4 py-3">
+            <UiSectionHeader title="Catatan" subtitle="Informasi tambahan dari input data" icon="pi pi-file-edit" />
         </div>
 
-        <!-- Note body -->
-        <p class="whitespace-pre-line px-5 py-4 text-sm leading-relaxed text-amber-900">
-            {{ note }}
-        </p>
-    </div>
+        <div class="p-4">
+            <p class="text-pretty whitespace-pre-line text-sm leading-relaxed text-slate-800">
+                {{ note }}
+            </p>
+        </div>
+    </UiSurface>
 </template>
+

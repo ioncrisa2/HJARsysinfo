@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import Toast from "primevue/toast";
 import ScrollTop from "primevue/scrolltop";
@@ -23,16 +23,42 @@ const isActive = (href) => {
 const profileOpen = ref(false);
 const mobileMenuOpen = ref(false);
 
+const profileButtonRef = ref(null);
+const mobileMenuButtonRef = ref(null);
+const profileMenuRef = ref(null);
+const mobileMenuRef = ref(null);
+
 const toggleProfile = () => (profileOpen.value = !profileOpen.value);
 const closeProfile = () => (profileOpen.value = false);
 const toggleMobileMenu = () => (mobileMenuOpen.value = !mobileMenuOpen.value);
 const closeMobileMenu = () => (mobileMenuOpen.value = false);
 const logout = () => router.post("/logout");
 
-const handleEscape = (event) => {
+const focusFirstIn = (el) => {
+    if (!el) return;
+    const target = el.querySelector(
+        'a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])'
+    );
+    target?.focus?.();
+};
+
+const openAndFocus = async () => {
+    await nextTick();
+    if (profileOpen.value) focusFirstIn(profileMenuRef.value);
+    if (mobileMenuOpen.value) focusFirstIn(mobileMenuRef.value);
+};
+
+const handleEscape = async (event) => {
     if (event.key === "Escape") {
+        const wasProfileOpen = profileOpen.value;
+        const wasMobileOpen = mobileMenuOpen.value;
+
         closeProfile();
         closeMobileMenu();
+
+        await nextTick();
+        if (wasProfileOpen) profileButtonRef.value?.focus?.();
+        if (wasMobileOpen) mobileMenuButtonRef.value?.focus?.();
     }
 };
 
@@ -99,9 +125,12 @@ onBeforeUnmount(() => {
                     <!-- Desktop User Menu -->
                     <div class="relative hidden md:flex justify-end profile-menu">
                         <button
+                            ref="profileButtonRef"
                             type="button"
                             class="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1 pr-3 py-1 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:shadow-sm"
-                            @click.stop="toggleProfile"
+                            :aria-expanded="profileOpen ? 'true' : 'false'"
+                            aria-controls="profile-menu"
+                            @click.stop="() => { toggleProfile(); openAndFocus(); }"
                         >
                             <span class="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">
                                 {{ initials }}
@@ -121,6 +150,8 @@ onBeforeUnmount(() => {
                         >
                             <div
                                 v-if="profileOpen"
+                                id="profile-menu"
+                                ref="profileMenuRef"
                                 class="absolute right-0 top-[calc(100%+8px)] w-52 origin-top-right overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg shadow-slate-200/80"
                             >
                                 <div class="border-b border-slate-100 px-4 py-3">
@@ -152,10 +183,13 @@ onBeforeUnmount(() => {
                     <!-- Mobile Burger Button -->
                     <div class="mobile-menu-wrapper md:hidden">
                         <button
+                            ref="mobileMenuButtonRef"
                             type="button"
                             class="flex items-center justify-center w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                            @click.stop="toggleMobileMenu"
+                            :aria-expanded="mobileMenuOpen ? 'true' : 'false'"
+                            aria-controls="mobile-menu"
                             aria-label="Toggle menu"
+                            @click.stop="() => { toggleMobileMenu(); openAndFocus(); }"
                         >
                             <Transition
                                 enter-active-class="transition duration-150 ease-out"
@@ -186,6 +220,8 @@ onBeforeUnmount(() => {
             >
                 <div
                     v-if="mobileMenuOpen"
+                    id="mobile-menu"
+                    ref="mobileMenuRef"
                     class="mobile-menu-wrapper md:hidden border-t border-slate-100 bg-white px-4 pb-4 pt-2 shadow-lg"
                 >
                     <!-- User info -->
@@ -244,7 +280,7 @@ onBeforeUnmount(() => {
         </header>
 
         <!-- Page content -->
-        <main class="mx-auto w-full max-w-7xl px-4 md:px-6 py-6">
+        <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-7xl px-4 md:px-6 py-6">
             <slot />
         </main>
 
@@ -259,7 +295,7 @@ onBeforeUnmount(() => {
                         Bank Data KJPP HJA'R<span class="text-amber-500">.</span>
                     </span>
                 </div>
-                <span class="hidden sm:block">© {{ new Date().getFullYear() }} Bank Data KJPP HJA'R User. All rights reserved.</span>
+                <span class="hidden sm:block">(c) {{ new Date().getFullYear() }} Bank Data KJPP HJA'R User. All rights reserved.</span>
                 <div class="flex items-center gap-4">
                     <Link href="/profile" class="hover:text-slate-600 transition-colors">Profil</Link>
                     <button type="button" class="hover:text-red-500 transition-colors" @click="logout">Keluar</button>

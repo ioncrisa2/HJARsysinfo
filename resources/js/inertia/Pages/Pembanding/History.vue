@@ -22,11 +22,9 @@ defineProps({
 <template>
     <Head :title="`Riwayat #${record.id}`" />
 
-    <div class="py-5 flex justify-center">
-        <div class="w-full max-w-5xl space-y-5">
-            <PembandingHistoryBreadcrumb :record="record" />
-            <PembandingHistoryHeader :record="record" :total="activities.length" />
-            <PembandingHistoryActivityList :activities="activities" />
-        </div>
+    <div class="space-y-4 py-3 sm:py-5">
+        <PembandingHistoryBreadcrumb :record="record" />
+        <PembandingHistoryHeader :record="record" :total="activities.length" />
+        <PembandingHistoryActivityList :activities="activities" />
     </div>
 </template>

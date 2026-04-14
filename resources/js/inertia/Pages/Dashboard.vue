@@ -59,11 +59,6 @@ const drawMonthlyChart = ({ ctx, width: W, height: H }) => {
         ctx.fillText(Math.round(maxVal - (maxVal / 4) * i), padLeft - 6, y + 3);
     }
 
-    // Gradient fill
-    const gradient = ctx.createLinearGradient(0, padTop, 0, padTop + chartH);
-    gradient.addColorStop(0, "rgba(245,158,11,0.15)");
-    gradient.addColorStop(1, "rgba(245,158,11,0)");
-
     const drawCurve = () => {
         ctx.beginPath();
         ctx.moveTo(toX(0), toY(values[0]));
@@ -77,7 +72,7 @@ const drawMonthlyChart = ({ ctx, width: W, height: H }) => {
     ctx.lineTo(toX(values.length - 1), padTop + chartH);
     ctx.lineTo(toX(0), padTop + chartH);
     ctx.closePath();
-    ctx.fillStyle = gradient; ctx.fill();
+    ctx.fillStyle = "rgba(245,158,11,0.08)"; ctx.fill();
 
     drawCurve();
     ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.stroke();
@@ -113,7 +108,7 @@ watch(monthlyData, () => renderNextTick(), { deep: true });
 
     <Head title="Dashboard" />
 
-    <div class="space-y-5 py-4">
+    <div class="space-y-4 py-3">
 
         <Message v-if="page.props.flash?.success" severity="success" class="mb-2">
             {{ page.props.flash.success }}
@@ -122,17 +117,17 @@ watch(monthlyData, () => renderNextTick(), { deep: true });
         <!-- Header -->
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-                <h1 class="text-xl font-bold text-slate-900">Dashboard</h1>
-                <p class="text-sm text-slate-400">Ringkasan data pembanding Anda</p>
+                <h1 class="text-balance text-xl font-semibold text-slate-900">Dashboard</h1>
+                <p class="text-pretty text-sm text-slate-500">Ringkasan data pembanding Anda</p>
             </div>
             <div class="flex items-center gap-2">
                 <Link href="/home/pembanding"
-                    class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900">
+                    class="rounded-[var(--radius-sm)] border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-300">
                     <i class="pi pi-database mr-1.5 text-xs" />
                     Bank Data
                 </Link>
                 <Link href="/home/pembanding/create"
-                    class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-amber-600">
+                    class="rounded-[var(--radius-sm)] bg-amber-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">
                     <i class="pi pi-plus mr-1.5 text-xs" />
                     Tambah Data
                 </Link>
@@ -147,24 +142,24 @@ watch(monthlyData, () => renderNextTick(), { deep: true });
 
         <!-- Monthly Chart -->
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
                 <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
                     <i class="pi pi-chart-line text-amber-500 text-xs" />
                     Input Data Per Bulan
                 </div>
                 <span class="text-xs text-slate-400">12 bulan terakhir</span>
             </div>
-            <div class="p-4">
-                <canvas ref="chartContainer" class="h-48 w-full" style="display:block" />
+            <div class="p-3">
+                <canvas ref="chartContainer" class="h-44 w-full" style="display:block" />
             </div>
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div class="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <ListingRatioChart :data="listingRatioMonthly" />
             <TopContributorTable :data="topContributors" />
         </div>
 
-        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+        <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
             <DataFreshnessWidget :data="dataFreshness" />
             <TopAreaActivityTable :data="topAreaActivity" />
         </div>

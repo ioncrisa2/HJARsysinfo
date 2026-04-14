@@ -5,6 +5,8 @@ import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import "leaflet/dist/leaflet.css";
+import UiSurface from "../../ui/UiSurface.vue";
+import UiSectionHeader from "../../ui/UiSectionHeader.vue";
 
 const props = defineProps({
     record: {
@@ -42,10 +44,7 @@ const defaultMarkerIcon = L.icon({
 onMounted(() => {
     if (!hasCoordinates.value || !mapContainer.value) return;
 
-    mapInstance.value = L.map(mapContainer.value, { zoomControl: true }).setView(
-        [latitude.value, longitude.value],
-        15
-    );
+    mapInstance.value = L.map(mapContainer.value, { zoomControl: true }).setView([latitude.value, longitude.value], 15);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
@@ -64,81 +63,71 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="grid gap-4 lg:grid-cols-2">
-
-        <!-- ── Foto Properti ────────────────────────────── -->
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <!-- Panel header -->
-            <div class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-100">
-                    <i class="pi pi-camera text-amber-600" style="font-size: 11px" />
-                </div>
-                <span class="text-sm font-semibold text-slate-700">Nampak Properti</span>
+        <UiSurface padding="none" class="overflow-hidden">
+            <div class="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                <UiSectionHeader title="Foto" subtitle="Nampak properti" icon="pi pi-camera" />
             </div>
 
-            <!-- Image -->
             <div class="relative w-full bg-slate-100" style="aspect-ratio: 16/9">
                 <img
                     v-if="record.image_url && !imageError"
                     :src="record.image_url"
                     alt="Foto properti"
-                    class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                    class="absolute inset-0 h-full w-full object-cover"
                     loading="lazy"
                     @error="imageError = true"
                 />
-                <!-- Empty state -->
-                <div
-                    v-else
-                    class="absolute inset-0 flex flex-col items-center justify-center gap-3"
-                >
-                    <div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-200">
-                        <i class="pi pi-image text-2xl text-slate-400" />
+
+                <div v-else class="absolute inset-0 flex items-center justify-center p-6">
+                    <div class="flex flex-col items-center gap-2 text-center">
+                        <div class="flex size-14 items-center justify-center rounded-full bg-slate-200">
+                            <i class="pi pi-image text-xl text-slate-400" aria-hidden="true" />
+                        </div>
+                        <p class="text-pretty text-xs font-medium text-slate-500">Foto belum tersedia</p>
                     </div>
-                    <p class="text-xs font-medium text-slate-400">Foto belum tersedia</p>
                 </div>
             </div>
-        </div>
+        </UiSurface>
 
-        <!-- ── Peta Lokasi ─────────────────────────────── -->
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <!-- Panel header -->
-            <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <div class="flex items-center gap-2">
-                    <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-100">
-                        <i class="pi pi-map-marker text-amber-600" style="font-size: 11px" />
-                    </div>
-                    <span class="text-sm font-semibold text-slate-700">Peta Lokasi</span>
-                </div>
+        <UiSurface padding="none" class="overflow-hidden">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                <UiSectionHeader
+                    title="Peta Lokasi"
+                    :subtitle="hasCoordinates ? 'Koordinat tersedia' : 'Koordinat tidak tersedia'"
+                    icon="pi pi-map-marker"
+                />
 
                 <a
                     v-if="hasCoordinates"
                     :href="`https://www.google.com/maps?q=${latitude},${longitude}`"
                     target="_blank"
-                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50"
+                    rel="noopener noreferrer"
+                    class="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 >
-                    <i class="pi pi-external-link text-[10px]" />
-                    <span class="hidden sm:inline">Google</span> Maps
+                    <i class="pi pi-external-link text-[12px]" aria-hidden="true" />
+                    Google Maps
                 </a>
-                <span v-else class="inline-flex items-center gap-1 rounded-full border border-slate-100 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-400">
-                    <i class="pi pi-times-circle text-[10px]" />
+
+                <span
+                    v-else
+                    class="inline-flex h-9 items-center gap-2 rounded-[var(--radius-sm)] border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-500"
+                >
+                    <i class="pi pi-times-circle text-[12px]" aria-hidden="true" />
                     Tanpa koordinat
                 </span>
             </div>
 
-            <!-- Map -->
-            <div ref="mapContainer" class="map-container w-full" />
+            <div v-if="hasCoordinates" ref="mapContainer" class="map-container w-full" />
 
-            <!-- No coordinates placeholder -->
-            <div
-                v-if="!hasCoordinates"
-                class="flex flex-col items-center justify-center gap-3 py-16"
-            >
-                <div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                    <i class="pi pi-map text-2xl text-slate-300" />
+            <div v-else class="map-container flex items-center justify-center p-6">
+                <div class="flex flex-col items-center gap-2 text-center">
+                    <div class="flex size-14 items-center justify-center rounded-full bg-slate-100">
+                        <i class="pi pi-map text-xl text-slate-300" aria-hidden="true" />
+                    </div>
+                    <p class="text-pretty text-xs font-medium text-slate-500">Koordinat tidak tersedia</p>
                 </div>
-                <p class="text-xs font-medium text-slate-400">Koordinat tidak tersedia</p>
             </div>
-        </div>
-
+        </UiSurface>
     </div>
 </template>
 
@@ -159,11 +148,5 @@ onBeforeUnmount(() => {
         height: 280px;
     }
 }
-
-@media (min-width: 1024px) {
-    .map-container {
-        height: calc(100% - 49px);
-        min-height: 280px;
-    }
-}
 </style>
+

@@ -240,7 +240,7 @@ const infoSections = computed(() => [
 <template>
     <Head :title="`Detail #${record.id}`" />
 
-    <div class="space-y-5 py-3 sm:py-5">
+    <div class="space-y-4 py-3 sm:py-5">
         <div
             v-if="alertState.visible"
             class="rounded-xl border px-4 py-3 text-sm font-medium"
@@ -250,22 +250,34 @@ const infoSections = computed(() => [
         </div>
 
         <PembandingShowBreadcrumb :record="record" />
-        <PembandingShowHeaderCard
-            :record="record"
-            :created-at-label="formatDate(record.created_at)"
-            :can-request-delete="canRequestDelete"
-            :has-pending-delete-request="hasPendingDeleteRequest"
-            @request-delete="openDeleteRequestModal"
-        />
-        <PembandingShowStatsGrid
-            :price="stats.price"
-            :land-area="stats.landArea"
-            :building-area="stats.buildingArea"
-            :data-date="stats.dataDate"
-        />
-        <PembandingShowMediaPanel :record="record" />
-        <PembandingShowInfoSections :sections="infoSections" />
-        <PembandingShowNotesCard :note="record.catatan" />
+
+        <div class="space-y-4">
+            <PembandingShowHeaderCard
+                :record="record"
+                :created-at-label="formatDate(record.created_at)"
+                :can-request-delete="canRequestDelete"
+                :has-pending-delete-request="hasPendingDeleteRequest"
+                @request-delete="openDeleteRequestModal"
+            />
+
+            <PembandingShowStatsGrid
+                :price="stats.price"
+                :land-area="stats.landArea"
+                :building-area="stats.buildingArea"
+                :data-date="stats.dataDate"
+            />
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div class="space-y-4">
+                <PembandingShowMediaPanel :record="record" />
+                <PembandingShowNotesCard :note="record.catatan" />
+            </div>
+            <div class="space-y-4">
+                <PembandingShowInfoSections :sections="infoSections" />
+            </div>
+        </div>
+
         <PembandingShowBackButton />
 
         <PembandingDeleteRequestDialog

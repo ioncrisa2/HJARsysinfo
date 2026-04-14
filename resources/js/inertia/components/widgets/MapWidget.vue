@@ -110,7 +110,7 @@ const ensureMap = () => {
     });
     const satellite = L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", {
         subdomains: ["mt0", "mt1", "mt2", "mt3"],
-        attribution: "© Google Satellite",
+        attribution: "(c) Google Satellite",
     });
 
     satellite.addTo(mapInstance.value);
@@ -175,9 +175,9 @@ const renderMap = () => {
         const imageUrl = point.image_url || "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=640&q=60";
 
         marker.bindPopup(`
-            <div style="min-width:240px;max-width:260px;font-family:ui-sans-serif,system-ui;letter-spacing:-0.01em">
+            <div style="min-width:240px;max-width:260px;font-family:ui-sans-serif,system-ui">
                 <div style="height:130px;border-radius:10px;overflow:hidden;background:#f8fafc;margin-bottom:10px;position:relative">
-                    <span style="position:absolute;right:8px;top:8px;background:#d97706;color:white;font-weight:700;font-size:10px;padding:3px 8px;border-radius:999px;text-transform:uppercase;z-index:1">
+                    <span style="position:absolute;right:8px;top:8px;background:#d97706;color:white;font-weight:700;font-size:10px;padding:3px 8px;border-radius:999px;z-index:1">
                         ${escapeHtml(point.jenis_listing ?? "")}
                     </span>
                     <img src="${escapeHtml(imageUrl)}" style="width:100%;height:100%;object-fit:cover" loading="lazy" />
@@ -191,7 +191,7 @@ const renderMap = () => {
                 <div style="display:flex;align-items:center;justify-content:space-between">
                     <span style="color:#d97706;font-weight:700;font-size:13px">${formatCurrency(point.harga)}</span>
                     <a href="${escapeHtml(point.detail_url ?? '#')}" style="background:#0f172a;color:white;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;text-decoration:none">
-                        Detail →
+                        Detail ->
                     </a>
                 </div>
             </div>
@@ -302,9 +302,9 @@ onBeforeUnmount(() => {
         <div class="relative">
             <div ref="mapContainer" class="w-full" :style="{ height }" />
 
-            <div class="pointer-events-none absolute bottom-3 left-3 z-[500] rounded-lg border border-slate-200 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-sm">
-                <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Koordinat Cursor</p>
-                <p class="text-xs font-medium text-slate-700">{{ cursorCoordinates }}</p>
+            <div class="pointer-events-none absolute bottom-3 left-3 z-20 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+                <p class="text-[10px] font-semibold text-slate-500">Koordinat cursor</p>
+                <p class="ui-tabular text-xs font-medium text-slate-700">{{ cursorCoordinates }}</p>
             </div>
 
             <!-- Empty state -->
@@ -312,7 +312,7 @@ onBeforeUnmount(() => {
                 v-if="filteredPoints.length === 0"
                 class="pointer-events-none absolute inset-0 flex items-center justify-center"
             >
-                <div class="rounded-xl border border-slate-200 bg-white/90 px-6 py-4 text-center shadow-sm backdrop-blur-sm">
+                <div class="rounded-xl border border-slate-200 bg-white px-6 py-4 text-center shadow-sm">
                     <i class="pi pi-map-marker text-2xl text-slate-300" />
                     <p class="mt-2 text-sm font-semibold text-slate-500">Tidak ada titik untuk filter ini</p>
                     <p class="text-xs text-slate-400">Coba ubah filter jenis listing</p>

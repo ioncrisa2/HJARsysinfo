@@ -43,15 +43,15 @@ const rankClass = (rank) => {
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="border-b border-slate-100 bg-white text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        <th class="px-4 py-2.5">Rank</th>
-                        <th class="px-4 py-2.5">Kecamatan</th>
-                        <th class="px-4 py-2.5 text-right">Total Input</th>
+                    <tr class="border-b border-slate-100 bg-white text-left text-xs font-semibold text-slate-500">
+                        <th class="px-3 py-2">Rank</th>
+                        <th class="px-3 py-2">Kecamatan</th>
+                        <th class="px-3 py-2 text-right">Total input</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
                     <tr v-for="(item, index) in props.data?.rows ?? []" :key="`${item.district_id}-${index}`" class="hover:bg-slate-50/60">
-                        <td class="px-4 py-3 align-top">
+                        <td class="px-3 py-2.5 align-top">
                             <span
                                 class="inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] font-bold"
                                 :class="rankClass(index + 1)"
@@ -59,19 +59,19 @@ const rankClass = (rank) => {
                                 {{ index + 1 }}
                             </span>
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="px-3 py-2.5">
                             <div class="space-y-1.5">
                                 <p class="font-medium text-slate-700">{{ item.district_name || "Tanpa kecamatan" }}</p>
                                 <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                                     <div
-                                        class="h-full rounded-full bg-amber-500 transition-all duration-300"
+                                        class="h-full rounded-full bg-amber-500"
                                         :style="{ width: `${Math.max(0, Math.min(Number(item.percentage ?? 0), 100))}%` }"
                                     />
                                 </div>
                                 <p class="text-[11px] text-slate-400">Share periode: {{ formatPercent(item.percentage) }}</p>
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-right font-semibold text-slate-800 align-top">
+                        <td class="ui-tabular px-3 py-2.5 text-right font-semibold text-slate-800 align-top">
                             {{ formatNumber(item.total_input) }}
                         </td>
                     </tr>

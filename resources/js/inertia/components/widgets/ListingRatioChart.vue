@@ -11,7 +11,15 @@ const props = defineProps({
 
 const canvasRef = ref(null);
 
-const palette = ["#f59e0b", "#10b981", "#0ea5e9", "#ef4444", "#8b5cf6", "#14b8a6"];
+// Keep the dashboard accent single (amber) and use neutral ink tones for series.
+const palette = [
+    "rgba(15,23,42,0.75)",
+    "rgba(15,23,42,0.55)",
+    "rgba(15,23,42,0.40)",
+    "rgba(15,23,42,0.30)",
+    "rgba(15,23,42,0.22)",
+    "rgba(15,23,42,0.16)",
+];
 
 const labels = computed(() => props.data?.labels ?? []);
 const monthTotals = computed(() => props.data?.month_totals ?? []);
@@ -177,7 +185,7 @@ watch([labels, series], () => renderNextTick(), { deep: true });
                 <span
                     v-for="item in series"
                     :key="item.id"
-                    class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700"
                 >
                     <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: item.color }" />
                     {{ item.name }}
@@ -198,7 +206,7 @@ watch([labels, series], () => renderNextTick(), { deep: true });
                             {{ option.label }}
                         </option>
                     </select>
-                    <span class="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] text-slate-500">
+                    <span class="ui-tabular inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] text-slate-600">
                         <i class="pi pi-database text-[10px]" />
                         {{ selectedMonthLabel }}: {{ formatNumber(selectedMonthTotal) }} data
                     </span>
@@ -212,11 +220,11 @@ watch([labels, series], () => renderNextTick(), { deep: true });
                     >
                         <div class="flex items-center justify-between gap-2 text-[11px]">
                             <span class="font-semibold text-slate-700">{{ item.name }}</span>
-                            <span class="text-slate-500">{{ formatNumber(item.count) }} data ({{ formatRatio(item.ratio) }})</span>
+                            <span class="ui-tabular text-slate-600">{{ formatNumber(item.count) }} data ({{ formatRatio(item.ratio) }})</span>
                         </div>
                         <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                             <div
-                                class="h-full rounded-full transition-all duration-300"
+                                class="h-full rounded-full"
                                 :style="{ width: `${Math.max(0, Math.min(item.ratio, 100))}%`, backgroundColor: item.color }"
                             />
                         </div>

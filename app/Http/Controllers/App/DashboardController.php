@@ -20,9 +20,20 @@ class DashboardController extends Controller
             return redirect()->to(Filament::getUrl());
         }
 
+        // "Non properti" context is deprecated. Keep it out of the user dashboard without deleting data.
+        $nonPropertiJenisObjekIds = DB::table('master_jenis_objek')
+            ->where(function ($q) {
+                $q->whereIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
+                    ->orWhereRaw('LOWER(name) LIKE ?', ['%non properti%']);
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         $mapPoints = Pembanding::query()
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            ->when($nonPropertiJenisObjekIds, fn ($q) => $q->whereNotIn('jenis_objek_id', $nonPropertiJenisObjekIds))
             ->orderByDesc('tanggal_data')
             ->orderByDesc('id')
             ->with('jenisListing:id,name')
@@ -43,6 +54,7 @@ class DashboardController extends Controller
 
         $recentData = Pembanding::query()
             ->orderByDesc('created_at')
+            ->when($nonPropertiJenisObjekIds, fn ($q) => $q->whereNotIn('jenis_objek_id', $nonPropertiJenisObjekIds))
             ->limit(8)
             ->with(['jenisListing:id,name', 'jenisObjek:id,name'])
             ->get(['id', 'alamat_data', 'harga', 'tanggal_data', 'jenis_listing_id', 'jenis_objek_id', 'image', 'created_at'])
@@ -256,17 +268,23 @@ class DashboardController extends Controller
                 $join->on('dp.jenis_objek_id', '=', 'jo.id')
                     ->whereNull('dp.deleted_at');
             })
+            ->where('jo.is_active', '=', 1)
+            ->whereNotIn('jo.slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
+            ->whereRaw('LOWER(jo.name) NOT LIKE ?', ['%non properti%'])
             ->selectRaw('jo.id, jo.name, COUNT(dp.id) as total_input')
             ->groupBy('jo.id', 'jo.name')
             ->orderByDesc('total_input')
             ->orderBy('jo.name')
             ->get();
 
+        $objectTypeTotal = (int) $objectTypeRows->sum(fn ($row) => (int) $row->total_input);
+
         $objectTypeCounts = [
-            'total_records' => (int) ($stats['total'] ?? 0),
+            // Keep percentages meaningful by basing them on visible (active) types only.
+            'total_records' => $objectTypeTotal,
             'rows' => $objectTypeRows
-                ->map(function ($row) use ($stats): array {
-                    $totalRecords = (int) ($stats['total'] ?? 0);
+                ->map(function ($row) use ($objectTypeTotal): array {
+                    $totalRecords = (int) $objectTypeTotal;
                     $count = (int) $row->total_input;
 
                     return [
@@ -280,6 +298,8 @@ class DashboardController extends Controller
         ];
 
         $jenisListingOptions = JenisListing::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn($item) => ['label' => $item->name, 'value' => $item->id])

@@ -91,10 +91,16 @@ class PembandingController extends Controller
                         : collect()
                 ),
                 'jenisListings' => $this->mapSelectOptions(
-                    JenisListing::query()->orderBy('name')->get(['id', 'name'])
+                    JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])
                 ),
                 'jenisObjeks' => $this->mapSelectOptions(
-                    JenisObjek::query()->orderBy('name')->get(['id', 'name'])
+                    JenisObjek::query()
+                        ->where('is_active', true)
+                        ->whereNotIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
+                        ->whereRaw('LOWER(name) NOT LIKE ?', ['%non properti%'])
+                        ->orderBy('sort_order')
+                        ->orderBy('name')
+                        ->get(['id', 'name'])
                 ),
                 'perPage' => collect([8, 16, 32, 64])->map(fn(int $value): array => [
                     'label' => "{$value} / halaman",
@@ -441,8 +447,16 @@ class PembandingController extends Controller
                     ? Village::query()->where('district_id', $pembanding->district_id)->orderBy('name')->get()
                     : collect()
             ),
-            'jenisListings'    => $this->mapSelectOptions(JenisListing::query()->orderBy('name')->get()),
-            'jenisObjeks'      => $this->mapSelectOptions(JenisObjek::query()->orderBy('name')->get()),
+            'jenisListings'    => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
+            'jenisObjeks'      => $this->mapSelectOptions(
+                JenisObjek::query()
+                    ->where('is_active', true)
+                    ->whereNotIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
+                    ->whereRaw('LOWER(name) NOT LIKE ?', ['%non properti%'])
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get()
+            ),
             'statusPemberiInfos' => $this->mapSelectOptions(StatusPemberiInformasi::query()->orderBy('name')->get()),
             'bentukTanahs'     => $this->mapSelectOptions(BentukTanah::query()->orderBy('name')->get()),
             'posisiTanahs'     => $this->mapSelectOptions(PosisiTanah::query()->orderBy('name')->get()),

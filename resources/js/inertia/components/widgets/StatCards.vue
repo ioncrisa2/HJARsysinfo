@@ -1,76 +1,50 @@
 <script setup>
+import { computed } from "vue";
+
 const props = defineProps({
     stats: {
         type: Object,
-        default: () => ({ total: 0, this_month: 0, last_month: 0, province_count: 0 }),
+        default: () => ({ total: 0, this_month: 0, last_month: 0, with_coords: 0, province_count: 0 }),
     },
 });
 
 const monthTrend = computed(() => {
     const diff = (props.stats.this_month ?? 0) - (props.stats.last_month ?? 0);
-    return { diff, positive: diff >= 0 };
+    const abs = Math.abs(diff);
+    return { diff, abs, positive: diff >= 0 };
 });
 </script>
 
-<script>
-import { computed } from "vue";
-</script>
-
 <template>
-    <div class="grid gap-3 sm:grid-cols-3">
+    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="grid divide-y divide-slate-100 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            <div class="px-4 py-3 sm:px-3 sm:py-2.5">
+                <p class="text-xs font-semibold text-slate-600">Total data</p>
+                <p class="ui-tabular mt-1 text-2xl font-semibold text-slate-950">{{ stats.total ?? 0 }}</p>
+                <p class="mt-1 text-xs text-slate-500">Semua pembanding</p>
+            </div>
 
-        <!-- Total Data -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Data</p>
-                    <p class="mt-1 text-3xl font-bold text-slate-900">{{ stats.total ?? 0 }}</p>
-                    <p class="mt-1 text-xs text-slate-400">Semua data pembanding</p>
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
-                    <i class="pi pi-database text-slate-500" />
-                </div>
+            <div class="px-4 py-3 sm:px-3 sm:py-2.5">
+                <p class="text-xs font-semibold text-slate-600">Input bulan ini</p>
+                <p class="ui-tabular mt-1 text-2xl font-semibold text-slate-950">{{ stats.this_month ?? 0 }}</p>
+                <p class="mt-1 text-xs text-slate-500">
+                    <span class="ui-tabular">{{ monthTrend.abs }}</span>
+                    <span class="ml-1">{{ monthTrend.positive ? "lebih banyak" : "lebih sedikit" }}</span>
+                    <span class="ml-1">vs bulan lalu</span>
+                </p>
+            </div>
+
+            <div class="px-4 py-3 sm:px-3 sm:py-2.5">
+                <p class="text-xs font-semibold text-slate-600">Dengan koordinat</p>
+                <p class="ui-tabular mt-1 text-2xl font-semibold text-slate-950">{{ stats.with_coords ?? 0 }}</p>
+                <p class="mt-1 text-xs text-slate-500">Punya lat/lng</p>
+            </div>
+
+            <div class="px-4 py-3 sm:px-3 sm:py-2.5">
+                <p class="text-xs font-semibold text-slate-600">Provinsi tercakup</p>
+                <p class="ui-tabular mt-1 text-2xl font-semibold text-slate-950">{{ stats.province_count ?? 0 }}</p>
+                <p class="mt-1 text-xs text-slate-500">Dari 38 provinsi</p>
             </div>
         </div>
-
-        <!-- Bulan Ini -->
-        <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4 shadow-sm">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-500">Bulan Ini</p>
-                    <p class="mt-1 text-3xl font-bold text-amber-700">{{ stats.this_month ?? 0 }}</p>
-                    <div class="mt-1 flex items-center gap-1 text-xs">
-                        <span class="font-semibold" :class="monthTrend.positive ? 'text-emerald-600' : 'text-red-500'">
-                            <i :class="`pi ${monthTrend.positive ? 'pi-arrow-up' : 'pi-arrow-down'} text-[10px]`" />
-                            {{ Math.abs(monthTrend.diff) }} dari bulan lalu
-                        </span>
-                    </div>
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100">
-                    <i class="pi pi-calendar text-amber-600" />
-                </div>
-            </div>
-        </div>
-
-        <!-- Provinsi Tercakup -->
-        <div class="rounded-2xl border border-violet-100 bg-violet-50 p-4 shadow-sm">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-violet-400">Provinsi Tercakup</p>
-                    <p class="mt-1 text-3xl font-bold text-violet-700">{{ stats.province_count ?? 0 }}</p>
-                    <p class="mt-1 text-xs text-violet-400">dari 38 provinsi di Indonesia</p>
-                </div>
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100">
-                    <i class="pi pi-map text-violet-500" />
-                </div>
-            </div>
-            <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-violet-100">
-                <div
-                    class="h-full rounded-full bg-violet-400 transition-all duration-500"
-                    :style="{ width: `${Math.min(((stats.province_count ?? 0) / 38) * 100, 100)}%` }"
-                />
-            </div>
-        </div>
-
     </div>
 </template>

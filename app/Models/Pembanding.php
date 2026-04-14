@@ -137,12 +137,14 @@ class Pembanding extends Model
 
     public function jenisListing(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\JenisListing::class, 'jenis_listing_id');
+        return $this->belongsTo(\App\Models\JenisListing::class, 'jenis_listing_id')
+            ->where('is_active', true);
     }
 
     public function jenisObjek(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\JenisObjek::class, 'jenis_objek_id');
+        return $this->belongsTo(\App\Models\JenisObjek::class, 'jenis_objek_id')
+            ->where('is_active', true);
     }
 
     public function statusPemberiInformasi(): BelongsTo

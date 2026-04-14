@@ -1,187 +1,136 @@
 <script setup>
-defineProps({
+import { computed } from "vue";
+import UiEmptyState from "../../ui/UiEmptyState.vue";
+import UiSurface from "../../ui/UiSurface.vue";
+import UiSectionHeader from "../../ui/UiSectionHeader.vue";
+
+const props = defineProps({
     activities: {
         type: Array,
         default: () => [],
     },
 });
 
-const eventConfig = (event) => {
-    if (event === "created") return {
-        color: "text-emerald-700 border-emerald-200 bg-emerald-50",
-        dotColor: "bg-emerald-500",
-        lineColor: "bg-emerald-100",
-        icon: "pi-plus-circle",
-        iconColor: "text-emerald-600",
-        label: "Dibuat",
-    };
-    if (event === "deleted") return {
-        color: "text-red-700 border-red-200 bg-red-50",
-        dotColor: "bg-red-500",
-        lineColor: "bg-red-100",
-        icon: "pi-trash",
-        iconColor: "text-red-600",
-        label: "Dihapus",
-    };
-    return {
-        color: "text-amber-700 border-amber-200 bg-amber-50",
-        dotColor: "bg-amber-500",
-        lineColor: "bg-amber-100",
-        icon: "pi-pencil",
-        iconColor: "text-amber-600",
-        label: event ?? "Diperbarui",
-    };
+const hasActivities = computed(() => (props.activities ?? []).length > 0);
+
+const eventMeta = (event) => {
+    if (event === "created") {
+        return { label: "Dibuat", icon: "pi pi-plus-circle", pill: "border-slate-200 bg-white text-slate-700", dot: "bg-slate-400" };
+    }
+    if (event === "deleted") {
+        return { label: "Dihapus", icon: "pi pi-trash", pill: "border-red-200 bg-red-50 text-red-700", dot: "bg-red-500" };
+    }
+    return { label: "Diubah", icon: "pi pi-pencil", pill: "border-amber-200 bg-amber-50 text-amber-800", dot: "bg-amber-500" };
 };
+
+const hasValue = (v) => v !== null && v !== undefined && `${v}`.trim() !== "";
 </script>
 
 <template>
-    <!-- Empty state -->
-    <div
-        v-if="!activities.length"
-        class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-20 text-center"
-    >
-        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-            <i class="pi pi-history text-2xl text-slate-300" />
+    <UiEmptyState
+        v-if="!hasActivities"
+        title="Belum ada riwayat"
+        description="Aktivitas perubahan pada data ini akan muncul di sini."
+        icon="pi pi-history"
+    />
+
+    <UiSurface v-else padding="none" class="overflow-hidden">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+            <UiSectionHeader
+                title="Aktivitas"
+                :subtitle="`Total ${activities.length} item`"
+                icon="pi pi-list"
+            />
         </div>
-        <div>
-            <p class="text-sm font-bold text-slate-600">Belum ada riwayat</p>
-            <p class="text-xs text-slate-400 mt-0.5">Aktivitas perubahan pada data ini akan muncul di sini.</p>
-        </div>
-    </div>
 
-    <!-- Timeline -->
-    <div v-else class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <ul class="relative">
-            <!-- Vertical timeline line -->
-            <div class="absolute left-[2.35rem] top-0 bottom-0 w-px bg-slate-100 z-0" />
-
-            <li
-                v-for="(activity, idx) in activities"
-                :key="activity.id"
-                class="relative px-5 py-5 transition-colors hover:bg-slate-50/60"
-                :class="idx !== activities.length - 1 ? 'border-b border-slate-100' : ''"
-            >
-                <div class="flex items-start gap-4">
-
-                    <!-- Timeline dot -->
-                    <div class="relative z-10 mt-0.5 flex-shrink-0">
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow-sm"
-                            :class="eventConfig(activity.event).dotColor"
-                        >
-                            <i
-                                :class="`pi ${eventConfig(activity.event).icon} text-white`"
-                                style="font-size: 10px"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Content -->
-                    <div class="flex-1 min-w-0">
-
-                        <!-- Event header -->
-                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <!-- Event badge -->
-                                <span
-                                    class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
-                                    :class="eventConfig(activity.event).color"
-                                >
-                                    {{ eventConfig(activity.event).label }}
-                                </span>
-
-                                <!-- Causer -->
-                                <div class="flex items-center gap-1.5">
-                                    <div class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 shrink-0">
-                                        <i class="pi pi-user text-slate-500" style="font-size: 9px" />
-                                    </div>
-                                    <span class="text-sm font-semibold text-slate-800">
-                                        {{ activity.causer ?? "Sistem" }}
+        <ul class="divide-y divide-slate-100">
+            <li v-for="activity in activities" :key="activity.id" class="px-4 py-4">
+                <details class="group">
+                    <summary class="cursor-pointer list-none">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div class="min-w-0 space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span
+                                        class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
+                                        :class="eventMeta(activity.event).pill"
+                                    >
+                                        <span class="size-1.5 rounded-full" :class="eventMeta(activity.event).dot" aria-hidden="true" />
+                                        <i :class="eventMeta(activity.event).icon" class="text-[12px]" aria-hidden="true" />
+                                        {{ eventMeta(activity.event).label }}
                                     </span>
-                                    <span v-if="activity.causer_email" class="text-xs text-slate-400">
-                                        ({{ activity.causer_email }})
+
+                                    <span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                        <span class="inline-flex size-5 items-center justify-center rounded-full bg-slate-100">
+                                            <i class="pi pi-user text-[10px] text-slate-500" aria-hidden="true" />
+                                        </span>
+                                        <span class="truncate">{{ activity.causer ?? "Sistem" }}</span>
+                                    </span>
+
+                                    <span v-if="activity.causer_email" class="truncate text-xs text-slate-500">
+                                        {{ activity.causer_email }}
                                     </span>
                                 </div>
+
+                                <p class="text-pretty text-xs text-slate-500">
+                                    <span class="ui-tabular font-semibold text-slate-700">
+                                        {{ (activity.changes?.length ?? 0).toLocaleString("id-ID") }}
+                                    </span>
+                                    field berubah.
+                                    <span class="text-slate-400">Klik untuk melihat detail.</span>
+                                </p>
                             </div>
 
-                            <!-- Timestamp -->
-                            <span class="flex items-center gap-1 text-xs text-slate-400 shrink-0">
-                                <i class="pi pi-clock text-[10px]" />
+                            <span class="ui-tabular flex items-center gap-2 text-xs font-medium text-slate-500">
+                                <i class="pi pi-clock text-[11px]" aria-hidden="true" />
                                 {{ activity.created_at }}
                             </span>
                         </div>
+                    </summary>
 
-                        <!-- Changes diff table -->
-                        <div
-                            v-if="activity.changes?.length"
-                            class="overflow-hidden rounded-xl border border-slate-100"
-                        >
-                            <!-- Table header -->
-                            <div class="grid grid-cols-[1.4fr_1fr_1fr] bg-slate-50 border-b border-slate-100">
-                                <div class="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                    Field
-                                </div>
-                                <div class="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                    Sebelumnya
-                                </div>
-                                <div class="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                                    Menjadi
-                                </div>
+                    <div class="mt-4">
+                        <div v-if="activity.changes?.length" class="overflow-hidden rounded-[var(--radius-lg)] border border-slate-200 bg-white">
+                            <div class="grid grid-cols-[1.2fr_1fr_1fr] border-b border-slate-100 bg-slate-50/70">
+                                <div class="px-3 py-2 text-xs font-semibold text-slate-600">Field</div>
+                                <div class="px-3 py-2 text-xs font-semibold text-slate-600">Sebelumnya</div>
+                                <div class="px-3 py-2 text-xs font-semibold text-slate-600">Sesudahnya</div>
                             </div>
 
-                            <!-- Table rows -->
-                            <div class="divide-y divide-slate-50 bg-white">
+                            <div class="divide-y divide-slate-100">
                                 <div
                                     v-for="change in activity.changes"
                                     :key="change.field"
-                                    class="grid grid-cols-[1.4fr_1fr_1fr] text-xs hover:bg-slate-50/80 transition-colors"
+                                    class="grid grid-cols-[1.2fr_1fr_1fr] text-xs"
                                 >
-                                    <!-- Field name -->
-                                    <div class="px-3 py-2.5 font-semibold text-slate-600 break-all">
-                                        {{ change.field }}
+                                    <div class="min-w-0 px-3 py-2.5 font-semibold text-slate-700">
+                                        <span class="truncate">{{ change.field }}</span>
                                     </div>
-                                    <!-- Old value -->
-                                    <div class="px-3 py-2.5 break-all">
-                                        <span
-                                            v-if="change.old !== null && change.old !== undefined && change.old !== ''"
-                                            class="rounded bg-red-50 px-1.5 py-0.5 text-red-600 font-medium line-through decoration-red-300"
-                                        >
+
+                                    <div class="ui-tabular min-w-0 px-3 py-2.5 text-slate-700">
+                                        <span v-if="hasValue(change.old)" class="line-through decoration-slate-300">
                                             {{ change.old }}
                                         </span>
-                                        <span v-else class="text-slate-300 italic">kosong</span>
+                                        <span v-else class="text-slate-400">&mdash;</span>
                                     </div>
-                                    <!-- New value -->
-                                    <div class="px-3 py-2.5 break-all">
-                                        <span
-                                            v-if="change.new !== null && change.new !== undefined && change.new !== ''"
-                                            class="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700 font-semibold"
-                                        >
-                                            {{ change.new }}
-                                        </span>
-                                        <span v-else class="text-slate-300 italic">kosong</span>
+
+                                    <div class="ui-tabular min-w-0 px-3 py-2.5 font-semibold text-slate-900">
+                                        <span v-if="hasValue(change.new)">{{ change.new }}</span>
+                                        <span v-else class="font-medium text-slate-400">&mdash;</span>
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- Changes count footer -->
-                            <div class="border-t border-slate-100 bg-slate-50/60 px-3 py-1.5 text-right text-[10px] font-semibold text-slate-400">
-                                {{ activity.changes.length }} field diubah
-                            </div>
                         </div>
 
-                        <!-- No changes note -->
-                        <p v-else class="text-xs text-slate-400 italic">
+                        <p v-else class="text-pretty text-xs text-slate-500">
                             Tidak ada detail perubahan yang tercatat.
                         </p>
-
                     </div>
-                </div>
+                </details>
             </li>
         </ul>
 
-        <!-- List footer -->
-        <div class="border-t border-slate-100 bg-slate-50/60 px-5 py-3 text-center text-xs text-slate-400">
-            Menampilkan <strong class="text-slate-600">{{ activities.length }}</strong> aktivitas &mdash; akhir dari riwayat
+        <div class="border-t border-slate-100 bg-slate-50/70 px-4 py-3 text-center text-xs text-slate-500">
+            Akhir dari riwayat.
         </div>
-    </div>
+    </UiSurface>
 </template>
+

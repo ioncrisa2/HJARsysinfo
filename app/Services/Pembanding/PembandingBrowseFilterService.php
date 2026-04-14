@@ -2,6 +2,7 @@
 
 namespace App\Services\Pembanding;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 
 class PembandingBrowseFilterService
@@ -93,7 +94,17 @@ class PembandingBrowseFilterService
     {
         $filters = $this->normalize($filters);
 
+        // "Non properti" records are deprecated; hide them from the user browse UI.
+        $nonPropertiJenisObjekIds = DB::table('master_jenis_objek')
+            ->where(function ($q) {
+                $q->whereIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
+                    ->orWhereRaw('LOWER(name) LIKE ?', ['%non properti%']);
+            })
+            ->pluck('id')
+            ->all();
+
         return $query
+            ->when($nonPropertiJenisObjekIds, fn (Builder $builder) => $builder->whereNotIn('jenis_objek_id', $nonPropertiJenisObjekIds))
             ->when($filters['province_id'] ?? null, fn (Builder $builder, $value) => $builder->where('province_id', $value))
             ->when($filters['regency_id'] ?? null, fn (Builder $builder, $value) => $builder->where('regency_id', $value))
             ->when($filters['district_id'] ?? null, fn (Builder $builder, $value) => $builder->where('district_id', $value))

@@ -23,13 +23,6 @@ const formatPercent = (value) =>
     })}%`;
 
 const bucketTone = (color) => {
-    if (color === "emerald") {
-        return {
-            bar: "bg-emerald-500",
-            chip: "bg-emerald-50 text-emerald-700",
-        };
-    }
-
     if (color === "amber") {
         return {
             bar: "bg-amber-500",
@@ -38,8 +31,8 @@ const bucketTone = (color) => {
     }
 
     return {
-        bar: "bg-rose-500",
-        chip: "bg-rose-50 text-rose-700",
+        bar: "bg-slate-500",
+        chip: "bg-slate-100 text-slate-700",
     };
 };
 
@@ -61,17 +54,17 @@ const freshnessRate = computed(() => {
 
         <div class="space-y-3 p-4">
             <div class="grid gap-2 sm:grid-cols-3">
-                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p class="text-[11px] text-slate-400">Total Data</p>
-                    <p class="text-sm font-bold text-slate-800">{{ formatNumber(props.data?.total) }}</p>
+                <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p class="text-[11px] text-slate-500">Total</p>
+                    <p class="ui-tabular text-sm font-semibold text-slate-900">{{ formatNumber(props.data?.total) }}</p>
                 </div>
-                <div class="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                    <p class="text-[11px] text-emerald-500">Ada Tanggal</p>
-                    <p class="text-sm font-bold text-emerald-700">{{ formatNumber(props.data?.with_date) }}</p>
+                <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p class="text-[11px] text-slate-500">Ada tanggal</p>
+                    <p class="ui-tabular text-sm font-semibold text-slate-900">{{ formatNumber(props.data?.with_date) }}</p>
                 </div>
-                <div class="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2">
-                    <p class="text-[11px] text-rose-500">Tanpa Tanggal</p>
-                    <p class="text-sm font-bold text-rose-700">{{ formatNumber(props.data?.missing_date) }}</p>
+                <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p class="text-[11px] text-slate-500">Tanpa tanggal</p>
+                    <p class="ui-tabular text-sm font-semibold text-slate-900">{{ formatNumber(props.data?.missing_date) }}</p>
                 </div>
             </div>
 
@@ -96,7 +89,7 @@ const freshnessRate = computed(() => {
                     </div>
                     <div class="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                         <div
-                            class="h-full rounded-full transition-all duration-300"
+                            class="h-full rounded-full"
                             :class="bucketTone(bucket.color).bar"
                             :style="{ width: `${Math.max(0, Math.min(Number(bucket.percentage ?? 0), 100))}%` }"
                         />

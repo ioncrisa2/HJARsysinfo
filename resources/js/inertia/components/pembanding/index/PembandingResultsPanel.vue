@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { Link } from "@inertiajs/vue3";
 import { parseDateValue } from "../../../composables/useDateBridge";
+import UiEmptyState from "../../ui/UiEmptyState.vue";
 
 const props = defineProps({
     records: {
@@ -10,7 +11,7 @@ const props = defineProps({
     },
 });
 
-const viewMode = ref("card");
+const viewMode = ref("list");
 
 const rows = computed(() => props.records?.data ?? []);
 const links = computed(() => props.records?.links ?? []);
@@ -55,14 +56,22 @@ const displayLabel = (label) => {
             </span>
 
             <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-                <button class="rounded-md px-2 py-1 transition"
+                <button
+                    type="button"
+                    aria-label="Tampilan kartu"
+                    class="ui-hit rounded-md px-2 py-1 transition"
                     :class="viewMode === 'card' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'"
-                    @click="viewMode = 'card'">
+                    @click="viewMode = 'card'"
+                >
                     <i class="pi pi-th-large text-xs" />
                 </button>
-                <button class="rounded-md px-2 py-1 transition"
+                <button
+                    type="button"
+                    aria-label="Tampilan daftar"
+                    class="ui-hit rounded-md px-2 py-1 transition"
                     :class="viewMode === 'list' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700'"
-                    @click="viewMode = 'list'">
+                    @click="viewMode = 'list'"
+                >
                     <i class="pi pi-list text-xs" />
                 </button>
             </div>
@@ -70,28 +79,28 @@ const displayLabel = (label) => {
 
         <div
             v-if="viewMode === 'card'"
-            class="grid gap-4 min-[560px]:grid-cols-2 min-[720px]:grid-cols-3 min-[1280px]:grid-cols-4 min-[1440px]:grid-cols-5"
+            class="grid gap-3 min-[720px]:grid-cols-2 min-[1024px]:grid-cols-3 min-[1280px]:grid-cols-4"
         >
             <div v-for="item in rows" :key="item.id"
-                class="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md min-w-0">
-                <div class="relative h-44 min-[1440px]:h-40 w-full overflow-hidden bg-slate-100">
+                class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm min-w-0">
+                <div class="relative h-36 w-full overflow-hidden bg-slate-100">
                     <img :src="item.image_url || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=60'"
-                        alt="Foto properti" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        alt="Foto properti" class="h-full w-full object-cover"
                         loading="lazy" />
                     <div class="absolute left-3 top-3 flex gap-1.5">
                         <span v-if="item.jenis_listing"
-                            class="rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+                            class="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm">
                             {{ item.jenis_listing }}
                         </span>
                         <span v-if="item.jenis_objek"
-                            class="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+                            class="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm">
                             {{ item.jenis_objek }}
                         </span>
                     </div>
                 </div>
 
-                <div class="flex flex-1 flex-col p-3.5 min-[1280px]:p-4">
-                    <p class="text-base font-bold text-slate-900">{{ formatCurrency(item.harga) }}</p>
+                <div class="flex flex-1 flex-col p-3.5">
+                    <p class="ui-tabular text-base font-semibold text-slate-900">{{ formatCurrency(item.harga) }}</p>
                     <p class="mt-1 text-sm font-semibold text-slate-800 line-clamp-2 leading-snug">
                         {{ item.alamat_data || "Tanpa alamat" }}
                     </p>
@@ -115,52 +124,48 @@ const displayLabel = (label) => {
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between border-t border-slate-100 px-3.5 py-2.5 min-[1280px]:px-4 min-[1280px]:py-3">
+                <div class="flex items-center justify-between border-t border-slate-100 px-3.5 py-2.5">
                     <Link :href="`/home/pembanding/${item.id}/edit`"
-                        class="text-xs min-[1280px]:text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
+                        class="text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors">
                         Edit
                     </Link>
                     <Link :href="`/home/pembanding/${item.id}`"
-                        class="text-xs min-[1280px]:text-sm font-semibold text-amber-600 hover:text-amber-800 transition-colors">
+                        class="text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors">
                         Detail
                     </Link>
                     <a v-if="item.latitude && item.longitude" :href="`https://www.google.com/maps?q=${item.latitude},${item.longitude}`"
-                        target="_blank" class="text-xs min-[1280px]:text-sm font-medium text-slate-400 hover:text-slate-700 transition-colors">
+                        target="_blank" class="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors">
                         Lihat Maps
                     </a>
                 </div>
             </div>
 
             <div v-if="rows.length === 0"
-                class="col-span-full flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-16 text-center">
-                <i class="pi pi-inbox text-3xl text-slate-300" />
-                <div>
-                    <p class="text-sm font-semibold text-slate-500">Tidak ada data</p>
-                    <p class="text-xs text-slate-400">Coba ubah filter pencarian Anda</p>
-                </div>
+                class="col-span-full">
+                <UiEmptyState title="Tidak ada data" description="Coba ubah filter pencarian Anda" />
             </div>
         </div>
 
         <div v-else class="flex flex-col divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div v-for="item in rows" :key="item.id" class="group flex items-stretch hover:bg-slate-50 transition overflow-hidden">
-                <div class="relative w-36 shrink-0 overflow-hidden bg-slate-100">
+            <div v-for="item in rows" :key="item.id" class="flex items-stretch hover:bg-slate-50 overflow-hidden">
+                <div class="relative w-28 shrink-0 overflow-hidden bg-slate-100">
                     <img :src="item.image_url || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=400&q=60'"
-                        class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" />
+                        class="h-full w-full object-cover" loading="lazy" />
                     <div class="absolute left-2 top-2 flex flex-col gap-1">
                         <span v-if="item.jenis_listing"
-                            class="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+                            class="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm">
                             {{ item.jenis_listing }}
                         </span>
                         <span v-if="item.jenis_objek"
-                            class="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+                            class="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm">
                             {{ item.jenis_objek }}
                         </span>
                     </div>
                 </div>
 
-                <div class="flex flex-1 items-center gap-4 px-4 py-3 min-w-0">
+                <div class="flex flex-1 items-center gap-4 px-3 py-2.5 min-w-0">
                     <div class="flex flex-1 flex-col min-w-0 overflow-hidden">
-                        <span class="text-base font-bold text-slate-900 truncate">{{ formatCurrency(item.harga) }}</span>
+                        <span class="ui-tabular text-base font-semibold text-slate-900 truncate">{{ formatCurrency(item.harga) }}</span>
                         <p class="text-sm text-slate-700 truncate max-w-xl line-clamp-1">{{ item.alamat_data || "Tanpa alamat" }}</p>
                         <p class="text-xs text-slate-400 truncate max-w-xl line-clamp-1">{{ item.location || "Lokasi tidak tersedia" }}</p>
                     </div>
@@ -168,22 +173,20 @@ const displayLabel = (label) => {
                     <div class="hidden md:flex items-center gap-4 text-xs text-slate-400 shrink-0">
                         <span v-if="item.luas_tanah"><i class="pi pi-expand mr-1" />{{ item.luas_tanah }} m2</span>
                         <span v-if="item.tanggal_data"><i class="pi pi-calendar mr-1" />{{ formatDateLong(item.tanggal_data) }}</span>
-                        <span v-if="item.latitude && item.longitude" class="text-emerald-500"><i class="pi pi-map-marker mr-1" />Koordinat</span>
+                        <span v-if="item.latitude && item.longitude" class="text-slate-600"><i class="pi pi-map-marker mr-1" />Koordinat</span>
                     </div>
 
                     <div class="flex items-center gap-3 shrink-0 text-sm">
-                        <Link :href="`/home/pembanding/${item.id}/edit`" class="font-semibold text-blue-600 hover:text-blue-800">Edit</Link>
-                        <Link :href="`/home/pembanding/${item.id}`" class="font-semibold text-amber-600 hover:text-amber-800">Detail</Link>
+                        <Link :href="`/home/pembanding/${item.id}/edit`" class="font-semibold text-blue-700 hover:text-blue-900">Edit</Link>
+                        <Link :href="`/home/pembanding/${item.id}`" class="font-semibold text-amber-700 hover:text-amber-900">Detail</Link>
                         <a v-if="item.latitude && item.longitude" :href="`https://www.google.com/maps?q=${item.latitude},${item.longitude}`"
-                            target="_blank" class="text-slate-400 hover:text-slate-700">Maps</a>
+                            target="_blank" class="text-slate-500 hover:text-slate-800">Maps</a>
                     </div>
                 </div>
             </div>
 
-            <div v-if="rows.length === 0" class="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                <i class="pi pi-inbox text-3xl text-slate-300" />
-                <p class="text-sm font-semibold text-slate-500">Tidak ada data</p>
-                <p class="text-xs text-slate-400">Coba ubah filter pencarian Anda</p>
+            <div v-if="rows.length === 0" class="p-4">
+                <UiEmptyState title="Tidak ada data" description="Coba ubah filter pencarian Anda" />
             </div>
         </div>
 

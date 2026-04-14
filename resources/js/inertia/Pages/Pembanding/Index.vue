@@ -87,7 +87,7 @@ const activeFilterChips = computed(() => {
         if (found) chips.push({ key: "jenis_objek_id", label: `Objek: ${found.label}` });
     }
     if (filters.dari_tanggal || filters.sampai_tanggal) {
-        chips.push({ key: "date", label: `Tanggal: ${filters.dari_tanggal ?? "?"} – ${filters.sampai_tanggal ?? "?"}` });
+        chips.push({ key: "date", label: `Tanggal: ${filters.dari_tanggal ?? "?"} - ${filters.sampai_tanggal ?? "?"}` });
     }
     return chips;
 });
@@ -163,7 +163,7 @@ const resetFilters = () => {
 <template>
     <Head title="Data Pembanding" />
 
-    <main class="space-y-4">
+    <main class="space-y-3">
 
         <PembandingHeaderBar
             :total="records.total ?? 0"
@@ -177,15 +177,16 @@ const resetFilters = () => {
         <!-- Active Filter Chips -->
         <Transition name="chips">
             <div v-if="activeFilterChips.length > 0" class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Filter aktif:</span>
+                <span class="text-xs font-semibold text-slate-600">Filter aktif:</span>
                 <span
                     v-for="chip in activeFilterChips"
                     :key="chip.key"
-                    class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 cursor-pointer hover:bg-amber-100 transition-colors group"
+                    class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors group"
                     @click="removeChip(chip.key)"
                 >
+                    <span class="h-1.5 w-1.5 rounded-full bg-amber-500" />
                     {{ chip.label }}
-                    <i class="pi pi-times text-[10px] text-amber-400 group-hover:text-amber-700 transition-colors" />
+                    <i class="pi pi-times text-[10px] text-slate-400 group-hover:text-slate-700 transition-colors" />
                 </span>
                 <button
                     class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
@@ -230,6 +231,6 @@ const resetFilters = () => {
 </template>
 
 <style>
-.chips-enter-active, .chips-leave-active { transition: all 0.2s ease; }
+.chips-enter-active, .chips-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .chips-enter-from, .chips-leave-to { opacity: 0; transform: translateY(-6px); }
 </style>

@@ -102,7 +102,7 @@ const logout = () => {
                         </div>
                     </header>
 
-                    <main class="pt-4">
+                    <main id="main-content" tabindex="-1" class="pt-4">
                         <slot />
                     </main>
                 </section>
