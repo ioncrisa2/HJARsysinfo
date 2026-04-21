@@ -19,6 +19,7 @@ class SimilarPembandingResource extends JsonResource
         return array_merge($base, [
             'score' => $this->score ?? null,
             'distance' => $this->distance ?? null,
+            'rank' => $this->rank ?? null,
             'priority_rank' => $this->priority_rank ?? null,
             'is_fallback' => (bool) ($this->is_fallback ?? false),
         ]);

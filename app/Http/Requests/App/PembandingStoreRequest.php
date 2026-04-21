@@ -57,6 +57,23 @@ class PembandingStoreRequest extends FormRequest
             'dokumen_tanah_id' => ['required', 'integer', 'exists:master_dokumen_tanah,id'],
             'peruntukan_id' => ['required', 'integer', 'exists:master_peruntukan,id'],
             'harga' => ['required', 'numeric', 'min:0'],
+            'jangka_waktu_sewa' => [
+                'nullable',
+                Rule::requiredIf(function() {
+                    $sewaId = \App\Models\JenisListing::query()->where('slug', 'sewa')->value('id');
+                    return $sewaId && (int) $this->input('jenis_listing_id') === (int) $sewaId;
+                }),
+                'numeric',
+                'min:0',
+            ],
+            'satuan_waktu_sewa' => [
+                'nullable',
+                Rule::requiredIf(function() {
+                    $sewaId = \App\Models\JenisListing::query()->where('slug', 'sewa')->value('id');
+                    return $sewaId && (int) $this->input('jenis_listing_id') === (int) $sewaId;
+                }),
+                'string',
+            ],
             'catatan' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -113,6 +130,9 @@ class PembandingStoreRequest extends FormRequest
             'harga.required' => 'Harga wajib diisi.',
             'harga.numeric' => 'Harga harus berupa angka.',
             'harga.min' => 'Harga minimal 0.',
+            'jangka_waktu_sewa.required' => 'Jangka waktu sewa wajib diisi untuk properti sewa.',
+            'jangka_waktu_sewa.numeric' => 'Jangka waktu sewa harus berupa angka.',
+            'satuan_waktu_sewa.required' => 'Satuan waktu sewa wajib diisi untuk properti sewa.',
         ];
     }
 }

@@ -162,6 +162,11 @@ class VillageResource extends Resource
             ]);
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->with(['district.regency.province']);
+    }
+
     public static function getPages(): array
     {
         return [

@@ -45,7 +45,10 @@ class DataPembandingController extends Controller
             ->orderByDesc('tanggal_data')
             ->paginate($limit);
 
-        return $this->success($pembandings, 'Semua List Data Pembanding');
+        return $this->success(
+            \App\Http\Resources\PembandingResource::collection($pembandings),
+            'Semua List Data Pembanding'
+        );
     }
 
     /**

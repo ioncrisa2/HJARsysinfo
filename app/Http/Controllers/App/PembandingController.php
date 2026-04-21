@@ -186,6 +186,8 @@ class PembandingController extends Controller
                 'nomer_telepon_pemberi_informasi' => $pembanding->nomer_telepon_pemberi_informasi,
                 'nama_pemberi_informasi'          => $pembanding->nama_pemberi_informasi,
                 'harga'                          => $pembanding->harga,
+                'jangka_waktu_sewa'              => $pembanding->jangka_waktu_sewa,
+                'satuan_waktu_sewa'              => $pembanding->satuan_waktu_sewa,
                 'tanggal'                        => $pembanding->tanggal_data,
                 'jenis_listing'                  => $pembanding->jenisListing?->name,
                 'jenis_objek'                    => $pembanding->jenisObjek?->name,
@@ -285,6 +287,8 @@ class PembandingController extends Controller
             'dokumen_tanah_id'                => $pembanding->dokumen_tanah_id,
             'peruntukan_id'                   => $pembanding->peruntukan_id,
             'harga'                           => $pembanding->harga,
+            'jangka_waktu_sewa'               => $pembanding->jangka_waktu_sewa,
+            'satuan_waktu_sewa'               => $pembanding->satuan_waktu_sewa,
             'catatan'                         => $pembanding->catatan,
         ];
 

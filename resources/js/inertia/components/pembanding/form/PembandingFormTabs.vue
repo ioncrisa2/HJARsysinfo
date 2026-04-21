@@ -60,6 +60,8 @@ const tabErrorKeys = {
         "dokumen_tanah_id",
         "peruntukan_id",
         "harga",
+        "jangka_waktu_sewa",
+        "satuan_waktu_sewa",
     ],
     catatan: ["catatan"],
 };

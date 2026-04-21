@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Supports\DictionaryTypeMap;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DictionaryController extends Controller
 {
@@ -13,26 +14,30 @@ class DictionaryController extends Controller
     {
         $model = $this->resolveModel($type);
 
-        $query = $model::query()
-            ->orderBy('sort_order')
-            ->orderBy('name');
+        $cacheKey = "api_dictionary_{$type}_" . ($request->boolean('active_only', true) ? 'active' : 'all');
 
-        if ($request->boolean('active_only', true)) {
-            $query->where('is_active', true);
-        }
+        $items = Cache::remember($cacheKey, now()->addHours(24), function () use ($model, $request) {
+            $query = $model::query()
+                ->orderBy('sort_order')
+                ->orderBy('name');
 
-        $items = $query
-            ->get()
-            ->map(fn ($row) => $row->only([
-                'id',
-                'name',
-                'slug',
-                'sort_order',
-                'is_active',
-                'badge_color_token',
-                'marker_icon_url',
-            ]))
-            ->values();
+            if ($request->boolean('active_only', true)) {
+                $query->where('is_active', true);
+            }
+
+            return $query
+                ->get()
+                ->map(fn ($row) => $row->only([
+                    'id',
+                    'name',
+                    'slug',
+                    'sort_order',
+                    'is_active',
+                    'badge_color_token',
+                    'marker_icon_url',
+                ]))
+                ->values();
+        });
 
         return response()->json($items);
     }

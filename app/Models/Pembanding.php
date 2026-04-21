@@ -43,6 +43,8 @@ class Pembanding extends Model
         'lebar_jalan',
         'rasio_tapak',
         'harga',
+        'jangka_waktu_sewa',
+        'satuan_waktu_sewa',
         'tanggal_data',
         'image',
         'catatan',
@@ -68,6 +70,7 @@ class Pembanding extends Model
         'latitude'                  => 'float',
         'longitude'                 => 'float',
         'harga'                     => 'float',
+        'jangka_waktu_sewa'         => 'float',
         'tanggal_data'              => 'date:Y-m-d',
     ];
 

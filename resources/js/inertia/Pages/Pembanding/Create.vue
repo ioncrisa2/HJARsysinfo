@@ -49,6 +49,8 @@ const form = useForm({
     dokumen_tanah_id: null,
     peruntukan_id: null,
     harga: null,
+    jangka_waktu_sewa: null,
+    satuan_waktu_sewa: "Tahun",
     catatan: "",
 });
 

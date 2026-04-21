@@ -75,6 +75,7 @@ class DataPembandingResource extends Resource
                                             ->relationship('jenisListing', 'name')
                                             ->searchable()
                                             ->preload()
+                                            ->live()
                                             ->required()
                                             ->helperText('Contoh: Penawaran, Transaksi'),
 
@@ -320,8 +321,30 @@ class DataPembandingResource extends Resource
                                             JS))
                                             ->stripCharacters('.')
                                             ->required()
+                                            ->helperText(fn(Get $get) => \App\Models\JenisListing::find($get('jenis_listing_id'))?->slug === 'sewa' ? 'Untuk properti sewa, isikan total harga sesuai periode sewa yang ditentukan.' : '')
                                             ->columnSpanFull(),
-                                    ]),
+
+                                        TextInput::make('jangka_waktu_sewa')
+                                            ->label('Jangka Waktu Sewa')
+                                            ->numeric()
+                                            ->visible(fn(Get $get) => \App\Models\JenisListing::find($get('jenis_listing_id'))?->slug === 'sewa')
+                                            ->required(fn(Get $get) => \App\Models\JenisListing::find($get('jenis_listing_id'))?->slug === 'sewa')
+                                            ->placeholder('Contoh: 1, 2')
+                                            ->columnSpan(1),
+
+                                        Select::make('satuan_waktu_sewa')
+                                            ->label('Satuan Waktu')
+                                            ->options([
+                                                'Hari' => 'Hari',
+                                                'Bulan' => 'Bulan',
+                                                'Tahun' => 'Tahun',
+                                            ])
+                                            ->visible(fn(Get $get) => \App\Models\JenisListing::find($get('jenis_listing_id'))?->slug === 'sewa')
+                                            ->required(fn(Get $get) => \App\Models\JenisListing::find($get('jenis_listing_id'))?->slug === 'sewa')
+                                            ->default('Tahun')
+                                            ->columnSpan(1),
+                                    ])
+                                    ->columns(2),
                             ]),
 
                         Tabs\Tab::make('Catatan')
@@ -613,12 +636,20 @@ class DataPembandingResource extends Resource
                                 ->size('lg'),
 
                             TextEntry::make('harga')
-                                ->label('Harga')
-                                ->money('IDR')
-                                ->badge()
-                                ->icon('heroicon-o-banknotes')
-                                ->color('success')
-                                ->weight('bold'),
+                                                ->label('Harga')
+                                                ->money('IDR')
+                                                ->badge()
+                                                ->icon('heroicon-o-banknotes')
+                                                ->color('success')
+                                                ->weight('bold'),
+                                                
+                            TextEntry::make('jangka_waktu_sewa')
+                                                ->label('Masa Sewa')
+                                                ->visible(fn($record) => $record->jenisListing?->slug === 'sewa')
+                                                ->formatStateUsing(fn($record) => "{$record->jangka_waktu_sewa} {$record->satuan_waktu_sewa}")
+                                                ->icon('heroicon-o-clock')
+                                                ->color('info')
+                                                ->badge(),
                         ]),
 
                         TextEntry::make('alamat_lengkap')

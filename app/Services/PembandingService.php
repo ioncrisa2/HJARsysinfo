@@ -197,13 +197,15 @@ class PembandingService
         });
 
         if ($multiSort) {
-            return $scored->sortBy([
+            $sorted = $scored->sortBy([
                 ['priority_rank', 'asc'],
                 ['score', 'desc'],
             ])->values();
+            return $sorted->map(function ($item, $index) { $item->rank = $index + 1; return $item; });
         }
 
-        return $scored->sortByDesc('score')->values();
+        $sorted = $scored->sortByDesc('score')->values();
+        return $sorted->map(function ($item, $index) { $item->rank = $index + 1; return $item; });
     }
 
     protected function setPriority(Pembanding $item, int $priority): Pembanding

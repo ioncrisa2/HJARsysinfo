@@ -73,6 +73,8 @@ class PembandingResource extends JsonResource
             'lebar_jalan' => $this->lebar_jalan,
             'rasio_tapak' => $this->rasio_tapak,
             'harga' => $this->harga,
+            'jangka_waktu_sewa' => $this->jangka_waktu_sewa,
+            'satuan_waktu_sewa' => $this->satuan_waktu_sewa,
             'tanggal_data' => $this->tanggal_data,
             'catatan' => $this->catatan,
 

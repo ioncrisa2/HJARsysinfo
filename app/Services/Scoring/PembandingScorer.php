@@ -9,19 +9,19 @@ use BackedEnum;
 class PembandingScorer
 {
     protected const WEIGHTS = [
-        'distance' => 25,
-        'zoning' => 20,
-        'area' => 15,
-        'price' => 15,
-        'legal_match' => 10,
+        'distance' => 30,           // 1. Distance (the closer the better)
+        'zoning' => 20,             // 2. Zoning (peruntukan)
+        'area' => 15,               // 3. Area (relative size match)
+        'legal_match' => 12,        // 4. Legality Match
         'legal_diff' => 6,
-        'road_width_perfect' => 8,
-        'road_width_good' => 4,
+        'road_width_perfect' => 10,  // 5. Road width match
+        'road_width_good' => 5,
         'road_width_poor' => 0,
-        'position_match' => 4,
-        'position_diff' => 2,
-        'condition_match' => 3,
-        'condition_diff' => 1,
+        'position_match' => 6,      // 6. Property position (hook vs badan match)
+        'position_diff' => 3,
+        'condition_match' => 4,     // 7. Condition match
+        'condition_diff' => 2,
+        'price' => 3,               // 8. Price (lowest priority)
     ];
 
     protected const DISTANCE_DECAY_METERS = 2500;

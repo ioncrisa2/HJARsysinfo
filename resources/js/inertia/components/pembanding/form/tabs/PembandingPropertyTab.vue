@@ -57,6 +57,13 @@ const kondisiFields = [
     { key: "dokumen_tanah_id", label: "Dokumen tanah", opts: "dokumenTanahs" },
     { key: "peruntukan_id", label: "Peruntukan", opts: "peruntukans" },
 ];
+
+const isSewa = computed(() => {
+    const listingId = props.form.jenis_listing_id;
+    if (!listingId || !props.options?.jenisListings) return false;
+    const listing = props.options.jenisListings.find(l => l.value == listingId);
+    return listing?.label?.toLowerCase() === 'sewa';
+});
 </script>
 
 <template>
@@ -241,15 +248,40 @@ const kondisiFields = [
         </UiSurface>
 
         <UiSurface variant="inset" class="p-4">
-            <UiField id="harga" label="Harga" :required="true" :error="form.errors.harga" help="Harga penawaran atau transaksi.">
-                <InputNumber
-                    v-model="form.harga"
-                    inputId="harga"
-                    v-bind="currencyConfig"
-                    placeholder="Rp 0"
-                    class="w-full filter-light ui-tabular"
-                />
-            </UiField>
+            <div class="grid gap-4 sm:grid-cols-3">
+                <UiField id="harga" :label="isSewa ? 'Total Harga Sewa' : 'Harga'" :required="true" :error="form.errors.harga" :help="isSewa ? 'Total harga sesuai jangka waktu sewa.' : 'Harga penawaran atau transaksi.'">
+                    <InputNumber
+                        v-model="form.harga"
+                        inputId="harga"
+                        v-bind="currencyConfig"
+                        placeholder="Rp 0"
+                        class="w-full filter-light ui-tabular"
+                    />
+                </UiField>
+                <template v-if="isSewa">
+                    <UiField id="jangka_waktu_sewa" label="Jangka Waktu Sewa" :required="true" :error="form.errors.jangka_waktu_sewa">
+                        <InputNumber
+                            v-model="form.jangka_waktu_sewa"
+                            inputId="jangka_waktu_sewa"
+                            v-bind="numConfig"
+                            placeholder="mis. 1, 2"
+                            class="w-full filter-light ui-tabular"
+                        />
+                    </UiField>
+
+                    <UiField id="satuan_waktu_sewa" label="Satuan Waktu" :required="true" :error="form.errors.satuan_waktu_sewa">
+                        <Select
+                            v-model="form.satuan_waktu_sewa"
+                            :options="[{label:'Hari', value:'Hari'}, {label:'Bulan', value:'Bulan'}, {label:'Tahun', value:'Tahun'}]"
+                            option-label="label"
+                            option-value="value"
+                            placeholder="Pilih..."
+                            class="w-full filter-light"
+                            inputId="satuan_waktu_sewa"
+                        />
+                    </UiField>
+                </template>
+            </div>
         </UiSurface>
 
         <div class="flex justify-between border-t border-slate-100 pt-4">
