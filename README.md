@@ -14,7 +14,3 @@ HJAR Sysinfo adalah sistem informasi internal untuk mengelola **data pembanding 
 - Tim internal properti/penilaian.
 - Admin dan staf input data.
 - Supervisor atau analis untuk review data dan laporan.
-
-## Basis teknologi (singkat)
-
-Dibangun dengan Laravel + Filament untuk backend, serta Inertia/Vue untuk frontend.
