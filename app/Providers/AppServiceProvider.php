@@ -2,9 +2,6 @@
 
 namespace App\Providers;
 
-use App\Http\Responses\Auth\LoginResponse;
-use Filament\Http\Responses\Auth\Contracts\LoginResponse as LoginResponseContract;
-use Filament\Infolists\Infolist;
 use Illuminate\Support\Facades\URL;
 use App\Policies\ActivityPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -18,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(LoginResponseContract::class, LoginResponse::class);
+        //
     }
 
     /**
@@ -27,7 +24,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // URL::forceScheme('https');
-        Infolist::$defaultNumberLocale = 'id';
         Gate::policy(Activity::class, ActivityPolicy::class);
     }
 }

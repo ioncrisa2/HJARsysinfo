@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum Topografi: string implements HasLabel
+enum Topografi: string
 {
     case DatarLebihTinggiDariJalan = 'datar_lebih_tinggi_dari_jalan';
     case DatarLebihRendahDariJalan = 'datar_lebih_rendah_dari_jalan';

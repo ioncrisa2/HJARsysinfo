@@ -101,21 +101,21 @@ const mapsUrl = computed(() =>
 </script>
 
 <template>
-    <div class="space-y-6 p-4 sm:p-5">
-        <UiSectionHeader title="Lokasi" subtitle="Alamat, wilayah administratif, dan koordinat GPS." icon="pi pi-map-marker" />
+    <div class="space-y-8 p-6 sm:p-8">
+        <UiSectionHeader title="Lokasi & Koordinat" subtitle="Detail alamat, wilayah administratif, dan titik koordinat GPS properti." icon="pi pi-map-marker" />
 
-        <UiField id="alamat_data" label="Alamat lengkap" :required="true" :error="form.errors.alamat_data">
+        <UiField id="alamat_data" label="Alamat Lengkap" :required="true" :error="form.errors.alamat_data">
             <Textarea
                 v-model="form.alamat_data"
                 inputId="alamat_data"
                 auto-resize
                 rows="2"
                 placeholder="mis. Jalan Merdeka No. 10, RT 01/RW 02"
-                class="w-full filter-light"
+                class="w-full rounded-xl bg-slate-50/50 border-slate-200"
             />
         </UiField>
 
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-6 md:grid-cols-2">
             <UiField id="province_id" label="Provinsi" :required="true" :error="form.errors.province_id">
                 <Select
                     v-model="form.province_id"
@@ -123,8 +123,9 @@ const mapsUrl = computed(() =>
                     option-label="label"
                     option-value="value"
                     placeholder="Pilih provinsi"
-                    class="w-full filter-light"
+                    class="w-full rounded-xl bg-slate-50/50"
                     inputId="province_id"
+                    filter
                 />
             </UiField>
 
@@ -135,9 +136,10 @@ const mapsUrl = computed(() =>
                     option-label="label"
                     option-value="value"
                     placeholder="Pilih kabupaten/kota"
-                    class="w-full filter-light"
+                    class="w-full rounded-xl bg-slate-50/50"
                     inputId="regency_id"
                     :disabled="!form.province_id"
+                    filter
                 />
             </UiField>
 
@@ -148,9 +150,10 @@ const mapsUrl = computed(() =>
                     option-label="label"
                     option-value="value"
                     placeholder="Pilih kecamatan"
-                    class="w-full filter-light"
+                    class="w-full rounded-xl bg-slate-50/50"
                     inputId="district_id"
                     :disabled="!form.regency_id"
+                    filter
                 />
             </UiField>
 
@@ -161,69 +164,69 @@ const mapsUrl = computed(() =>
                     option-label="label"
                     option-value="value"
                     placeholder="Pilih desa/kelurahan"
-                    class="w-full filter-light"
+                    class="w-full rounded-xl bg-slate-50/50"
                     inputId="village_id"
                     :disabled="!form.district_id"
+                    filter
                 />
             </UiField>
         </div>
 
-        <UiSurface variant="inset" class="p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="space-y-1">
-                    <p class="text-balance text-sm font-semibold text-slate-900">Koordinat GPS</p>
-                    <p class="text-pretty text-xs text-slate-500">
-                        Masukkan format <span class="ui-tabular font-semibold text-slate-700">-6.200000, 106.816666</span>.
-                    </p>
+        <UiSurface variant="inset" class="p-6 bg-slate-900 text-white rounded-2xl overflow-hidden shadow-xl shadow-slate-200">
+            <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+                <div>
+                    <p class="text-lg font-bold">Titik Koordinat GPS</p>
+                    <p class="text-xs text-slate-400 mt-1">Masukkan koordinat secara manual atau cari melalui Google Maps.</p>
                 </div>
 
                 <a
                     :href="mapsUrl"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 text-xs font-bold text-white hover:bg-slate-700 transition shadow-sm"
                 >
                     <i class="pi pi-external-link text-[12px]" aria-hidden="true" />
-                    {{ hasCoords ? "Lihat di Maps" : "Cari di Maps" }}
+                    {{ hasCoords ? "Buka di Google Maps" : "Cari di Maps" }}
                 </a>
             </div>
 
-            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div class="grid gap-6 sm:grid-cols-2 mb-6">
                 <UiField id="latitude" label="Latitude" :required="true" :error="form.errors.latitude">
-                    <InputText v-model="form.latitude" id="latitude" placeholder="mis. -6.200000" class="w-full filter-light ui-tabular" />
+                    <InputText v-model="form.latitude" id="latitude" placeholder="mis. -6.200000" class="w-full rounded-xl bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 font-mono" />
                 </UiField>
                 <UiField id="longitude" label="Longitude" :required="true" :error="form.errors.longitude">
                     <InputText
                         v-model="form.longitude"
                         id="longitude"
                         placeholder="mis. 106.816666"
-                        class="w-full filter-light ui-tabular"
+                        class="w-full rounded-xl bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 font-mono"
                     />
                 </UiField>
             </div>
 
-            <div class="mt-4 overflow-hidden rounded-[var(--radius-lg)] border border-slate-200 bg-white">
-                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-3 py-2">
-                    <span class="text-xs font-semibold text-slate-700">Preview peta</span>
-                    <span class="ui-tabular text-[11px] text-slate-500">
-                        {{ hasCoords ? `${parsedLat}, ${parsedLng}` : "Koordinat kosong" }}
+            <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800">
+                <div class="flex items-center justify-between border-b border-slate-700 bg-slate-800/50 px-4 py-2">
+                    <span class="text-xs font-bold text-slate-300">Live Map Preview</span>
+                    <span class="font-mono text-[10px] text-slate-500 uppercase tracking-widest">
+                        {{ hasCoords ? `${parsedLat}, ${parsedLng}` : "Empty Coords" }}
                     </span>
                 </div>
-                <div v-if="hasCoords" ref="mapContainer" class="mini-map w-full" />
-                <div v-else class="mini-map flex items-center justify-center p-6">
-                    <p class="text-pretty text-xs text-slate-500">Preview peta muncul setelah koordinat diisi.</p>
+                <div v-if="hasCoords" ref="mapContainer" class="mini-map w-full opacity-90 grayscale hover:grayscale-0 transition-all duration-500" />
+                <div v-else class="mini-map flex flex-col items-center justify-center p-8 text-center bg-slate-800/20">
+                    <i class="pi pi-map text-3xl text-slate-700 mb-2" />
+                    <p class="text-[11px] text-slate-500 font-medium">Input koordinat untuk mengaktifkan preview peta interaktif.</p>
                 </div>
             </div>
         </UiSurface>
 
-        <div class="flex justify-between border-t border-slate-100 pt-4">
-            <Button label="Kembali" icon="pi pi-arrow-left" severity="secondary" outlined @click="emit('prev')" />
+        <div class="flex justify-between border-t border-slate-100 pt-6">
+            <Button label="Kembali" icon="pi pi-arrow-left" severity="secondary" outlined class="rounded-xl px-6" @click="emit('prev')" />
             <Button
                 label="Lanjut ke Properti"
                 icon="pi pi-arrow-right"
                 icon-pos="right"
-                severity="secondary"
-                outlined
+                severity="primary"
+                class="rounded-xl px-6"
                 @click="emit('next')"
             />
         </div>

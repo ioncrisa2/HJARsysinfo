@@ -45,8 +45,12 @@ class DataPembandingController extends Controller
             ->orderByDesc('tanggal_data')
             ->paginate($limit);
 
+        $payload = $pembandings->toArray();
+        $payload['data'] = PembandingResource::collection($pembandings->getCollection())
+            ->resolve($request);
+
         return $this->success(
-            \App\Http\Resources\PembandingResource::collection($pembandings),
+            $payload,
             'Semua List Data Pembanding'
         );
     }

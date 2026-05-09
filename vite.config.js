@@ -10,13 +10,10 @@ export default defineConfig({
         vue(),
 
         laravel({
-            // include the normal app entry plus the inertia entry
-            // and (optionally) any custom filament assets if you add them later
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/inertia/app.js',
-                // 'resources/js/filament.js', // uncomment if you create a custom file
             ],
             refresh: true,
         }),

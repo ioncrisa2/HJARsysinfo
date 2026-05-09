@@ -14,7 +14,7 @@ class SuperAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $superAdminRoleName = config('filament-shield.super_admin.name', 'super_admin');
+        $superAdminRoleName = 'super_admin';
         $role = Role::firstOrCreate([
             'name' => $superAdminRoleName,
             'guard_name' => 'web',

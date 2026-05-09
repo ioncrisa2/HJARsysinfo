@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum JenisObjek: string implements HasLabel
+enum JenisObjek: string
 {
     case TANAH = 'tanah';
     case RUMAH_TINGGAL = 'rumah_tinggal';

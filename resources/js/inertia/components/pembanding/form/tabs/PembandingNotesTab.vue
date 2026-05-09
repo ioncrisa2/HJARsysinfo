@@ -61,31 +61,31 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
 </script>
 
 <template>
-    <div class="space-y-6 p-4 sm:p-5">
+    <div class="space-y-8 p-6 sm:p-8">
         <UiSectionHeader
-            title="Catatan"
-            subtitle="Tambahan informasi (opsional) dan ringkasan kelengkapan data."
+            title="Catatan & Review"
+            subtitle="Tambahkan informasi pendukung dan periksa kembali kelengkapan data sebelum disimpan."
             icon="pi pi-file-edit"
         />
 
         <UiField
             id="catatan"
-            label="Catatan tambahan"
+            label="Catatan Tambahan"
             :error="form.errors.catatan"
             help="Opsional. Maksimal 1000 karakter."
         >
-            <div class="relative">
+            <div class="relative group">
                 <Textarea
                     v-model="form.catatan"
                     inputId="catatan"
                     auto-resize
                     rows="6"
                     :maxlength="charLimit"
-                    placeholder="Tulis catatan di sini..."
-                    class="w-full filter-light"
+                    placeholder="Tulis catatan penting di sini, misalnya detail akses jalan, kondisi lingkungan sekitar, atau alasan harga tinggi/rendah..."
+                    class="w-full rounded-xl bg-slate-50/50 border-slate-200 group-hover:bg-white transition-all"
                 />
                 <span
-                    class="pointer-events-none absolute bottom-2.5 right-3 text-[10px] font-semibold ui-tabular"
+                    class="pointer-events-none absolute bottom-3 right-4 text-[10px] font-bold uppercase tracking-widest"
                     :class="charRemaining < 80 ? 'text-red-500' : 'text-slate-400'"
                 >
                     {{ charCount }} / {{ charLimit }}
@@ -93,61 +93,64 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
             </div>
         </UiField>
 
-        <UiSurface variant="inset" class="p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="space-y-1">
-                    <p class="text-balance text-sm font-semibold text-slate-900">Kelengkapan data</p>
-                    <p class="text-pretty text-xs text-slate-500">
-                        <span class="ui-tabular font-semibold text-slate-700">{{ checkedCount }} / {{ checks.length }}</span>
-                        item wajib terisi.
+        <UiSurface variant="inset" class="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div>
+                    <p class="text-sm font-bold text-slate-900">Checklist Kelengkapan Data</p>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        <span class="font-bold text-amber-600">{{ checkedCount }} dari {{ checks.length }}</span> item wajib telah terisi.
                     </p>
                 </div>
-                <span
-                    class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
-                    :class="allChecked ? 'border-slate-200 bg-white text-slate-700' : 'border-amber-200 bg-amber-50 text-amber-800'"
+                <div
+                    class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all duration-500"
+                    :class="allChecked ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
                 >
-                    <span class="size-1.5 rounded-full" :class="allChecked ? 'bg-slate-400' : 'bg-amber-500'" aria-hidden="true" />
-                    {{ allChecked ? "Siap disimpan" : "Perlu dicek" }}
-                </span>
+                    <i :class="allChecked ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'" />
+                    {{ allChecked ? "Data Lengkap" : "Data Belum Lengkap" }}
+                </div>
             </div>
 
-            <div class="mt-4 grid gap-2 sm:grid-cols-2">
+            <div class="grid gap-3 sm:grid-cols-2">
                 <div
                     v-for="check in checks"
                     :key="check.label"
-                    class="flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2 text-xs font-medium"
-                    :class="check.ok ? 'border-slate-200 bg-white text-slate-700' : 'border-slate-200 bg-slate-50 text-slate-600'"
+                    class="flex items-center gap-3 rounded-xl border p-3 text-xs font-bold transition-all duration-300"
+                    :class="check.ok ? 'border-green-100 bg-green-50/30 text-green-700' : 'border-slate-200 bg-white text-slate-400 opacity-60'"
                 >
-                    <i :class="check.ok ? 'pi pi-check' : 'pi pi-circle'" class="text-[12px] text-slate-400" aria-hidden="true" />
+                    <div class="size-5 rounded-full flex items-center justify-center transition-all duration-500" :class="check.ok ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-300'">
+                        <i :class="check.ok ? 'pi pi-check' : 'pi pi-circle'" class="text-[10px]" />
+                    </div>
                     <span class="min-w-0 truncate">{{ check.label }}</span>
                 </div>
             </div>
 
-            <div v-if="missingChecks.length" class="mt-4 rounded-[var(--radius-md)] border border-amber-200 bg-amber-50 px-4 py-3">
-                <p class="text-pretty text-xs font-medium text-amber-800">
-                    Masih kosong:
-                    <span class="font-semibold">{{ missingChecks.join(", ") }}</span>
+            <div v-if="missingChecks.length" class="mt-6 rounded-xl border border-amber-200 bg-amber-50/50 p-4 animate-pulse">
+                <p class="text-[11px] font-bold text-amber-800 flex items-start gap-2">
+                    <i class="pi pi-info-circle mt-0.5" />
+                    <span>
+                        Mohon lengkapi: <span class="font-black underline">{{ missingChecks.join(", ") }}</span>
+                    </span>
                 </p>
             </div>
         </UiSurface>
 
-        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-            <Button label="Kembali" icon="pi pi-arrow-left" severity="secondary" outlined @click="emit('prev')" />
+        <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-8">
+            <Button label="Kembali ke Properti" icon="pi pi-arrow-left" severity="secondary" outlined class="rounded-xl px-6" @click="emit('prev')" />
 
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="flex flex-wrap items-center gap-3">
                 <template v-if="isCreate">
-                    <Button label="Simpan" icon="pi pi-save" :loading="form.processing" @click="emit('submit')" />
                     <Button
                         label="Simpan & Buat Lagi"
                         icon="pi pi-plus"
                         severity="secondary"
-                        outlined
+                        class="rounded-xl px-6"
                         :loading="form.processing"
                         @click="emit('submit-and-create-another')"
                     />
+                    <Button label="Simpan Data" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" @click="emit('submit')" />
                 </template>
                 <template v-else>
-                    <Button label="Simpan" icon="pi pi-save" :loading="form.processing" @click="emit('submit')" />
+                    <Button label="Simpan Perubahan" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" @click="emit('submit')" />
                 </template>
             </div>
         </div>

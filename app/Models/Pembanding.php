@@ -84,6 +84,7 @@ class Pembanding extends Model
         'kondisiTanah',
         'topografiRef',
         'peruntukanRef',
+        'deletedBy'
     ];
 
     protected $appends = [
@@ -223,4 +224,6 @@ class Pembanding extends Model
 
         return asset('storage/' . $this->image);
     }
+
+
 }

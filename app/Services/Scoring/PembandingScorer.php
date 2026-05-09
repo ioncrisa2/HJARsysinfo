@@ -83,16 +83,42 @@ class PembandingScorer
 
     protected function scoreArea(Pembanding $input, Pembanding $data): float
     {
-        $inputArea = (float) ($input->luas_tanah ?? 0) + (float) ($input->luas_bangunan ?? 0);
-        $dataArea = (float) ($data->luas_tanah ?? 0) + (float) ($data->luas_bangunan ?? 0);
+        $inputLand = (float) ($input->luas_tanah ?? 0);
+        $dataLand = (float) ($data->luas_tanah ?? 0);
+        
+        $inputBuild = (float) ($input->luas_bangunan ?? 0);
+        $dataBuild = (float) ($data->luas_bangunan ?? 0);
 
-        if ($inputArea <= 0 || $dataArea <= 0) {
-            return 0;
+        $validRatios = [];
+
+        // Evaluasi Rasio Tanah
+        if ($inputLand > 0 && $dataLand > 0) {
+            $validRatios[] = min($inputLand, $dataLand) / max($inputLand, $dataLand);
+        } elseif ($inputLand == 0 && $dataLand == 0) {
+            // Kedua aset strata/apartment, tidak usah dicheck tanahnya.
+        } else {
+            // Bad match (Yang satu tanah landing, yang satu apartemen)
+            $validRatios[] = 0;
         }
 
-        $ratio = min($inputArea, $dataArea) / max($inputArea, $dataArea);
+        // Evaluasi Rasio Bangunan
+        if ($inputBuild > 0 && $dataBuild > 0) {
+            $validRatios[] = min($inputBuild, $dataBuild) / max($inputBuild, $dataBuild);
+        } elseif ($inputBuild == 0 && $dataBuild == 0) {
+            // Kedua aset berupa tanah kosong murni, tidak usah dicheck.
+        } else {
+            // Bad match (Satu ada bangunan, yang satu murni tanah kosong)
+            $validRatios[] = 0;
+        }
 
-        return $ratio * self::WEIGHTS['area'];
+        if (empty($validRatios)) {
+            return 0; // Keduanya bernilai nol secara absolut
+        }
+
+        // Rata-ratakan kedua rasio dan kalikan bobot maksimal
+        $averageRatio = array_sum($validRatios) / count($validRatios);
+
+        return $averageRatio * self::WEIGHTS['area'];
     }
 
     protected function scoreLegal(Pembanding $input, Pembanding $data): float
@@ -137,8 +163,9 @@ class PembandingScorer
         $diff = abs((float) $input->lebar_jalan - (float) $data->lebar_jalan);
 
         return match (true) {
-            $diff <= 2 => self::WEIGHTS['road_width_perfect'],
-            $diff <= 4 => self::WEIGHTS['road_width_good'],
+            // Tolerance narrowed to 1m for highly accurate scoring
+            $diff <= 1 => self::WEIGHTS['road_width_perfect'],
+            $diff <= 2 => self::WEIGHTS['road_width_good'],
             default => self::WEIGHTS['road_width_poor'],
         };
     }
@@ -278,12 +305,24 @@ class PembandingScorer
     protected function resolveUnitPrice(Pembanding $item): ?float
     {
         $price = (float) ($item->harga ?? 0);
-        $area = (float) ($item->luas_tanah ?? 0) + (float) ($item->luas_bangunan ?? 0);
+        $land = (float) ($item->luas_tanah ?? 0);
+        $build = (float) ($item->luas_bangunan ?? 0);
 
-        if ($price <= 0 || $area <= 0) {
+        if ($price <= 0) {
             return null;
         }
 
-        return $price / $area;
+        // Strata title (Apartment / Kios) yang tidak punya tanah akan mengacu harga /m2 bangunan.
+        // Property menapak tanah akan diukur ke harga /m2 tanah.
+        
+        if ($land > 0) {
+            return $price / $land;
+        }
+        
+        if ($build > 0) {
+            return $price / $build;
+        }
+
+        return null;
     }
 }

@@ -176,13 +176,17 @@ class PembandingService
 
     protected function calculateAreaBounds(Pembanding $input): array
     {
-        $totalArea = ($input->luas_tanah ?? 0) + ($input->luas_bangunan ?? 0);
+        $area = (float) ($input->luas_tanah ?? 0);
+        
+        if ($area <= 0) {
+            $area = (float) ($input->luas_bangunan ?? 0);
+        }
 
-        if ($totalArea <= 0) {
+        if ($area <= 0) {
             return [null, null];
         }
 
-        return [$totalArea * 0.8, $totalArea * 1.25];
+        return [$area * 0.8, $area * 1.25];
     }
 
     protected function scoreAndSort(
@@ -255,4 +259,4 @@ class PembandingService
 
         return $slug !== '' ? $slug : null;
     }
-}   
+}

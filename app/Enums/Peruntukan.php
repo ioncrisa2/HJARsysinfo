@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum Peruntukan: string implements HasLabel
+enum Peruntukan: string
 {
     case UnitApartemen = 'unit_apartemen';
     case RumahTinggal  = 'rumah_tinggal';

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Filament\Facades\Filament;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,8 +65,8 @@ class AuthenticatedSessionController extends Controller
 
     private function redirectPath(Request $request): string
     {
-        if ((bool) $request->user()?->hasRole('super_admin')) {
-            return Filament::getUrl();
+        if ($request->user()?->hasRole('super_admin')) {
+            return route('admin.dashboard');
         }
 
         return route('home.dashboard');

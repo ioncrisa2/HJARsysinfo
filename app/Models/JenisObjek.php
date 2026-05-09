@@ -9,7 +9,7 @@ class JenisObjek extends Model
 {
     protected $table = 'master_jenis_objek';
 
-    protected $fillable = ['slug', 'name', 'sort_order', 'is_active'];
+    protected $fillable = ['slug', 'name', 'sort_order', 'is_active', 'badge_color'];
 
     protected $casts = [
         'sort_order' => 'integer',

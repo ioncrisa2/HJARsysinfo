@@ -4,20 +4,16 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-use Filament\Panel;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\Notifiable;
-use Filament\Models\Contracts\FilamentUser;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Jeffgreco13\FilamentBreezy\Traits\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles,TwoFactorAuthenticatable, HasApiTokens;
+    use HasFactory, Notifiable, HasRoles, HasApiTokens;
 
     protected string $guard_name = 'web';
     /**
@@ -60,25 +56,6 @@ class User extends Authenticatable implements FilamentUser
     public function pembanding()
     {
         return $this->hasMany(Pembanding::class, 'created_by');
-    }
-
-    public function getFilamentAvatarUrl(): ?string
-    {
-        if (! $this->avatar_url) {
-            return null;
-        }
-
-        return asset('storage/' . $this->avatar_url);
-    }
-
-    public function canAccessPanel(Panel $panel): bool
-    {
-        if ($this->deactivated_at) {
-            return false;
-        }
-
-        // Hanya super_admin atau yang punya izin khusus yang boleh ke Admin panel
-        return $this->hasRole('super_admin') || $this->can('can_access_admin_panel') || $this->can('can_access_admin');
     }
 
     public function scopeActive(Builder $query): void

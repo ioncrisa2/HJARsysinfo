@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from "vue";
+import { computed } from "vue";
 import Button from "primevue/button";
 import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
@@ -67,32 +68,34 @@ const isSewa = computed(() => {
 </script>
 
 <template>
-    <div class="space-y-6 p-4 sm:p-5">
+    <div class="space-y-8 p-6 sm:p-8">
         <UiSectionHeader
-            title="Properti"
-            subtitle="Foto, ukuran, kondisi legalitas, dan harga."
+            title="Spesifikasi Properti"
+            subtitle="Detail teknis bangunan, karakteristik tanah, legalitas, dan informasi harga."
             icon="pi pi-building"
         />
 
-        <UiSurface variant="inset" class="p-4">
-            <div class="flex flex-wrap items-start justify-between gap-3">
+        <!-- Image Upload Section -->
+        <UiSurface variant="inset" class="p-6 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
+            <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                 <div class="space-y-1">
-                    <p class="text-balance text-sm font-semibold text-slate-900">
-                        Foto properti <span v-if="isCreate" class="text-red-500" aria-hidden="true">*</span>
+                    <p class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <i class="pi pi-image text-slate-400" />
+                        Foto Properti <span v-if="isCreate" class="text-red-500">*</span>
                     </p>
-                    <p class="text-pretty text-xs text-slate-500">
-                        Pilih file, drag &amp; drop ke area ini, atau paste dari clipboard.
-                        <span v-if="!isCreate">Kosongkan bila tidak mengganti foto.</span>
+                    <p class="text-xs text-slate-500">
+                        Format: JPG, PNG. Maks: 5MB.
+                        <span v-if="!isCreate" class="text-amber-600 font-medium">Kosongkan bila tidak ingin mengganti foto.</span>
                     </p>
                 </div>
 
                 <div class="flex items-center gap-2">
                     <label
                         for="pembanding-image"
-                        class="inline-flex h-9 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        class="inline-flex h-9 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm"
                     >
-                        <i class="pi pi-upload text-[12px] text-slate-500" aria-hidden="true" />
-                        <span class="ml-2">Pilih file</span>
+                        <i class="pi pi-upload text-[11px]" aria-hidden="true" />
+                        <span class="ml-2">Pilih Foto</span>
                     </label>
                     <input
                         id="pembanding-image"
@@ -105,193 +108,199 @@ const isSewa = computed(() => {
             </div>
 
             <div
-                class="mt-4 overflow-hidden rounded-[var(--radius-lg)] border border-slate-200 bg-white"
-                :class="isDragging ? 'ring-2 ring-amber-200' : ''"
+                class="relative overflow-hidden rounded-xl border-2 border-slate-200 bg-white transition-all duration-300 group"
+                :class="isDragging ? 'border-amber-400 bg-amber-50/50' : 'border-slate-100'"
                 @dragenter.prevent="onDragEnter"
                 @dragover.prevent="onDragEnter"
                 @dragleave="onDragLeave"
                 @drop.prevent="onDrop"
             >
-                <div v-if="imagePreview" class="relative">
-                    <img :src="imagePreview" alt="Preview foto properti" class="h-56 w-full object-cover" />
-                    <button
-                        type="button"
-                        class="ui-hit absolute right-2 top-2 inline-flex items-center justify-center rounded-[var(--radius-sm)] border border-slate-200 bg-white px-2 text-slate-700 hover:bg-slate-50"
-                        aria-label="Hapus foto"
-                        @click="onClearImage"
-                    >
-                        <i class="pi pi-times text-[12px]" aria-hidden="true" />
-                    </button>
-                </div>
-                <div v-else class="flex items-center justify-center p-8">
-                    <div class="flex flex-col items-center gap-2 text-center">
-                        <div class="flex size-14 items-center justify-center rounded-full bg-slate-100">
-                            <i class="pi pi-image text-xl text-slate-300" aria-hidden="true" />
-                        </div>
-                        <p class="text-pretty text-xs font-medium text-slate-600">
-                            Tarik file gambar ke sini, atau gunakan tombol “Pilih file”.
-                        </p>
-                        <p v-if="form.errors.image" class="text-pretty text-xs font-medium text-red-600">
-                            {{ form.errors.image }}
-                        </p>
+                <div v-if="imagePreview" class="relative group">
+                    <img :src="imagePreview" alt="Preview foto properti" class="h-64 w-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                            type="button"
+                            class="bg-white/90 text-red-600 p-2 rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all"
+                            aria-label="Hapus foto"
+                            @click="onClearImage"
+                        >
+                            <i class="pi pi-trash" />
+                        </button>
                     </div>
+                </div>
+                <div v-else class="flex flex-col items-center justify-center p-12 text-center">
+                    <div class="flex size-16 items-center justify-center rounded-2xl bg-slate-100 mb-4 group-hover:scale-110 transition-transform">
+                        <i class="pi pi-cloud-upload text-2xl text-slate-400" />
+                    </div>
+                    <p class="text-sm font-bold text-slate-700 mb-1">Drag & Drop foto di sini</p>
+                    <p class="text-xs text-slate-400">Atau gunakan tombol di atas untuk memilih file.</p>
+                    <p v-if="form.errors.image" class="mt-3 text-xs font-bold text-red-500">
+                        <i class="pi pi-exclamation-circle" /> {{ form.errors.image }}
+                    </p>
                 </div>
             </div>
         </UiSurface>
 
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <UiField id="luas_tanah" label="Luas tanah" :required="true" :error="form.errors.luas_tanah">
+        <!-- Technical Specs -->
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <UiField id="luas_tanah" label="Luas Tanah" :required="true" :error="form.errors.luas_tanah">
                 <InputNumber
                     v-model="form.luas_tanah"
                     inputId="luas_tanah"
                     v-bind="numConfig"
-                    suffix=" m2"
+                    suffix=" m²"
                     placeholder="0"
-                    class="w-full filter-light ui-tabular"
+                    class="w-full rounded-xl bg-slate-50/50"
                 />
             </UiField>
 
             <UiField
                 id="luas_bangunan"
-                label="Luas bangunan"
+                label="Luas Bangunan"
                 :required="bangunanRequired"
                 :error="form.errors.luas_bangunan"
-                :help="isTanah ? 'Tidak diperlukan untuk objek Tanah.' : ''"
+                :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah.' : ''"
             >
                 <InputNumber
                     v-model="form.luas_bangunan"
                     inputId="luas_bangunan"
                     v-bind="numConfig"
-                    suffix=" m2"
+                    suffix=" m²"
                     placeholder="0"
-                    class="w-full filter-light ui-tabular"
+                    class="w-full rounded-xl bg-slate-50/50"
                     :disabled="isTanah"
                 />
             </UiField>
 
-            <UiField id="lebar_depan" label="Lebar depan" :required="true" :error="form.errors.lebar_depan">
+            <UiField id="lebar_depan" label="Lebar Depan" :required="true" :error="form.errors.lebar_depan">
                 <InputNumber
                     v-model="form.lebar_depan"
                     inputId="lebar_depan"
                     v-bind="numConfig"
                     suffix=" m"
                     placeholder="0"
-                    class="w-full filter-light ui-tabular"
+                    class="w-full rounded-xl bg-slate-50/50"
                 />
             </UiField>
 
-            <UiField id="lebar_jalan" label="Lebar jalan" :required="true" :error="form.errors.lebar_jalan">
+            <UiField id="lebar_jalan" label="Lebar Jalan" :required="true" :error="form.errors.lebar_jalan">
                 <InputNumber
                     v-model="form.lebar_jalan"
                     inputId="lebar_jalan"
                     v-bind="numConfig"
                     suffix=" m"
                     placeholder="0"
-                    class="w-full filter-light ui-tabular"
+                    class="w-full rounded-xl bg-slate-50/50"
                 />
             </UiField>
 
             <UiField
                 id="tahun_bangun"
-                label="Tahun bangun"
+                label="Tahun Bangun"
                 :required="bangunanRequired"
                 :error="form.errors.tahun_bangun"
-                :help="isTanah ? 'Tidak diperlukan untuk objek Tanah.' : ''"
+                :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah.' : ''"
             >
                 <InputNumber
                     v-model="form.tahun_bangun"
                     inputId="tahun_bangun"
                     v-bind="numConfig"
                     placeholder="mis. 2010"
-                    class="w-full filter-light ui-tabular"
+                    class="w-full rounded-xl bg-slate-50/50"
                     :disabled="isTanah"
                 />
             </UiField>
 
-            <UiField id="rasio_tapak" label="Rasio tapak / FAR" :error="form.errors.rasio_tapak">
+            <UiField id="rasio_tapak" label="Rasio Tapak / FAR" :error="form.errors.rasio_tapak">
                 <InputText
                     v-model="form.rasio_tapak"
                     id="rasio_tapak"
                     placeholder="mis. 0.6"
-                    class="w-full filter-light ui-tabular"
+                    class="w-full rounded-xl bg-slate-50/50 border-slate-200"
                 />
             </UiField>
         </div>
 
-        <UiSurface padding="none" class="overflow-hidden">
-            <div class="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <p class="text-balance text-sm font-semibold text-slate-900">Kondisi &amp; legalitas</p>
-                <p class="mt-0.5 text-pretty text-xs text-slate-500">Pilih nilai master untuk memperjelas kondisi dan dokumen.</p>
-            </div>
-            <div class="p-4">
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <UiField
-                        v-for="field in kondisiFields"
-                        :key="field.key"
-                        :id="field.key"
-                        :label="field.label"
-                        :required="true"
-                        :error="form.errors[field.key]"
-                    >
-                        <Select
-                            v-model="form[field.key]"
-                            :options="options[field.opts] ?? []"
-                            option-label="label"
-                            option-value="value"
-                            placeholder="Pilih..."
-                            class="w-full filter-light"
-                            :inputId="field.key"
-                        />
-                    </UiField>
-                </div>
-            </div>
-        </UiSurface>
-
-        <UiSurface variant="inset" class="p-4">
-            <div class="grid gap-4 sm:grid-cols-3">
-                <UiField id="harga" :label="isSewa ? 'Total Harga Sewa' : 'Harga'" :required="true" :error="form.errors.harga" :help="isSewa ? 'Total harga sesuai jangka waktu sewa.' : 'Harga penawaran atau transaksi.'">
-                    <InputNumber
-                        v-model="form.harga"
-                        inputId="harga"
-                        v-bind="currencyConfig"
-                        placeholder="Rp 0"
-                        class="w-full filter-light ui-tabular"
+        <div class="border-t border-slate-100 pt-8">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Karakteristik & Legalitas</h3>
+            <div class="grid gap-6 md:grid-cols-2">
+                <UiField
+                    v-for="field in kondisiFields"
+                    :key="field.key"
+                    :id="field.key"
+                    :label="field.label"
+                    :required="true"
+                    :error="form.errors[field.key]"
+                >
+                    <Select
+                        v-model="form[field.key]"
+                        :options="options[field.opts] ?? []"
+                        option-label="label"
+                        option-value="value"
+                        placeholder="Pilih nilai..."
+                        class="w-full rounded-xl bg-slate-50/50"
+                        :inputId="field.key"
+                        filter
                     />
                 </UiField>
-                <template v-if="isSewa">
-                    <UiField id="jangka_waktu_sewa" label="Jangka Waktu Sewa" :required="true" :error="form.errors.jangka_waktu_sewa">
-                        <InputNumber
-                            v-model="form.jangka_waktu_sewa"
-                            inputId="jangka_waktu_sewa"
-                            v-bind="numConfig"
-                            placeholder="mis. 1, 2"
-                            class="w-full filter-light ui-tabular"
-                        />
-                    </UiField>
-
-                    <UiField id="satuan_waktu_sewa" label="Satuan Waktu" :required="true" :error="form.errors.satuan_waktu_sewa">
-                        <Select
-                            v-model="form.satuan_waktu_sewa"
-                            :options="[{label:'Hari', value:'Hari'}, {label:'Bulan', value:'Bulan'}, {label:'Tahun', value:'Tahun'}]"
-                            option-label="label"
-                            option-value="value"
-                            placeholder="Pilih..."
-                            class="w-full filter-light"
-                            inputId="satuan_waktu_sewa"
-                        />
-                    </UiField>
-                </template>
             </div>
-        </UiSurface>
+        </div>
 
-        <div class="flex justify-between border-t border-slate-100 pt-4">
-            <Button label="Kembali" icon="pi pi-arrow-left" severity="secondary" outlined @click="emit('prev')" />
+        <!-- Pricing Section -->
+        <div class="border-t border-slate-100 pt-8">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Nilai Properti</h3>
+            <div class="p-6 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200">
+                <div class="grid gap-6 md:grid-cols-3">
+                    <UiField id="harga" :label="isSewa ? 'Total Harga Sewa' : 'Harga Penawaran/Transaksi'" :required="true" :error="form.errors.harga" :help="isSewa ? 'Total harga sesuai jangka waktu sewa.' : 'Nilai total properti.'">
+                        <InputNumber
+                            v-model="form.harga"
+                            inputId="harga"
+                            v-bind="currencyConfig"
+                            placeholder="Rp 0"
+                            class="w-full rounded-xl bg-slate-800 border-slate-700 text-white font-bold"
+                        />
+                    </UiField>
+                    
+                    <template v-if="isSewa">
+                        <UiField id="jangka_waktu_sewa" label="Jangka Waktu" :required="true" :error="form.errors.jangka_waktu_sewa">
+                            <InputNumber
+                                v-model="form.jangka_waktu_sewa"
+                                inputId="jangka_waktu_sewa"
+                                v-bind="numConfig"
+                                placeholder="1"
+                                class="w-full rounded-xl bg-slate-800 border-slate-700 text-white"
+                            />
+                        </UiField>
+
+                        <UiField id="satuan_waktu_sewa" label="Satuan" :required="true" :error="form.errors.satuan_waktu_sewa">
+                            <Select
+                                v-model="form.satuan_waktu_sewa"
+                                :options="[{label:'Hari', value:'Hari'}, {label:'Bulan', value:'Bulan'}, {label:'Tahun', value:'Tahun'}]"
+                                option-label="label"
+                                option-value="value"
+                                placeholder="Pilih..."
+                                class="w-full rounded-xl bg-slate-800 border-slate-700 text-white"
+                                inputId="satuan_waktu_sewa"
+                            />
+                        </UiField>
+                    </template>
+                    
+                    <div v-else-if="form.harga && form.luas_tanah" class="flex flex-col justify-end pb-1.5">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Estimasi per m²</p>
+                        <p class="text-lg font-bold text-amber-400">{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(form.harga / form.luas_tanah) }}<span class="text-slate-500 text-xs font-normal"> /m²</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between border-t border-slate-100 pt-6">
+            <Button label="Kembali" icon="pi pi-arrow-left" severity="secondary" outlined class="rounded-xl px-6" @click="emit('prev')" />
             <Button
                 label="Lanjut ke Catatan"
                 icon="pi pi-arrow-right"
                 icon-pos="right"
-                severity="secondary"
-                outlined
+                severity="primary"
+                class="rounded-xl px-6"
                 @click="emit('next')"
             />
         </div>

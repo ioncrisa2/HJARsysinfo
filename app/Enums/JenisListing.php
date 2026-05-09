@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum JenisListing: string implements HasLabel
+enum JenisListing: string
 {
     case Penawaran         = 'penawaran';
     case Transaksi          = 'transaksi';

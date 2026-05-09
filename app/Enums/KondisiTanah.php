@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum KondisiTanah: string implements HasLabel
+enum KondisiTanah: string
 {
     case Matang            = 'matang';
     case Rawa              = 'rawa';

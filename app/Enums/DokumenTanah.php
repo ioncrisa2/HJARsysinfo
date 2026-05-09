@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum DokumenTanah: string implements HasLabel
+enum DokumenTanah: string
 {
     case SertifikatHakMilik         = 'sertifikat_hak_milik';
     case SertifikatHakGunaBangunan  = 'sertifikat_hak_guna_bangunan';

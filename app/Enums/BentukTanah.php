@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum BentukTanah: string implements HasLabel
+enum BentukTanah: string
 {
     case PersegiPanjang  = 'persegi_panjang';
     case Persegi         = 'persegi';

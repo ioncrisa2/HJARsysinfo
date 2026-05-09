@@ -5,7 +5,6 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\JenisListing;
 use App\Models\Pembanding;
-use Filament\Facades\Filament;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +16,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response | RedirectResponse
     {
         if ((bool) $request->user()?->hasRole('super_admin')) {
-            return redirect()->to(Filament::getUrl());
+            return redirect()->route('admin.dashboard');
         }
 
         // "Non properti" context is deprecated. Keep it out of the user dashboard without deleting data.

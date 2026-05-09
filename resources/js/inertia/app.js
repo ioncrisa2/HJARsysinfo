@@ -5,12 +5,19 @@ import PrimeVue from "primevue/config";
 import Aura from "@primeuix/themes/aura";
 import "primeicons/primeicons.css";
 import ToastService from 'primevue/toastservice';
+import ConfirmationService from 'primevue/confirmationservice';
+
+const pages = import.meta.glob("./Pages/**/*.vue");
 
 createInertiaApp({
     resolve: (name) => {
-        const pages = import.meta.glob("./Pages/**/*.vue", { eager: true });
+        const page = pages[`./Pages/${name}.vue`];
 
-        return pages[`./Pages/${name}.vue`];
+        if (!page) {
+            throw new Error(`Inertia page not found: ${name}`);
+        }
+
+        return page();
     },
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
@@ -25,6 +32,7 @@ createInertiaApp({
                 },
             })
             .use(ToastService)
+            .use(ConfirmationService)
             .mount(el);
     },
     progress: {

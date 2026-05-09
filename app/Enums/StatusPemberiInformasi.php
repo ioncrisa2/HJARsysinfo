@@ -2,9 +2,7 @@
 
 namespace App\Enums;
 
-use Filament\Support\Contracts\HasLabel;
-
-enum StatusPemberiInformasi: string implements HasLabel
+enum StatusPemberiInformasi: string
 {
     case AgenProperti     = 'agen_properti';
     case PemilikProperti  = 'pemilik_properti';

@@ -19,64 +19,77 @@ const isCreate = props.mode === "create";
 </script>
 
 <template>
-    <div class="space-y-3">
-        <div
-            v-if="flashSuccess"
-            class="rounded-[var(--radius-md)] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
-            role="status"
-        >
-            {{ flashSuccess }}
+    <div class="space-y-4">
+        <!-- Breadcrumbs & Status -->
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <nav class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                <Link href="/admin/pembanding" class="hover:text-slate-900 transition-colors">Bank Data</Link>
+                <i class="pi pi-chevron-right text-[8px]" />
+                <span v-if="!isCreate" class="text-slate-400">#{{ recordId }}</span>
+                <i v-if="!isCreate" class="pi pi-chevron-right text-[8px]" />
+                <span class="text-amber-600">{{ isCreate ? "Tambah Data" : "Edit Data" }}</span>
+            </nav>
+
+            <div v-if="!isCreate" class="flex items-center gap-2">
+                <div 
+                    class="h-2 w-2 rounded-full animate-pulse"
+                    :class="isDirty ? 'bg-amber-500' : 'bg-green-500'"
+                />
+                <span class="text-[10px] font-bold uppercase tracking-tighter text-slate-500">
+                    {{ isDirty ? 'Ada perubahan yang belum disimpan' : 'Semua perubahan tersimpan' }}
+                </span>
+            </div>
         </div>
 
-        <UiSurface padding="none" class="overflow-hidden">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <nav class="flex items-center gap-1.5 text-xs text-slate-500">
-                    <Link href="/home/pembanding" class="inline-flex items-center gap-2 font-semibold text-slate-700">
-                        <i class="pi pi-database text-[11px] text-amber-600" aria-hidden="true" />
-                        Bank Data
-                    </Link>
-                    <i class="pi pi-chevron-right text-[9px] text-slate-300" aria-hidden="true" />
-                    <template v-if="!isCreate">
-                        <Link :href="`/home/pembanding/${recordId}`" class="font-semibold text-slate-700">
-                            Detail #{{ recordId }}
-                        </Link>
-                        <i class="pi pi-chevron-right text-[9px] text-slate-300" aria-hidden="true" />
-                    </template>
-                    <span class="font-medium text-slate-600">{{ isCreate ? "Tambah" : "Edit" }}</span>
-                </nav>
+        <!-- Main Header Surface -->
+        <UiSurface padding="none" class="overflow-hidden border-slate-200 shadow-sm rounded-2xl">
+            <div class="p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div class="space-y-1">
+                    <h1 class="text-2xl font-black text-slate-900 tracking-tight">
+                        {{ isCreate ? "Tambah Data Pembanding" : "Update Data Pembanding" }}
+                    </h1>
+                    <p v-if="!isCreate && address" class="text-sm text-slate-500 font-medium">
+                        <i class="pi pi-map-marker text-[10px] mr-1" /> {{ address }}
+                    </p>
+                    <p v-else-if="isCreate" class="text-sm text-slate-500 font-medium">
+                        Silahkan lengkapi seluruh field wajib di setiap tab.
+                    </p>
+                </div>
 
-                <div class="flex flex-wrap items-center gap-2">
-                    <span
-                        v-if="!isCreate && isDirty"
-                        class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
-                    >
-                        <span class="size-1.5 rounded-full bg-amber-500" aria-hidden="true" />
-                        Belum disimpan
-                    </span>
-
+                <div class="flex flex-wrap items-center gap-3">
                     <template v-if="isCreate">
-                        <Button
-                            label="Simpan"
-                            icon="pi pi-save"
-                            size="small"
-                            :loading="processing"
-                            @click="emit('submit')"
-                        />
                         <Button
                             label="Simpan & Buat Lagi"
                             icon="pi pi-plus"
-                            size="small"
                             severity="secondary"
                             outlined
+                            class="rounded-xl px-5 font-bold text-xs"
                             :loading="processing"
                             @click="emit('submit-and-create-another')"
+                        />
+                        <Button
+                            label="Simpan Data"
+                            icon="pi pi-save"
+                            severity="primary"
+                            class="rounded-xl px-8 font-bold text-xs shadow-lg shadow-slate-200"
+                            :loading="processing"
+                            @click="emit('submit')"
                         />
                     </template>
                     <template v-else>
                         <Button
-                            label="Simpan"
+                            label="Batalkan"
+                            severity="secondary"
+                            text
+                            class="rounded-xl px-4 font-bold text-xs"
+                            as="Link"
+                            href="/admin/pembanding"
+                        />
+                        <Button
+                            label="Update Data"
                             icon="pi pi-save"
-                            size="small"
+                            severity="primary"
+                            class="rounded-xl px-10 font-bold text-xs shadow-lg shadow-slate-200"
                             :loading="processing"
                             :disabled="!isDirty"
                             @click="emit('submit')"
@@ -84,18 +97,24 @@ const isCreate = props.mode === "create";
                     </template>
                 </div>
             </div>
-
-            <div class="px-4 py-4">
-                <h1 class="text-balance text-lg font-semibold text-slate-900 sm:text-xl">
-                    {{ isCreate ? "Tambah Data Pembanding" : "Edit Data Pembanding" }}
-                </h1>
-                <p v-if="!isCreate && address" class="mt-1 line-clamp-1 text-pretty text-sm text-slate-500">
-                    {{ address }}
-                </p>
-                <p v-else-if="isCreate" class="mt-1 text-pretty text-sm text-slate-500">
-                    Lengkapi data inti, lokasi, properti, lalu catatan (opsional).
-                </p>
+            
+            <!-- Tab Progress Placeholder / Subtle border -->
+            <div class="h-1 bg-slate-100 w-full">
+                <div 
+                    class="h-full bg-amber-500 transition-all duration-500" 
+                    :style="{ width: activeTab === 'umum' ? '25%' : activeTab === 'lokasi' ? '50%' : activeTab === 'properti' ? '75%' : '100%' }"
+                />
             </div>
         </UiSurface>
+
+        <!-- Success Message -->
+        <div
+            v-if="flashSuccess"
+            class="rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-sm font-bold text-green-800 flex items-center gap-3 animate-bounce"
+            role="status"
+        >
+            <i class="pi pi-check-circle" />
+            {{ flashSuccess }}
+        </div>
     </div>
 </template>

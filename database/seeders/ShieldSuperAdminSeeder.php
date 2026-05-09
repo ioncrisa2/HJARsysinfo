@@ -18,9 +18,9 @@ class ShieldSuperAdminSeeder extends Seeder
         // 1) Bersihkan cache permission
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // 2) Nama role super admin mengikuti config Filament Shield
-        $superAdminRoleName = config('filament-shield.super_admin.name', 'super_admin');
-        $guard = config('filament.auth.guard', 'web'); // default 'web'
+        // 2) Nama role super admin untuk panel Inertia admin.
+        $superAdminRoleName = 'super_admin';
+        $guard = 'web';
 
         // 3) Pastikan role super admin ada
         /** @var \Spatie\Permission\Models\Role $role */
@@ -29,7 +29,7 @@ class ShieldSuperAdminSeeder extends Seeder
             []
         );
 
-        // 4) Ambil semua permissions yang ada (hasil shield:generate)
+        // 4) Ambil semua permissions yang ada.
         $allPermissions = Permission::query()
             ->where('guard_name', $guard)
             ->pluck('name')
