@@ -8,6 +8,7 @@ import UiSurface from "../../../components/ui/UiSurface.vue";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import Tag from "primevue/tag";
+import { appendCsrfHeader } from "../../../utils/csrf";
 
 const props = defineProps({
     meta: { type: Object, default: () => ({}) },
@@ -19,11 +20,6 @@ const toast = useToast();
 const confirmDialog = ref(false);
 const pendingType = ref("database");
 const loadingType = ref(null);
-
-const csrfToken = computed(() => {
-    if (typeof document === "undefined") return "";
-    return document.head?.querySelector('meta[name="csrf-token"]')?.getAttribute("content") ?? "";
-});
 
 const actionMeta = computed(() => {
     if (pendingType.value === "uploads") {
@@ -95,14 +91,15 @@ const runBackup = async () => {
     confirmDialog.value = false;
 
     try {
+        const headers = appendCsrfHeader(new Headers({
+            Accept: "application/octet-stream, application/json",
+            "X-Requested-With": "XMLHttpRequest",
+        }));
+
         const response = await fetch(meta.endpoint, {
             method: "POST",
             credentials: "same-origin",
-            headers: {
-                Accept: "application/octet-stream, application/json",
-                "X-Requested-With": "XMLHttpRequest",
-                "X-CSRF-TOKEN": csrfToken.value,
-            },
+            headers,
         });
 
         if (!response.ok) {

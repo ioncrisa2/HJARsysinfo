@@ -1,9 +1,4 @@
-const CSRF_SELECTOR = 'meta[name="csrf-token"]';
-
-const getCsrfToken = () => {
-    if (typeof document === "undefined") return null;
-    return document.head?.querySelector(CSRF_SELECTOR)?.getAttribute("content") ?? null;
-};
+import { appendCsrfHeader } from "./csrf";
 
 const firstValidationMessage = (errors) => {
     if (!errors || typeof errors !== "object") return null;
@@ -74,10 +69,7 @@ export const apiRequest = async (url, options = {}) => {
         finalHeaders.set("X-Requested-With", "XMLHttpRequest");
     }
 
-    const csrfToken = getCsrfToken();
-    if (csrfToken && !finalHeaders.has("X-CSRF-TOKEN")) {
-        finalHeaders.set("X-CSRF-TOKEN", csrfToken);
-    }
+    appendCsrfHeader(finalHeaders);
 
     let finalBody = body;
     const hasBody = body !== undefined && body !== null;
