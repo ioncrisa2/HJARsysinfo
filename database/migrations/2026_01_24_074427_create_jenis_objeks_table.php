@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('master_jenis_objek', function (Blueprint $table) {
+        Schema::create('master_jenis_objek', function (Blueprint ) {
             $table->id();
-             $table->string('slug')->unique();
+            $table->string('slug')->unique();
             $table->string('name');
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
+            $table->string('badge_color', 20)->nullable();
             $table->timestamps();
 
             $table->index(['is_active', 'sort_order']);

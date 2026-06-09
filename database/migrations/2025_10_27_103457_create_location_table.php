@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -52,15 +52,6 @@ return new class extends Migration
                   ->on('districts')
                   ->onDelete('cascade');
         });
-
-
-        Schema::table('data_pembanding', function (Blueprint $table) {
-            $table->string('province_id', 2)->nullable()->after('alamat_data');
-            $table->string('regency_id', 4)->nullable()->after('province_id');
-            $table->string('district_id', 7)->nullable()->after('regency_id');
-            $table->string('village_id', 10)->nullable()->after('district_id');
-            
-        });
     }
 
     /**
@@ -68,10 +59,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists(['villages', 'districts', 'regencies', 'provinces']);
-        Schema::table('data_pembanding', function (Blueprint $table) {
-            $table->dropIndex(['province_id', 'regency_id', 'district_id', 'village_id']);
-            $table->dropColumn(['province_id', 'regency_id', 'district_id', 'village_id']);
-        });
+        Schema::dropIfExists('villages');
+        Schema::dropIfExists('districts');
+        Schema::dropIfExists('regencies');
+        Schema::dropIfExists('provinces');
     }
 };
