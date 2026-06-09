@@ -27,6 +27,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn (): ?string => $request->session()->get('error'),
                 'success' => fn (): ?string => $request->session()->get('success'),
             ],
+            'appSettings' => \App\Models\SystemSetting::getAll(),
         ];
     }
 }

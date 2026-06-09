@@ -77,6 +77,8 @@ const menuSections = [
         items: [
             { label: "Export Data", href: `${PREFIX}/export`, icon: "pi-download" },
             { label: "System Backup", href: `${PREFIX}/backup`, icon: "pi-archive" },
+            { label: "Settings", href: `${PREFIX}/settings`, icon: "pi-cog" },
+            { label: "Activity Logs", href: `${PREFIX}/activity-logs`, icon: "pi-list" },
             { label: "Search", href: `${PREFIX}/search`, icon: "pi-search" },
         ],
     },
@@ -164,6 +166,8 @@ const breadcrumbs = computed(() => {
         backup: "Backup",
         search: "Search",
         profile: "Profile",
+        settings: "Settings",
+        "activity-logs": "Activity Logs",
     };
 
     let path = PREFIX;
@@ -214,14 +218,17 @@ const breadcrumbs = computed(() => {
                 <!-- Branding -->
                 <div class="h-16 flex items-center justify-center border-b border-slate-800">
                     <Link :href="PREFIX" class="flex items-center gap-3">
-                        <div class="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500">
+                        <div v-if="page.props.appSettings?.app_logo" class="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden bg-white">
+                            <img :src="'/storage/' + page.props.appSettings.app_logo" class="h-full w-full object-cover" />
+                        </div>
+                        <div v-else class="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500" :style="page.props.appSettings?.primary_color ? { backgroundColor: page.props.appSettings.primary_color } : {}">
                             <i class="pi pi-compass text-white text-sm" />
                         </div>
                         <span
                             v-if="sidebarOpen || mobileOverlay"
                             class="text-sm font-bold tracking-tight text-white whitespace-nowrap overflow-hidden"
                         >
-                            Admin Panel<span class="text-amber-500">.</span>
+                            {{ page.props.appSettings?.company_name || 'Admin Panel' }}<span :style="page.props.appSettings?.primary_color ? { color: page.props.appSettings.primary_color } : {}" class="text-amber-500">.</span>
                         </span>
                     </Link>
                 </div>

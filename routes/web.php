@@ -151,6 +151,15 @@ Route::middleware('auth')->group(function () {
             Route::put('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'updateProfile'])->name('profile.update');
             Route::put('profile/password', [\App\Http\Controllers\Admin\ProfileController::class, 'updatePassword'])->name('profile.password');
 
+            // Settings Routes
+            Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('settings.index');
+            Route::post('settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->name('settings.update');
+            Route::post('settings/clear-cache', [\App\Http\Controllers\Admin\SettingController::class, 'clearCache'])->name('settings.clear-cache');
+
+            // Activity Logs Route
+            Route::get('activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-logs.index');
+            Route::get('activity-logs/{id}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->name('activity-logs.show');
+
             // Master Data Routes
             Route::post('master-data/{resource}/reorder', [\App\Http\Controllers\Admin\MasterDataController::class, 'reorder'])->name('master-data.reorder');
             Route::post('master-data/{resource}/bulk-delete', [\App\Http\Controllers\Admin\MasterDataController::class, 'bulkDestroy'])->name('master-data.bulk-delete');
