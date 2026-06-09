@@ -65,6 +65,20 @@ const isSewa = computed(() => {
     const listing = props.options.jenisListings.find(l => l.value == listingId);
     return listing?.label?.toLowerCase() === 'sewa';
 });
+
+const rentPeriodLabel = computed(() => {
+    if (!isSewa.value || !props.form.jangka_waktu_sewa || !props.form.satuan_waktu_sewa) {
+        return null;
+    }
+
+    const duration = Number(props.form.jangka_waktu_sewa);
+    const unit = String(props.form.satuan_waktu_sewa).toLowerCase();
+
+    if (duration === 1 && unit === "bulan") return "per bulan";
+    if (duration === 1 && unit === "tahun") return "per tahun";
+
+    return `per ${duration} ${unit}`;
+});
 </script>
 
 <template>
@@ -251,7 +265,7 @@ const isSewa = computed(() => {
             <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Nilai Properti</h3>
             <div class="p-6 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200">
                 <div class="grid gap-6 md:grid-cols-3">
-                    <UiField id="harga" :label="isSewa ? 'Total Harga Sewa' : 'Harga Penawaran/Transaksi'" :required="true" :error="form.errors.harga" :help="isSewa ? 'Total harga sesuai jangka waktu sewa.' : 'Nilai total properti.'">
+                    <UiField id="harga" :label="isSewa ? 'Harga Sewa' : 'Harga Penawaran/Transaksi'" :required="true" :error="form.errors.harga" :help="isSewa ? 'Nominal harga sewa untuk periode di samping: per bulan, per beberapa bulan, atau per tahun.' : 'Nilai total properti.'">
                         <InputNumber
                             v-model="form.harga"
                             inputId="harga"
@@ -262,7 +276,7 @@ const isSewa = computed(() => {
                     </UiField>
                     
                     <template v-if="isSewa">
-                        <UiField id="jangka_waktu_sewa" label="Jangka Waktu" :required="true" :error="form.errors.jangka_waktu_sewa">
+                        <UiField id="jangka_waktu_sewa" label="Periode Harga Sewa" :required="true" :error="form.errors.jangka_waktu_sewa" help="Isi 1 untuk per bulan/per tahun, atau beberapa bulan seperti 3, 6, 12.">
                             <InputNumber
                                 v-model="form.jangka_waktu_sewa"
                                 inputId="jangka_waktu_sewa"
@@ -275,7 +289,7 @@ const isSewa = computed(() => {
                         <UiField id="satuan_waktu_sewa" label="Satuan" :required="true" :error="form.errors.satuan_waktu_sewa">
                             <Select
                                 v-model="form.satuan_waktu_sewa"
-                                :options="[{label:'Hari', value:'Hari'}, {label:'Bulan', value:'Bulan'}, {label:'Tahun', value:'Tahun'}]"
+                                :options="[{label:'Bulan', value:'Bulan'}, {label:'Tahun', value:'Tahun'}]"
                                 option-label="label"
                                 option-value="value"
                                 placeholder="Pilih..."
@@ -283,6 +297,10 @@ const isSewa = computed(() => {
                                 inputId="satuan_waktu_sewa"
                             />
                         </UiField>
+
+                        <div v-if="rentPeriodLabel" class="md:col-span-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100">
+                            Harga sewa akan disimpan sebagai {{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(form.harga || 0) }} {{ rentPeriodLabel }}.
+                        </div>
                     </template>
                     
                     <div v-else-if="form.harga && form.luas_tanah" class="flex flex-col justify-end pb-1.5">
@@ -306,4 +324,3 @@ const isSewa = computed(() => {
         </div>
     </div>
 </template>
-

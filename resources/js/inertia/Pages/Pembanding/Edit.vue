@@ -55,7 +55,7 @@ const form = useForm({
     peruntukan_id: sourceRecord.peruntukan_id ?? null,
     harga: sourceRecord.harga ?? null,
     jangka_waktu_sewa: sourceRecord.jangka_waktu_sewa ?? null,
-    satuan_waktu_sewa: sourceRecord.satuan_waktu_sewa ?? "Tahun",
+    satuan_waktu_sewa: sourceRecord.satuan_waktu_sewa ?? "Bulan",
     catatan: sourceRecord.catatan ?? "",
     _method: "PUT",
 });

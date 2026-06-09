@@ -199,6 +199,10 @@ class ExportController extends Controller
             'nama_pemberi_informasi' => $record->nama_pemberi_informasi,
             'alamat_data' => $record->alamat_data,
             'harga' => $record->harga,
+            'is_sewa' => $record->is_sewa,
+            'jangka_waktu_sewa' => $record->jangka_waktu_sewa,
+            'satuan_waktu_sewa' => $record->satuan_waktu_sewa,
+            'sewa_periode_label' => $record->sewa_periode_label,
             'tanggal_data' => $record->tanggal_data,
             'luas_tanah' => $record->luas_tanah,
             'luas_bangunan' => $record->luas_bangunan,
@@ -214,7 +218,7 @@ class ExportController extends Controller
 
     private function export(Collection $records, string $format): BinaryFileResponse|StreamedResponse
     {
-        $filename = 'pembanding-' . now()->format('Ymd_His');
+        $filename = 'pembanding-'.now()->format('Ymd_His');
 
         if ($format === 'pdf') {
             $pdf = Pdf::loadView('exports.pembanding-pdf', [
@@ -222,7 +226,7 @@ class ExportController extends Controller
             ])->setPaper('a4', 'landscape');
 
             return Response::streamDownload(
-                fn () => print($pdf->output()),
+                fn () => print ($pdf->output()),
                 "{$filename}.pdf",
                 ['Content-Type' => 'application/pdf']
             );

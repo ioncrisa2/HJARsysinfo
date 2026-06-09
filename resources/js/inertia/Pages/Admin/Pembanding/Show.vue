@@ -37,7 +37,12 @@ const characteristics = [
     { label: "Peruntukan", value: props.record.peruntukan_ref?.name || "-" },
 ];
 
-const isSewa = props.record.jenis_listing?.name?.toLowerCase() === 'sewa';
+const isSewa = props.record.is_sewa || props.record.jenis_listing?.name?.toLowerCase() === 'sewa';
+const sewaPeriodeLabel = props.record.sewa_periode_label || (
+    props.record.jangka_waktu_sewa && props.record.satuan_waktu_sewa
+        ? `per ${props.record.jangka_waktu_sewa} ${String(props.record.satuan_waktu_sewa).toLowerCase()}`
+        : null
+);
 </script>
 
 <template>
@@ -90,9 +95,9 @@ const isSewa = props.record.jenis_listing?.name?.toLowerCase() === 'sewa';
                     <div class="p-8">
                         <div class="flex flex-wrap items-center justify-between gap-6 mb-8 pb-8 border-b border-slate-100">
                             <div class="space-y-1">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nilai Properti</p>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ isSewa ? 'Harga Sewa' : 'Nilai Properti' }}</p>
                                 <p class="text-4xl font-black text-slate-900 tracking-tighter">{{ formatCurrency(record.harga) }}</p>
-                                <p v-if="isSewa" class="text-sm font-bold text-amber-600">Per {{ record.jangka_waktu_sewa }} {{ record.satuan_waktu_sewa }}</p>
+                                <p v-if="isSewa" class="text-sm font-bold text-amber-600">{{ sewaPeriodeLabel || 'Periode sewa belum diisi' }}</p>
                                 <p v-else-if="record.harga && record.luas_tanah" class="text-sm font-bold text-slate-500">
                                     {{ formatCurrency(record.harga / record.luas_tanah) }} / m²
                                 </p>

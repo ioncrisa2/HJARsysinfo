@@ -104,4 +104,33 @@ trait PembandingPresenter
 
         return $telp !== '' ? "{$telp} ({$label})" : "({$label})";
     }
+
+    public function getIsSewaAttribute(): bool
+    {
+        $slug = trim((string) ($this->jenisListing?->slug ?? $this->jenis_listing ?? ''));
+        $name = trim((string) ($this->jenisListing?->name ?? ''));
+
+        return strtolower($slug) === 'sewa' || strtolower($name) === 'sewa';
+    }
+
+    public function getSewaPeriodeLabelAttribute(): ?string
+    {
+        if (! $this->is_sewa || blank($this->jangka_waktu_sewa) || blank($this->satuan_waktu_sewa)) {
+            return null;
+        }
+
+        $duration = (float) $this->jangka_waktu_sewa;
+        $durationLabel = rtrim(rtrim(number_format($duration, 2, ',', '.'), '0'), ',');
+        $unit = strtolower(trim((string) $this->satuan_waktu_sewa));
+
+        if ($duration === 1.0) {
+            return match ($unit) {
+                'bulan' => 'per bulan',
+                'tahun' => 'per tahun',
+                default => "per {$unit}",
+            };
+        }
+
+        return "per {$durationLabel} {$unit}";
+    }
 }

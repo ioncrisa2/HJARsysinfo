@@ -2,21 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Support\Str;
-use Spatie\Activitylog\LogOptions;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Database\Eloquent\Builder;
 use App\Models\Traits\PembandingPresenter;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Pembanding extends Model
 {
-    use HasFactory, PembandingPresenter, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, PembandingPresenter, SoftDeletes;
 
     protected $table = 'data_pembanding';
 
@@ -65,13 +63,13 @@ class Pembanding extends Model
     ];
 
     protected $casts = [
-        'luas_tanah'                => 'float',
-        'luas_bangunan'             => 'float',
-        'latitude'                  => 'float',
-        'longitude'                 => 'float',
-        'harga'                     => 'float',
-        'jangka_waktu_sewa'         => 'float',
-        'tanggal_data'              => 'date:Y-m-d',
+        'luas_tanah' => 'float',
+        'luas_bangunan' => 'float',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'harga' => 'float',
+        'jangka_waktu_sewa' => 'float',
+        'tanggal_data' => 'date:Y-m-d',
     ];
 
     protected $with = [
@@ -84,11 +82,13 @@ class Pembanding extends Model
         'kondisiTanah',
         'topografiRef',
         'peruntukanRef',
-        'deletedBy'
+        'deletedBy',
     ];
 
     protected $appends = [
         'image_path',
+        'is_sewa',
+        'sewa_periode_label',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -131,7 +131,7 @@ class Pembanding extends Model
 
     public function deletedBy(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'deleted_by_id');
+        return $this->belongsTo(User::class, 'deleted_by_id');
     }
 
     public function deleteRequests(): HasMany
@@ -141,39 +141,39 @@ class Pembanding extends Model
 
     public function jenisListing(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\JenisListing::class, 'jenis_listing_id')
+        return $this->belongsTo(JenisListing::class, 'jenis_listing_id')
             ->where('is_active', true);
     }
 
     public function jenisObjek(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\JenisObjek::class, 'jenis_objek_id')
+        return $this->belongsTo(JenisObjek::class, 'jenis_objek_id')
             ->where('is_active', true);
     }
 
     public function statusPemberiInformasi(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\StatusPemberiInformasi::class, 'status_pemberi_informasi_id');
+        return $this->belongsTo(StatusPemberiInformasi::class, 'status_pemberi_informasi_id');
     }
 
     public function bentukTanah(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\BentukTanah::class, 'bentuk_tanah_id');
+        return $this->belongsTo(BentukTanah::class, 'bentuk_tanah_id');
     }
 
     public function dokumenTanah(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\DokumenTanah::class, 'dokumen_tanah_id');
+        return $this->belongsTo(DokumenTanah::class, 'dokumen_tanah_id');
     }
 
     public function posisiTanah(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\PosisiTanah::class, 'posisi_tanah_id');
+        return $this->belongsTo(PosisiTanah::class, 'posisi_tanah_id');
     }
 
     public function kondisiTanah(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\KondisiTanah::class, 'kondisi_tanah_id');
+        return $this->belongsTo(KondisiTanah::class, 'kondisi_tanah_id');
     }
 
     /**
@@ -183,12 +183,12 @@ class Pembanding extends Model
      */
     public function topografiRef(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Topografi::class, 'topografi_id');
+        return $this->belongsTo(Topografi::class, 'topografi_id');
     }
 
     public function peruntukanRef(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Peruntukan::class, 'peruntukan_id');
+        return $this->belongsTo(Peruntukan::class, 'peruntukan_id');
     }
 
     public function scopeFilter(Builder $query, array $filters): Builder
@@ -215,15 +215,12 @@ class Pembanding extends Model
             });
     }
 
-
     public function getImagePathAttribute(): ?string  // Must be PUBLIC
     {
-        if (!$this->image) {
+        if (! $this->image) {
             return null;
         }
 
-        return asset('storage/' . $this->image);
+        return asset('storage/'.$this->image);
     }
-
-
 }

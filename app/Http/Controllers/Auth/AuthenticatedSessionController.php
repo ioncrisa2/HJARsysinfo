@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(Request $request): Response | RedirectResponse
+    public function create(Request $request): Response|RedirectResponse
     {
         if (Auth::check()) {
             return redirect()->to($this->redirectPath($request));
@@ -50,7 +51,10 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        return redirect()->intended($this->redirectPath($request));
+        return redirect()->to($this->redirectPath(
+            $request,
+            $request->session()->pull('url.intended')
+        ));
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -63,12 +67,31 @@ class AuthenticatedSessionController extends Controller
         return redirect()->to(route('login'));
     }
 
-    private function redirectPath(Request $request): string
+    private function redirectPath(Request $request, ?string $intendedUrl = null): string
     {
         if ($request->user()?->hasRole('super_admin')) {
+            if ($this->intendedPathStartsWith($intendedUrl, '/admin')) {
+                return $intendedUrl;
+            }
+
             return route('admin.dashboard');
         }
 
+        if ($intendedUrl !== null && ! $this->intendedPathStartsWith($intendedUrl, '/admin')) {
+            return $intendedUrl;
+        }
+
         return route('home.dashboard');
+    }
+
+    private function intendedPathStartsWith(?string $intendedUrl, string $prefix): bool
+    {
+        if ($intendedUrl === null || $intendedUrl === '') {
+            return false;
+        }
+
+        $path = parse_url($intendedUrl, PHP_URL_PATH);
+
+        return is_string($path) && Str::startsWith($path, $prefix);
     }
 }

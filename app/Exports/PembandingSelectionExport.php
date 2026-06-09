@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -10,9 +11,6 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 
 class PembandingSelectionExport implements FromCollection, WithHeadings, WithMapping
 {
-    /**
-     * @var \Illuminate\Support\Collection
-     */
     protected Collection $records;
 
     public function __construct(Collection $records)
@@ -42,6 +40,7 @@ class PembandingSelectionExport implements FromCollection, WithHeadings, WithMap
             'Luas Tanah (m²)',
             'Luas Bangunan (m²)',
             'Harga',
+            'Periode Harga Sewa',
             'Tanggal Data',
             'Latitude',
             'Longitude',
@@ -51,13 +50,12 @@ class PembandingSelectionExport implements FromCollection, WithHeadings, WithMap
 
     /**
      * @param  mixed  $row
-     * @return array
      */
     public function map($row): array
     {
         $imageUrl = $row->image ? Storage::disk('public')->url($row->image) : null;
         $tanggalRaw = $row->getRawOriginal('tanggal_data');
-        $tanggalData = $tanggalRaw ? \Carbon\Carbon::parse($tanggalRaw)->format('Y-m-d') : null;
+        $tanggalData = $tanggalRaw ? Carbon::parse($tanggalRaw)->format('Y-m-d') : null;
 
         return [
             $row->id,
@@ -74,6 +72,7 @@ class PembandingSelectionExport implements FromCollection, WithHeadings, WithMap
             $row->luas_tanah,
             $row->luas_bangunan,
             $row->harga,
+            $row->sewa_periode_label,
             $tanggalData,
             $row->latitude,
             $row->longitude,

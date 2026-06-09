@@ -24,6 +24,8 @@ use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -40,7 +42,7 @@ class PembandingController extends Controller
             ->apply(Pembanding::query(), $filters)
             // FIX #4: Eager load semua relasi yang diakses di through() untuk menghindari N+1
             ->with([
-                'jenisListing:id,name',
+                'jenisListing:id,slug,name',
                 'jenisObjek:id,name',
                 'village:id,name,district_id',
                 'district:id,name,regency_id',
@@ -49,17 +51,21 @@ class PembandingController extends Controller
             ->orderByDesc('tanggal_data')
             ->orderByDesc('id')
             ->paginate($request->perPage())
-            ->through(fn(Pembanding $record): array => [
-                'id'           => $record->id,
-                'alamat_data'  => $record->alamat_data,
-                'harga'        => $record->harga,
+            ->through(fn (Pembanding $record): array => [
+                'id' => $record->id,
+                'alamat_data' => $record->alamat_data,
+                'harga' => $record->harga,
+                'is_sewa' => $record->is_sewa,
+                'jangka_waktu_sewa' => $record->jangka_waktu_sewa,
+                'satuan_waktu_sewa' => $record->satuan_waktu_sewa,
+                'sewa_periode_label' => $record->sewa_periode_label,
                 'tanggal_data' => $record->tanggal_data,
-                'latitude'     => $record->latitude,
-                'longitude'    => $record->longitude,
+                'latitude' => $record->latitude,
+                'longitude' => $record->longitude,
                 'jenis_listing' => $record->jenisListing?->name,
-                'jenis_objek'   => $record->jenisObjek?->name,
-                'image_url'    => $record->image_path,
-                'location'     => collect([
+                'jenis_objek' => $record->jenisObjek?->name,
+                'image_url' => $record->image_path,
+                'location' => collect([
                     $record->village?->name,
                     $record->district?->name,
                     $record->regency?->name,
@@ -102,7 +108,7 @@ class PembandingController extends Controller
                         ->orderBy('name')
                         ->get(['id', 'name'])
                 ),
-                'perPage' => collect([8, 16, 32, 64])->map(fn(int $value): array => [
+                'perPage' => collect([8, 16, 32, 64])->map(fn (int $value): array => [
                     'label' => "{$value} / halaman",
                     'value' => $value,
                 ])->all(),
@@ -181,50 +187,52 @@ class PembandingController extends Controller
 
         return Inertia::render('Pembanding/Show', [
             'record' => [
-                'id'                             => $pembanding->id,
-                'alamat'                         => $pembanding->alamat_data,
+                'id' => $pembanding->id,
+                'alamat' => $pembanding->alamat_data,
                 'nomer_telepon_pemberi_informasi' => $pembanding->nomer_telepon_pemberi_informasi,
-                'nama_pemberi_informasi'          => $pembanding->nama_pemberi_informasi,
-                'harga'                          => $pembanding->harga,
-                'jangka_waktu_sewa'              => $pembanding->jangka_waktu_sewa,
-                'satuan_waktu_sewa'              => $pembanding->satuan_waktu_sewa,
-                'tanggal'                        => $pembanding->tanggal_data,
-                'jenis_listing'                  => $pembanding->jenisListing?->name,
-                'jenis_objek'                    => $pembanding->jenisObjek?->name,
-                'status_pemberi_informasi'        => $pembanding->statusPemberiInformasi?->name,
-                'bentuk_tanah'                   => $pembanding->bentukTanah?->name,
-                'dokumen_tanah'                  => $pembanding->dokumenTanah?->name,
-                'posisi_tanah'                   => $pembanding->posisiTanah?->name,
-                'kondisi_tanah'                  => $pembanding->kondisiTanah?->name,
-                'topografi'                      => $pembanding->topografiRef?->name,
-                'peruntukan'                     => $pembanding->peruntukanRef?->name,
-                'luas_tanah'                     => $pembanding->luas_tanah,
-                'luas_bangunan'                  => $pembanding->luas_bangunan,
-                'tahun_bangun'                   => $pembanding->tahun_bangun,
-                'lebar_depan'                    => $pembanding->lebar_depan,
-                'lebar_jalan'                    => $pembanding->lebar_jalan,
-                'rasio_tapak'                    => $pembanding->rasio_tapak,
-                'location'                       => collect([
+                'nama_pemberi_informasi' => $pembanding->nama_pemberi_informasi,
+                'harga' => $pembanding->harga,
+                'is_sewa' => $pembanding->is_sewa,
+                'jangka_waktu_sewa' => $pembanding->jangka_waktu_sewa,
+                'satuan_waktu_sewa' => $pembanding->satuan_waktu_sewa,
+                'sewa_periode_label' => $pembanding->sewa_periode_label,
+                'tanggal' => $pembanding->tanggal_data,
+                'jenis_listing' => $pembanding->jenisListing?->name,
+                'jenis_objek' => $pembanding->jenisObjek?->name,
+                'status_pemberi_informasi' => $pembanding->statusPemberiInformasi?->name,
+                'bentuk_tanah' => $pembanding->bentukTanah?->name,
+                'dokumen_tanah' => $pembanding->dokumenTanah?->name,
+                'posisi_tanah' => $pembanding->posisiTanah?->name,
+                'kondisi_tanah' => $pembanding->kondisiTanah?->name,
+                'topografi' => $pembanding->topografiRef?->name,
+                'peruntukan' => $pembanding->peruntukanRef?->name,
+                'luas_tanah' => $pembanding->luas_tanah,
+                'luas_bangunan' => $pembanding->luas_bangunan,
+                'tahun_bangun' => $pembanding->tahun_bangun,
+                'lebar_depan' => $pembanding->lebar_depan,
+                'lebar_jalan' => $pembanding->lebar_jalan,
+                'rasio_tapak' => $pembanding->rasio_tapak,
+                'location' => collect([
                     $pembanding->village?->name,
                     $pembanding->district?->name,
                     $pembanding->regency?->name,
                     $pembanding->province?->name,
                 ])->filter()->implode(', '),
-                'province'                       => $pembanding->province?->name,
-                'regency'                        => $pembanding->regency?->name,
-                'district'                       => $pembanding->district?->name,
-                'village'                        => $pembanding->village?->name,
-                'latitude'                       => $pembanding->latitude,
-                'longitude'                      => $pembanding->longitude,
-                'image_url'                      => $pembanding->image_path,
-                'catatan'                        => $pembanding->catatan,
-                'created_by'                     => $pembanding->creator?->name,
+                'province' => $pembanding->province?->name,
+                'regency' => $pembanding->regency?->name,
+                'district' => $pembanding->district?->name,
+                'village' => $pembanding->village?->name,
+                'latitude' => $pembanding->latitude,
+                'longitude' => $pembanding->longitude,
+                'image_url' => $pembanding->image_path,
+                'catatan' => $pembanding->catatan,
+                'created_by' => $pembanding->creator?->name,
                 // FIX #2: Pass updated_by ke frontend
-                'updated_by'                     => $pembanding->updater?->name,
-                'created_at'                     => optional($pembanding->created_at)->toDateTimeString(),
-                'updated_at'                     => optional($pembanding->updated_at)->toDateTimeString(),
-                'has_pending_delete_request'     => $hasPendingDeleteRequest,
-                'delete_request'                 => $latestDeleteRequest ? [
+                'updated_by' => $pembanding->updater?->name,
+                'created_at' => optional($pembanding->created_at)->toDateTimeString(),
+                'updated_at' => optional($pembanding->updated_at)->toDateTimeString(),
+                'has_pending_delete_request' => $hasPendingDeleteRequest,
+                'delete_request' => $latestDeleteRequest ? [
                     'id' => $latestDeleteRequest->id,
                     'status' => $latestDeleteRequest->status,
                     'reason' => $latestDeleteRequest->reason,
@@ -259,41 +267,41 @@ class PembandingController extends Controller
         ]);
 
         $record = [
-            'id'                              => $pembanding->id,
-            'jenis_listing_id'                => $pembanding->jenis_listing_id,
-            'jenis_objek_id'                  => $pembanding->jenis_objek_id,
-            'nama_pemberi_informasi'           => $pembanding->nama_pemberi_informasi,
-            'nomer_telepon_pemberi_informasi'  => $pembanding->nomer_telepon_pemberi_informasi,
-            'status_pemberi_informasi_id'      => $pembanding->status_pemberi_informasi_id,
-            'tanggal_data'                    => $pembanding->tanggal_data,
-            'alamat_data'                     => $pembanding->alamat_data,
-            'province_id'                     => $pembanding->province_id,
-            'regency_id'                      => $pembanding->regency_id,
-            'district_id'                     => $pembanding->district_id,
-            'village_id'                      => $pembanding->village_id,
-            'latitude'                        => $pembanding->latitude,
-            'longitude'                       => $pembanding->longitude,
-            'image_url'                       => $pembanding->image_path,
-            'luas_tanah'                      => $pembanding->luas_tanah,
-            'luas_bangunan'                   => $pembanding->luas_bangunan,
-            'lebar_depan'                     => $pembanding->lebar_depan,
-            'lebar_jalan'                     => $pembanding->lebar_jalan,
-            'tahun_bangun'                    => $pembanding->tahun_bangun,
-            'rasio_tapak'                     => $pembanding->rasio_tapak,
-            'bentuk_tanah_id'                 => $pembanding->bentuk_tanah_id,
-            'posisi_tanah_id'                 => $pembanding->posisi_tanah_id,
-            'kondisi_tanah_id'                => $pembanding->kondisi_tanah_id,
-            'topografi_id'                    => $pembanding->topografi_id,
-            'dokumen_tanah_id'                => $pembanding->dokumen_tanah_id,
-            'peruntukan_id'                   => $pembanding->peruntukan_id,
-            'harga'                           => $pembanding->harga,
-            'jangka_waktu_sewa'               => $pembanding->jangka_waktu_sewa,
-            'satuan_waktu_sewa'               => $pembanding->satuan_waktu_sewa,
-            'catatan'                         => $pembanding->catatan,
+            'id' => $pembanding->id,
+            'jenis_listing_id' => $pembanding->jenis_listing_id,
+            'jenis_objek_id' => $pembanding->jenis_objek_id,
+            'nama_pemberi_informasi' => $pembanding->nama_pemberi_informasi,
+            'nomer_telepon_pemberi_informasi' => $pembanding->nomer_telepon_pemberi_informasi,
+            'status_pemberi_informasi_id' => $pembanding->status_pemberi_informasi_id,
+            'tanggal_data' => $pembanding->tanggal_data,
+            'alamat_data' => $pembanding->alamat_data,
+            'province_id' => $pembanding->province_id,
+            'regency_id' => $pembanding->regency_id,
+            'district_id' => $pembanding->district_id,
+            'village_id' => $pembanding->village_id,
+            'latitude' => $pembanding->latitude,
+            'longitude' => $pembanding->longitude,
+            'image_url' => $pembanding->image_path,
+            'luas_tanah' => $pembanding->luas_tanah,
+            'luas_bangunan' => $pembanding->luas_bangunan,
+            'lebar_depan' => $pembanding->lebar_depan,
+            'lebar_jalan' => $pembanding->lebar_jalan,
+            'tahun_bangun' => $pembanding->tahun_bangun,
+            'rasio_tapak' => $pembanding->rasio_tapak,
+            'bentuk_tanah_id' => $pembanding->bentuk_tanah_id,
+            'posisi_tanah_id' => $pembanding->posisi_tanah_id,
+            'kondisi_tanah_id' => $pembanding->kondisi_tanah_id,
+            'topografi_id' => $pembanding->topografi_id,
+            'dokumen_tanah_id' => $pembanding->dokumen_tanah_id,
+            'peruntukan_id' => $pembanding->peruntukan_id,
+            'harga' => $pembanding->harga,
+            'jangka_waktu_sewa' => $pembanding->jangka_waktu_sewa,
+            'satuan_waktu_sewa' => $pembanding->satuan_waktu_sewa,
+            'catatan' => $pembanding->catatan,
         ];
 
         return Inertia::render('Pembanding/Edit', [
-            'record'  => $record,
+            'record' => $record,
             // FIX #6: Gunakan null-check sebelum query regency/district/village
             // agar tidak query dengan kondisi WHERE x = NULL
             'options' => $this->formOptions($pembanding),
@@ -362,7 +370,7 @@ class PembandingController extends Controller
             ->map(function ($activity) {
                 $propertiesRaw = $activity->properties;
 
-                if ($propertiesRaw instanceof \Illuminate\Support\Collection) {
+                if ($propertiesRaw instanceof Collection) {
                     $properties = $propertiesRaw->all();
                 } elseif (is_array($propertiesRaw)) {
                     $properties = $propertiesRaw;
@@ -371,7 +379,7 @@ class PembandingController extends Controller
                 }
 
                 $attributes = data_get($properties, 'attributes', []);
-                $old        = data_get($properties, 'old', []);
+                $old = data_get($properties, 'old', []);
 
                 if (! is_array($attributes)) {
                     $attributes = [];
@@ -389,18 +397,18 @@ class PembandingController extends Controller
                     }
                     $changes[] = [
                         'field' => $key,
-                        'old'   => $oldVal,
-                        'new'   => $newVal,
+                        'old' => $oldVal,
+                        'new' => $newVal,
                     ];
                 }
 
                 return [
-                    'id'           => $activity->id,
-                    'event'        => $activity->event ?? $activity->description,
-                    'causer'       => $activity->causer?->name ?? 'Sistem',
+                    'id' => $activity->id,
+                    'event' => $activity->event ?? $activity->description,
+                    'causer' => $activity->causer?->name ?? 'Sistem',
                     'causer_email' => $activity->causer?->email,
-                    'created_at'   => $activity->created_at?->toDateTimeString(),
-                    'changes'      => $changes,
+                    'created_at' => $activity->created_at?->toDateTimeString(),
+                    'changes' => $changes,
                 ];
             });
 
@@ -411,7 +419,7 @@ class PembandingController extends Controller
 
         return Inertia::render('Pembanding/History', [
             'record' => [
-                'id'     => $pembanding->id,
+                'id' => $pembanding->id,
                 'alamat' => $pembanding->alamat_data,
                 // FIX #1: Tambahkan location agar PembandingHistoryHeader bisa menampilkannya
                 'location' => collect([
@@ -435,24 +443,24 @@ class PembandingController extends Controller
     private function formOptions(?Pembanding $pembanding = null): array
     {
         return [
-            'provinces'        => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
-            'regencies'        => $this->mapSelectOptions(
+            'provinces' => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
+            'regencies' => $this->mapSelectOptions(
                 $pembanding?->province_id
                     ? Regency::query()->where('province_id', $pembanding->province_id)->orderBy('name')->get()
                     : collect()
             ),
-            'districts'        => $this->mapSelectOptions(
+            'districts' => $this->mapSelectOptions(
                 $pembanding?->regency_id
                     ? District::query()->where('regency_id', $pembanding->regency_id)->orderBy('name')->get()
                     : collect()
             ),
-            'villages'         => $this->mapSelectOptions(
+            'villages' => $this->mapSelectOptions(
                 $pembanding?->district_id
                     ? Village::query()->where('district_id', $pembanding->district_id)->orderBy('name')->get()
                     : collect()
             ),
-            'jenisListings'    => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
-            'jenisObjeks'      => $this->mapSelectOptions(
+            'jenisListings' => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
+            'jenisObjeks' => $this->mapSelectOptions(
                 JenisObjek::query()
                     ->where('is_active', true)
                     ->whereNotIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
@@ -462,14 +470,14 @@ class PembandingController extends Controller
                     ->get()
             ),
             'statusPemberiInfos' => $this->mapSelectOptions(StatusPemberiInformasi::query()->orderBy('name')->get()),
-            'bentukTanahs'     => $this->mapSelectOptions(BentukTanah::query()->orderBy('name')->get()),
-            'posisiTanahs'     => $this->mapSelectOptions(PosisiTanah::query()->orderBy('name')->get()),
-            'kondisiTanahs'    => $this->mapSelectOptions(KondisiTanah::query()->orderBy('name')->get()),
-            'topografis'       => $this->mapSelectOptions(Topografi::query()->orderBy('name')->get()),
-            'dokumenTanahs'    => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
-            'peruntukans'      => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
+            'bentukTanahs' => $this->mapSelectOptions(BentukTanah::query()->orderBy('name')->get()),
+            'posisiTanahs' => $this->mapSelectOptions(PosisiTanah::query()->orderBy('name')->get()),
+            'kondisiTanahs' => $this->mapSelectOptions(KondisiTanah::query()->orderBy('name')->get()),
+            'topografis' => $this->mapSelectOptions(Topografi::query()->orderBy('name')->get()),
+            'dokumenTanahs' => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
+            'peruntukans' => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
             // FIX #5: Single source of truth untuk tanahId
-            'tanahId'          => $this->tanahId(),
+            'tanahId' => $this->tanahId(),
         ];
     }
 
@@ -478,29 +486,27 @@ class PembandingController extends Controller
      */
     private function tanahId(): ?int
     {
-        return once(fn() => JenisObjek::query()->where('slug', 'tanah')->value('id'));
+        return once(fn () => JenisObjek::query()->where('slug', 'tanah')->value('id'));
     }
 
     /**
      * Simpan file gambar dan return path-nya.
      * Digunakan di store() dan update() agar tidak duplikasi logika.
      */
-    private function storeImage(\Illuminate\Http\UploadedFile $file): string
+    private function storeImage(UploadedFile $file): string
     {
-        $filename = Str::random(40) . '.' . $file->getClientOriginalExtension();
+        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
 
         return $file->storeAs('foto_pembanding', strtolower($filename), 'public');
     }
 
     /**
      * FIX #9: Tambahkan type hint parameter dan return type yang eksplisit.
-     *
-     * @param  \Illuminate\Support\Collection  $items
      */
-    private function mapSelectOptions(\Illuminate\Support\Collection $items): array
+    private function mapSelectOptions(Collection $items): array
     {
         return $items
-            ->map(fn($item): array => [
+            ->map(fn ($item): array => [
                 'label' => (string) $item->name,
                 'value' => $item->id,
             ])

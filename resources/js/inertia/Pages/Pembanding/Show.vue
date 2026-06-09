@@ -61,8 +61,21 @@ const formatDate = (value) => {
 
 const formatArea = (value) => (hasValue(value) ? `${value} m2` : "n/a");
 
+const isSewa = computed(() => Boolean(record.value.is_sewa) || String(record.value.jenis_listing ?? "").toLowerCase() === "sewa");
+const sewaPeriodeLabel = computed(() => {
+    if (!isSewa.value) return "";
+    if (record.value.sewa_periode_label) return record.value.sewa_periode_label;
+    if (hasValue(record.value.jangka_waktu_sewa) && hasValue(record.value.satuan_waktu_sewa)) {
+        return `per ${record.value.jangka_waktu_sewa} ${String(record.value.satuan_waktu_sewa).toLowerCase()}`;
+    }
+
+    return "Periode sewa belum diisi";
+});
+
 const stats = computed(() => ({
     price: formatCurrency(record.value.harga),
+    priceLabel: isSewa.value ? "Harga Sewa" : "Harga",
+    priceSubtext: sewaPeriodeLabel.value,
     landArea: formatArea(record.value.luas_tanah),
     buildingArea: formatArea(record.value.luas_bangunan),
     dataDate: formatDate(record.value.tanggal),
@@ -176,7 +189,8 @@ const infoSections = computed(() => [
             { label: "Alamat", value: formatText(record.value.alamat), full: true },
             { label: "Jenis Listing", value: formatText(record.value.jenis_listing) },
             { label: "Jenis Objek", value: formatText(record.value.jenis_objek) },
-            { label: "Harga", value: formatCurrency(record.value.harga), highlight: true },
+            { label: isSewa.value ? "Harga Sewa" : "Harga", value: formatCurrency(record.value.harga), highlight: true },
+            ...(isSewa.value ? [{ label: "Periode Harga Sewa", value: sewaPeriodeLabel.value }] : []),
             { label: "Tanggal Data", value: formatDate(record.value.tanggal) },
         ],
     },
@@ -261,7 +275,9 @@ const infoSections = computed(() => [
             />
 
             <PembandingShowStatsGrid
+                :price-label="stats.priceLabel"
                 :price="stats.price"
+                :price-subtext="stats.priceSubtext"
                 :land-area="stats.landArea"
                 :building-area="stats.buildingArea"
                 :data-date="stats.dataDate"

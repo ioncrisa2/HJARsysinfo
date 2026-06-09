@@ -2,15 +2,30 @@
 
 namespace App\Http\Requests\App;
 
+use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class PembandingUpdateRequest extends FormRequest
 {
+    private const RENT_UNITS = ['Bulan', 'Tahun'];
+
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->isSewaListing()) {
+            return;
+        }
+
+        $this->merge([
+            'jangka_waktu_sewa' => null,
+            'satuan_waktu_sewa' => null,
+        ]);
     }
 
     /**
@@ -47,7 +62,7 @@ class PembandingUpdateRequest extends FormRequest
                 'nullable',
                 Rule::requiredIf(fn (): bool => $tanahId && (int) $this->input('jenis_objek_id') !== (int) $tanahId),
                 'integer',
-                'max:' . date('Y'),
+                'max:'.date('Y'),
             ],
             'rasio_tapak' => ['nullable', 'string', 'max:255'],
             'bentuk_tanah_id' => ['required', 'integer', 'exists:master_bentuk_tanah,id'],
@@ -59,20 +74,15 @@ class PembandingUpdateRequest extends FormRequest
             'harga' => ['required', 'numeric', 'min:0'],
             'jangka_waktu_sewa' => [
                 'nullable',
-                Rule::requiredIf(function() {
-                    $sewaId = \App\Models\JenisListing::query()->where('slug', 'sewa')->value('id');
-                    return $sewaId && (int) $this->input('jenis_listing_id') === (int) $sewaId;
-                }),
+                Rule::requiredIf(fn (): bool => $this->isSewaListing()),
                 'numeric',
-                'min:0',
+                'min:1',
             ],
             'satuan_waktu_sewa' => [
                 'nullable',
-                Rule::requiredIf(function() {
-                    $sewaId = \App\Models\JenisListing::query()->where('slug', 'sewa')->value('id');
-                    return $sewaId && (int) $this->input('jenis_listing_id') === (int) $sewaId;
-                }),
+                Rule::requiredIf(fn (): bool => $this->isSewaListing()),
                 'string',
+                Rule::in(self::RENT_UNITS),
             ],
             'catatan' => ['nullable', 'string', 'max:1000'],
         ];
@@ -131,7 +141,16 @@ class PembandingUpdateRequest extends FormRequest
             'harga.min' => 'Harga minimal 0.',
             'jangka_waktu_sewa.required' => 'Jangka waktu sewa wajib diisi untuk properti sewa.',
             'jangka_waktu_sewa.numeric' => 'Jangka waktu sewa harus berupa angka.',
+            'jangka_waktu_sewa.min' => 'Jangka waktu sewa minimal 1.',
             'satuan_waktu_sewa.required' => 'Satuan waktu sewa wajib diisi untuk properti sewa.',
+            'satuan_waktu_sewa.in' => 'Satuan waktu sewa harus Bulan atau Tahun.',
         ];
+    }
+
+    private function isSewaListing(): bool
+    {
+        $sewaId = JenisListing::query()->where('slug', 'sewa')->value('id');
+
+        return $sewaId && (int) $this->input('jenis_listing_id') === (int) $sewaId;
     }
 }

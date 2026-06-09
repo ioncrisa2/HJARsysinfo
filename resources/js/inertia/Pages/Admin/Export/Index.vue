@@ -199,6 +199,13 @@ const formatCurrency = (value) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 };
 
+const pricePeriodLabel = (record) => {
+    if (!record?.is_sewa) return null;
+    return record.sewa_periode_label || (record.jangka_waktu_sewa && record.satuan_waktu_sewa
+        ? `per ${record.jangka_waktu_sewa} ${String(record.satuan_waktu_sewa).toLowerCase()}`
+        : "periode sewa belum diisi");
+};
+
 const formatDate = (value) => {
     if (!value) return "-";
     return new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
@@ -435,6 +442,9 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                     </td>
                                     <td class="ui-tabular px-5 py-4 text-right font-bold text-slate-900">
                                         {{ formatCurrency(record.harga) }}
+                                        <p v-if="record.is_sewa" class="mt-1 text-xs font-semibold text-amber-700">
+                                            {{ pricePeriodLabel(record) }}
+                                        </p>
                                     </td>
                                     <td class="px-5 py-4 text-right">
                                         <Link

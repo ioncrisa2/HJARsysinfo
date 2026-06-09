@@ -22,7 +22,9 @@ use App\Models\Topografi;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,7 +38,7 @@ class DataPembandingController extends Controller
         $records = $filterService
             ->apply(Pembanding::query(), $filters)
             ->with([
-                'jenisListing:id,name,badge_color',
+                'jenisListing:id,slug,name,badge_color',
                 'jenisObjek:id,name',
                 'village:id,name,district_id',
                 'district:id,name,regency_id',
@@ -45,24 +47,29 @@ class DataPembandingController extends Controller
             ->orderByDesc('tanggal_data')
             ->orderByDesc('id')
             ->paginate($request->perPage())
-            ->through(fn(Pembanding $record): array => [
-                'id'           => $record->id,
-                'alamat_data'  => $record->alamat_data,
-                'harga'        => $record->harga,
+            ->through(fn (Pembanding $record): array => [
+                'id' => $record->id,
+                'alamat_data' => $record->alamat_data,
+                'harga' => $record->harga,
+                'is_sewa' => $record->is_sewa,
+                'jangka_waktu_sewa' => $record->jangka_waktu_sewa,
+                'satuan_waktu_sewa' => $record->satuan_waktu_sewa,
+                'sewa_periode_label' => $record->sewa_periode_label,
                 'tanggal_data' => $record->tanggal_data,
-                'luas_tanah'   => $record->luas_tanah,
+                'luas_tanah' => $record->luas_tanah,
                 'luas_bangunan' => $record->luas_bangunan,
-                'image_url'    => $record->image 
-                    ? \Illuminate\Support\Facades\Storage::disk('public')->url($record->image) 
+                'image_url' => $record->image
+                    ? Storage::disk('public')->url($record->image)
                     : null,
-                'latitude'     => $record->latitude,
-                'longitude'    => $record->longitude,
+                'latitude' => $record->latitude,
+                'longitude' => $record->longitude,
                 'jenis_listing' => [
                     'name' => $record->jenisListing?->name,
+                    'slug' => $record->jenisListing?->slug,
                     'color' => $record->jenisListing?->badge_color,
                 ],
-                'jenis_objek'   => $record->jenisObjek?->name,
-                'location'     => collect([
+                'jenis_objek' => $record->jenisObjek?->name,
+                'location' => collect([
                     $record->village?->name,
                     $record->district?->name,
                     $record->regency?->name,
@@ -72,13 +79,13 @@ class DataPembandingController extends Controller
 
         $options = [
             'provinces' => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
-            'regencies' => $filters['province_id'] 
+            'regencies' => $filters['province_id']
                 ? $this->mapSelectOptions(Regency::where('province_id', $filters['province_id'])->orderBy('name')->get())
                 : [],
-            'districts' => $filters['regency_id'] 
+            'districts' => $filters['regency_id']
                 ? $this->mapSelectOptions(District::where('regency_id', $filters['regency_id'])->orderBy('name')->get())
                 : [],
-            'villages' => $filters['district_id'] 
+            'villages' => $filters['district_id']
                 ? $this->mapSelectOptions(Village::where('district_id', $filters['district_id'])->orderBy('name')->get())
                 : [],
             'jenisListings' => $this->mapSelectOptions(JenisListing::where('is_active', true)->orderBy('sort_order')->get()),
@@ -136,8 +143,8 @@ class DataPembandingController extends Controller
             'creator:id,name',
         ]);
 
-        $pembanding->image_url = $pembanding->image 
-            ? \Illuminate\Support\Facades\Storage::disk('public')->url($pembanding->image) 
+        $pembanding->image_url = $pembanding->image
+            ? Storage::disk('public')->url($pembanding->image)
             : null;
 
         return Inertia::render('Admin/Pembanding/Show', [
@@ -164,12 +171,12 @@ class DataPembandingController extends Controller
         ]);
 
         // Explicitly set image_url for the frontend
-        $pembanding->image_url = $pembanding->image 
-            ? \Illuminate\Support\Facades\Storage::disk('public')->url($pembanding->image) 
+        $pembanding->image_url = $pembanding->image
+            ? Storage::disk('public')->url($pembanding->image)
             : null;
 
         return Inertia::render('Admin/Pembanding/Edit', [
-            'record'  => $pembanding,
+            'record' => $pembanding,
             'options' => $this->formOptions($pembanding),
         ]);
     }
@@ -208,24 +215,24 @@ class DataPembandingController extends Controller
     private function formOptions(?Pembanding $pembanding = null): array
     {
         return [
-            'provinces'        => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
-            'regencies'        => $this->mapSelectOptions(
+            'provinces' => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
+            'regencies' => $this->mapSelectOptions(
                 $pembanding?->province_id
                     ? Regency::query()->where('province_id', $pembanding->province_id)->orderBy('name')->get()
                     : collect()
             ),
-            'districts'        => $this->mapSelectOptions(
+            'districts' => $this->mapSelectOptions(
                 $pembanding?->regency_id
                     ? District::query()->where('regency_id', $pembanding->regency_id)->orderBy('name')->get()
                     : collect()
             ),
-            'villages'         => $this->mapSelectOptions(
+            'villages' => $this->mapSelectOptions(
                 $pembanding?->district_id
                     ? Village::query()->where('district_id', $pembanding->district_id)->orderBy('name')->get()
                     : collect()
             ),
-            'jenisListings'    => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
-            'jenisObjeks'      => $this->mapSelectOptions(
+            'jenisListings' => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
+            'jenisObjeks' => $this->mapSelectOptions(
                 JenisObjek::query()
                     ->where('is_active', true)
                     ->whereNotIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
@@ -235,26 +242,27 @@ class DataPembandingController extends Controller
                     ->get()
             ),
             'statusPemberiInfos' => $this->mapSelectOptions(StatusPemberiInformasi::query()->orderBy('name')->get()),
-            'bentukTanahs'     => $this->mapSelectOptions(BentukTanah::query()->orderBy('name')->get()),
-            'posisiTanahs'     => $this->mapSelectOptions(PosisiTanah::query()->orderBy('name')->get()),
-            'kondisiTanahs'    => $this->mapSelectOptions(KondisiTanah::query()->orderBy('name')->get()),
-            'topografis'       => $this->mapSelectOptions(Topografi::query()->orderBy('name')->get()),
-            'dokumenTanahs'    => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
-            'peruntukans'      => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
-            'tanahId'          => once(fn() => JenisObjek::query()->where('slug', 'tanah')->value('id')),
+            'bentukTanahs' => $this->mapSelectOptions(BentukTanah::query()->orderBy('name')->get()),
+            'posisiTanahs' => $this->mapSelectOptions(PosisiTanah::query()->orderBy('name')->get()),
+            'kondisiTanahs' => $this->mapSelectOptions(KondisiTanah::query()->orderBy('name')->get()),
+            'topografis' => $this->mapSelectOptions(Topografi::query()->orderBy('name')->get()),
+            'dokumenTanahs' => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
+            'peruntukans' => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
+            'tanahId' => once(fn () => JenisObjek::query()->where('slug', 'tanah')->value('id')),
         ];
     }
 
-    private function storeImage(\Illuminate\Http\UploadedFile $file): string
+    private function storeImage(UploadedFile $file): string
     {
-        $filename = Str::random(40) . '.' . $file->getClientOriginalExtension();
+        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
+
         return $file->storeAs('foto_pembanding', strtolower($filename), 'public');
     }
 
-    private function mapSelectOptions(\Illuminate\Support\Collection $items): array
+    private function mapSelectOptions(Collection $items): array
     {
         return $items
-            ->map(fn($item): array => [
+            ->map(fn ($item): array => [
                 'label' => (string) $item->name,
                 'value' => $item->id,
             ])

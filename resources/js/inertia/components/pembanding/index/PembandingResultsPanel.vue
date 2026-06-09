@@ -26,6 +26,13 @@ const formatCurrency = (value) =>
         maximumFractionDigits: 0,
     }).format(Number(value ?? 0));
 
+const pricePeriodLabel = (item) => {
+    if (!item?.is_sewa) return null;
+    return item.sewa_periode_label || (item.jangka_waktu_sewa && item.satuan_waktu_sewa
+        ? `per ${item.jangka_waktu_sewa} ${String(item.satuan_waktu_sewa).toLowerCase()}`
+        : "periode sewa belum diisi");
+};
+
 const formatDateLong = (value) => {
     const date = parseDateValue(value);
     if (!date) return "-";
@@ -101,6 +108,9 @@ const displayLabel = (label) => {
 
                 <div class="flex flex-1 flex-col p-3.5">
                     <p class="ui-tabular text-base font-semibold text-slate-900">{{ formatCurrency(item.harga) }}</p>
+                    <p v-if="item.is_sewa" class="mt-0.5 text-xs font-semibold text-amber-700">
+                        {{ pricePeriodLabel(item) }}
+                    </p>
                     <p class="mt-1 text-sm font-semibold text-slate-800 line-clamp-2 leading-snug">
                         {{ item.alamat_data || "Tanpa alamat" }}
                     </p>
@@ -166,6 +176,7 @@ const displayLabel = (label) => {
                 <div class="flex flex-1 items-center gap-4 px-3 py-2.5 min-w-0">
                     <div class="flex flex-1 flex-col min-w-0 overflow-hidden">
                         <span class="ui-tabular text-base font-semibold text-slate-900 truncate">{{ formatCurrency(item.harga) }}</span>
+                        <span v-if="item.is_sewa" class="text-xs font-semibold text-amber-700 truncate">{{ pricePeriodLabel(item) }}</span>
                         <p class="text-sm text-slate-700 truncate max-w-xl line-clamp-1">{{ item.alamat_data || "Tanpa alamat" }}</p>
                         <p class="text-xs text-slate-400 truncate max-w-xl line-clamp-1">{{ item.location || "Lokasi tidak tersedia" }}</p>
                     </div>

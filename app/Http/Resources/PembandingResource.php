@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -73,8 +74,10 @@ class PembandingResource extends JsonResource
             'lebar_jalan' => $this->lebar_jalan,
             'rasio_tapak' => $this->rasio_tapak,
             'harga' => $this->harga,
+            'is_sewa' => $this->is_sewa,
             'jangka_waktu_sewa' => $this->jangka_waktu_sewa,
             'satuan_waktu_sewa' => $this->satuan_waktu_sewa,
+            'sewa_periode_label' => $this->sewa_periode_label,
             'tanggal_data' => $this->tanggal_data,
             'catatan' => $this->catatan,
 
@@ -108,5 +111,4 @@ class PembandingResource extends JsonResource
             ],
         ];
     }
-
 }

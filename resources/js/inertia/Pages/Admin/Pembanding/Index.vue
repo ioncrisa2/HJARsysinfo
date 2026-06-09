@@ -103,6 +103,13 @@ const formatCurrency = (val) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 };
 
+const pricePeriodLabel = (row) => {
+    if (!row?.is_sewa) return null;
+    return row.sewa_periode_label || (row.jangka_waktu_sewa && row.satuan_waktu_sewa
+        ? `per ${row.jangka_waktu_sewa} ${String(row.satuan_waktu_sewa).toLowerCase()}`
+        : "periode sewa belum diisi");
+};
+
 const formatDate = (val) => {
     if (!val) return "-";
     return new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -305,7 +312,10 @@ const formatDate = (val) => {
                             <td class="px-6 py-4">
                                 <div class="space-y-0.5">
                                     <p class="text-sm font-black text-slate-900">{{ formatCurrency(row.harga) }}</p>
-                                    <p v-if="row.harga && row.luas_tanah" class="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                    <p v-if="row.is_sewa" class="text-[10px] text-amber-600 font-bold uppercase tracking-tight">
+                                        {{ pricePeriodLabel(row) }}
+                                    </p>
+                                    <p v-else-if="row.harga && row.luas_tanah" class="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
                                         {{ formatCurrency(row.harga / row.luas_tanah) }}/m²
                                     </p>
                                 </div>
@@ -410,4 +420,3 @@ const formatDate = (val) => {
     border-radius: 0.75rem !important;
 }
 </style>
-

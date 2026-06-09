@@ -151,9 +151,15 @@
                             <td>{{ $tgl }}</td>
                         </tr>
                         <tr>
-                            <td class="label">Harga</td>
+                            <td class="label">{{ $record->is_sewa ? 'Harga Sewa' : 'Harga' }}</td>
                             <td>Rp {{ number_format($record->harga, 0, ',', '.') }}</td>
                         </tr>
+                        @if ($record->is_sewa)
+                            <tr>
+                                <td class="label">Periode Harga Sewa</td>
+                                <td>{{ $record->sewa_periode_label ?? 'Periode sewa belum diisi' }}</td>
+                            </tr>
+                        @endif
                     </table>
 
                     <h2>Detail Fisik</h2>

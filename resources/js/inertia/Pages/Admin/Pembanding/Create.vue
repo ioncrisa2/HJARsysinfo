@@ -48,7 +48,7 @@ const form = useForm({
     peruntukan_id: null,
     harga: null,
     jangka_waktu_sewa: null,
-    satuan_waktu_sewa: "Tahun",
+    satuan_waktu_sewa: "Bulan",
     catatan: "",
 });
 
