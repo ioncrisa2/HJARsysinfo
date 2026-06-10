@@ -93,46 +93,29 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
             </div>
         </UiField>
 
-        <UiSurface variant="inset" class="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <div>
-                    <p class="text-sm font-bold text-slate-900">Checklist Kelengkapan Data</p>
-                    <p class="text-xs text-slate-500 mt-0.5">
-                        <span class="font-bold text-amber-600">{{ checkedCount }} dari {{ checks.length }}</span> item wajib telah terisi.
-                    </p>
-                </div>
-                <div
-                    class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all duration-500"
-                    :class="allChecked ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
-                >
-                    <i :class="allChecked ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'" />
-                    {{ allChecked ? "Data Lengkap" : "Data Belum Lengkap" }}
-                </div>
+        <div v-if="!allChecked" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-4">
+            <div class="bg-amber-100 p-2 rounded-full flex items-center justify-center">
+                <i class="pi pi-exclamation-triangle text-amber-600 text-lg" />
             </div>
-
-            <div class="grid gap-3 sm:grid-cols-2">
-                <div
-                    v-for="check in checks"
-                    :key="check.label"
-                    class="flex items-center gap-3 rounded-xl border p-3 text-xs font-bold transition-all duration-300"
-                    :class="check.ok ? 'border-green-100 bg-green-50/30 text-green-700' : 'border-slate-200 bg-white text-slate-400 opacity-60'"
-                >
-                    <div class="size-5 rounded-full flex items-center justify-center transition-all duration-500" :class="check.ok ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-300'">
-                        <i :class="check.ok ? 'pi pi-check' : 'pi pi-circle'" class="text-[10px]" />
-                    </div>
-                    <span class="min-w-0 truncate">{{ check.label }}</span>
-                </div>
-            </div>
-
-            <div v-if="missingChecks.length" class="mt-6 rounded-xl border border-amber-200 bg-amber-50/50 p-4 animate-pulse">
-                <p class="text-[11px] font-bold text-amber-800 flex items-start gap-2">
-                    <i class="pi pi-info-circle mt-0.5" />
-                    <span>
-                        Mohon lengkapi: <span class="font-black underline">{{ missingChecks.join(", ") }}</span>
-                    </span>
+            <div>
+                <p class="text-sm font-bold text-amber-900">Data Belum Lengkap</p>
+                <p class="text-xs text-amber-700 mt-1 leading-relaxed">
+                    Mohon kembali ke tab sebelumnya dan lengkapi isian wajib berikut: 
+                    <span class="font-bold block mt-1">{{ missingChecks.join(", ") }}</span>
                 </p>
             </div>
-        </UiSurface>
+        </div>
+        <div v-else class="rounded-2xl border border-green-200 bg-green-50 p-5 flex items-start gap-4">
+            <div class="bg-green-100 p-2 rounded-full flex items-center justify-center">
+                <i class="pi pi-check-circle text-green-600 text-lg" />
+            </div>
+            <div>
+                <p class="text-sm font-bold text-green-900">Data Lengkap</p>
+                <p class="text-xs text-green-700 mt-1">
+                    Semua item wajib telah terisi. Anda dapat menyimpan data ini sekarang.
+                </p>
+            </div>
+        </div>
 
         <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-8">
             <Button label="Kembali ke Properti" icon="pi pi-arrow-left" severity="secondary" outlined class="rounded-xl px-6" @click="emit('prev')" />

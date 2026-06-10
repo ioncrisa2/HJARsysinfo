@@ -172,18 +172,18 @@ const mapsUrl = computed(() =>
             </UiField>
         </div>
 
-        <UiSurface variant="inset" class="p-6 bg-slate-900 text-white rounded-2xl overflow-hidden shadow-xl shadow-slate-200">
+        <UiSurface variant="inset" class="p-6 bg-slate-50 text-slate-900 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
             <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
                 <div>
-                    <p class="text-lg font-bold">Titik Koordinat GPS</p>
-                    <p class="text-xs text-slate-400 mt-1">Masukkan koordinat secara manual atau cari melalui Google Maps.</p>
+                    <p class="text-lg font-bold text-slate-900">Titik Koordinat GPS</p>
+                    <p class="text-xs text-slate-500 mt-1">Masukkan koordinat secara manual atau cari melalui Google Maps.</p>
                 </div>
 
                 <a
                     :href="mapsUrl"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-4 text-xs font-bold text-white hover:bg-slate-700 transition shadow-sm"
+                    class="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-sm"
                 >
                     <i class="pi pi-external-link text-[12px]" aria-hidden="true" />
                     {{ hasCoords ? "Buka di Google Maps" : "Cari di Maps" }}
@@ -192,28 +192,28 @@ const mapsUrl = computed(() =>
 
             <div class="grid gap-6 sm:grid-cols-2 mb-6">
                 <UiField id="latitude" label="Latitude" :required="true" :error="form.errors.latitude">
-                    <InputText v-model="form.latitude" id="latitude" placeholder="mis. -6.200000" class="w-full rounded-xl bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 font-mono" />
+                    <InputText v-model="form.latitude" id="latitude" placeholder="mis. -6.200000" class="w-full rounded-xl bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 font-mono" />
                 </UiField>
                 <UiField id="longitude" label="Longitude" :required="true" :error="form.errors.longitude">
                     <InputText
                         v-model="form.longitude"
                         id="longitude"
                         placeholder="mis. 106.816666"
-                        class="w-full rounded-xl bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 font-mono"
+                        class="w-full rounded-xl bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 font-mono"
                     />
                 </UiField>
             </div>
 
-            <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800">
-                <div class="flex items-center justify-between border-b border-slate-700 bg-slate-800/50 px-4 py-2">
-                    <span class="text-xs font-bold text-slate-300">Live Map Preview</span>
-                    <span class="font-mono text-[10px] text-slate-500 uppercase tracking-widest">
+            <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-2">
+                    <span class="text-xs font-bold text-slate-700">Live Map Preview</span>
+                    <span class="font-mono text-[10px] text-slate-400 uppercase tracking-widest">
                         {{ hasCoords ? `${parsedLat}, ${parsedLng}` : "Empty Coords" }}
                     </span>
                 </div>
-                <div v-if="hasCoords" ref="mapContainer" class="mini-map w-full opacity-90 grayscale hover:grayscale-0 transition-all duration-500" />
-                <div v-else class="mini-map flex flex-col items-center justify-center p-8 text-center bg-slate-800/20">
-                    <i class="pi pi-map text-3xl text-slate-700 mb-2" />
+                <div v-if="hasCoords" ref="mapContainer" class="mini-map w-full transition-all duration-500" />
+                <div v-else class="mini-map flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
+                    <i class="pi pi-map text-3xl text-slate-300 mb-2" />
                     <p class="text-[11px] text-slate-500 font-medium">Input koordinat untuk mengaktifkan preview peta interaktif.</p>
                 </div>
             </div>

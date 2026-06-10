@@ -8,6 +8,7 @@ import Select from "primevue/select";
 import UiSectionHeader from "../../../ui/UiSectionHeader.vue";
 import UiField from "../../../ui/UiField.vue";
 import UiSurface from "../../../ui/UiSurface.vue";
+import ImageCropperDialog from "../ImageCropperDialog.vue";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -26,13 +27,55 @@ const emit = defineEmits(["prev", "next"]);
 
 const isCreate = props.mode === "create";
 const isDragging = ref(false);
+const cropperVisible = ref(false);
+const cropperImageSrc = ref(null);
 
 const onClearImage = () => props.clearImage?.();
+
+const processImageForCrop = (file) => {
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+        const ratio = img.width / img.height;
+        if (ratio < 1.3) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const targetWidth = Math.max(img.width, img.height * (16 / 9));
+            const targetHeight = targetWidth * (9 / 16);
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            
+            ctx.filter = 'blur(40px)';
+            ctx.drawImage(img, -targetWidth * 0.2, -targetHeight * 0.2, targetWidth * 1.4, targetHeight * 1.4);
+            ctx.filter = 'none';
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+            
+            const x = (targetWidth - img.width) / 2;
+            const y = (targetHeight - img.height) / 2;
+            ctx.drawImage(img, x, y, img.width, img.height);
+            
+            cropperImageSrc.value = canvas.toDataURL('image/jpeg', 0.9);
+        } else {
+            cropperImageSrc.value = objectUrl;
+        }
+        cropperVisible.value = true;
+    };
+    img.src = objectUrl;
+};
+
+const onCropDone = ({ blob }) => {
+    const file = new File([blob], "cropped_image.jpg", { type: "image/jpeg" });
+    props.handleImageUpload?.({ files: [file] });
+};
 
 const onFileChange = (e) => {
     const file = e.target?.files?.[0];
     if (!file) return;
-    props.handleImageUpload?.({ files: [file] });
+    processImageForCrop(file);
+    // Reset file input so same file can be selected again
+    e.target.value = '';
 };
 
 const onDragEnter = () => {
@@ -47,7 +90,7 @@ const onDrop = (e) => {
     isDragging.value = false;
     const file = e.dataTransfer?.files?.[0];
     if (!file) return;
-    props.handleImageUpload?.({ files: [file] });
+    processImageForCrop(file);
 };
 
 const kondisiFields = [
@@ -129,13 +172,29 @@ const rentPeriodLabel = computed(() => {
                 @dragleave="onDragLeave"
                 @drop.prevent="onDrop"
             >
-                <div v-if="imagePreview" class="relative group">
-                    <img :src="imagePreview" alt="Preview foto properti" class="h-64 w-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div v-if="imagePreview" class="relative group w-full aspect-video">
+                    <img :src="imagePreview" alt="Preview foto properti" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                        <label
+                            for="pembanding-image"
+                            class="bg-white/90 text-slate-700 p-3 rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all cursor-pointer"
+                            title="Ganti Foto"
+                        >
+                            <i class="pi pi-sync" />
+                        </label>
+                        <button
+                            v-if="cropperImageSrc"
+                            type="button"
+                            class="bg-white/90 text-blue-600 p-3 rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all"
+                            title="Edit Crop"
+                            @click="cropperVisible = true"
+                        >
+                            <i class="pi pi-pencil" />
+                        </button>
                         <button
                             type="button"
-                            class="bg-white/90 text-red-600 p-2 rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all"
-                            aria-label="Hapus foto"
+                            class="bg-white/90 text-red-600 p-3 rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all"
+                            title="Hapus foto"
                             @click="onClearImage"
                         >
                             <i class="pi pi-trash" />
@@ -263,7 +322,7 @@ const rentPeriodLabel = computed(() => {
         <!-- Pricing Section -->
         <div class="border-t border-slate-100 pt-8">
             <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Nilai Properti</h3>
-            <div class="p-6 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200">
+            <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200">
                 <div class="grid gap-6 md:grid-cols-3">
                     <UiField id="harga" :label="isSewa ? 'Harga Sewa' : 'Harga Penawaran/Transaksi'" :required="true" :error="form.errors.harga" :help="isSewa ? 'Nominal harga sewa untuk periode di samping: per bulan, per beberapa bulan, atau per tahun.' : 'Nilai total properti.'">
                         <InputNumber
@@ -271,7 +330,7 @@ const rentPeriodLabel = computed(() => {
                             inputId="harga"
                             v-bind="currencyConfig"
                             placeholder="Rp 0"
-                            class="w-full rounded-xl bg-slate-800 border-slate-700 text-white font-bold"
+                            class="w-full rounded-xl bg-white border-slate-200 text-slate-900 font-bold"
                         />
                     </UiField>
                     
@@ -282,7 +341,7 @@ const rentPeriodLabel = computed(() => {
                                 inputId="jangka_waktu_sewa"
                                 v-bind="numConfig"
                                 placeholder="1"
-                                class="w-full rounded-xl bg-slate-800 border-slate-700 text-white"
+                                class="w-full rounded-xl bg-white border-slate-200 text-slate-900"
                             />
                         </UiField>
 
@@ -293,12 +352,12 @@ const rentPeriodLabel = computed(() => {
                                 option-label="label"
                                 option-value="value"
                                 placeholder="Pilih..."
-                                class="w-full rounded-xl bg-slate-800 border-slate-700 text-white"
+                                class="w-full rounded-xl bg-white border-slate-200 text-slate-900"
                                 inputId="satuan_waktu_sewa"
                             />
                         </UiField>
 
-                        <div v-if="rentPeriodLabel" class="md:col-span-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100">
+                        <div v-if="rentPeriodLabel" class="md:col-span-3 rounded-xl border border-amber-400/30 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
                             Harga sewa akan disimpan sebagai {{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(form.harga || 0) }} {{ rentPeriodLabel }}.
                         </div>
                     </template>
@@ -322,5 +381,11 @@ const rentPeriodLabel = computed(() => {
                 @click="emit('next')"
             />
         </div>
+
+        <ImageCropperDialog
+            v-model:visible="cropperVisible"
+            :image-src="cropperImageSrc"
+            @crop="onCropDone"
+        />
     </div>
 </template>

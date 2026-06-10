@@ -16,6 +16,7 @@ const props = defineProps({
 const emit = defineEmits(["submit", "submit-and-create-another"]);
 
 const isCreate = props.mode === "create";
+const basePath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin') ? '/admin/pembanding' : '/home/pembanding';
 </script>
 
 <template>
@@ -23,7 +24,7 @@ const isCreate = props.mode === "create";
         <!-- Breadcrumbs & Status -->
         <div class="flex flex-wrap items-center justify-between gap-4">
             <nav class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
-                <Link href="/admin/pembanding" class="hover:text-slate-900 transition-colors">Bank Data</Link>
+                <Link :href="basePath" class="hover:text-slate-900 transition-colors">Bank Data</Link>
                 <i class="pi pi-chevron-right text-[8px]" />
                 <span v-if="!isCreate" class="text-slate-400">#{{ recordId }}</span>
                 <i v-if="!isCreate" class="pi pi-chevron-right text-[8px]" />
@@ -83,7 +84,7 @@ const isCreate = props.mode === "create";
                             text
                             class="rounded-xl px-4 font-bold text-xs"
                             as="Link"
-                            href="/admin/pembanding"
+                            :href="basePath"
                         />
                         <Button
                             label="Update Data"
