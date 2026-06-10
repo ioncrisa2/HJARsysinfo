@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Pembanding;
+use App\Models\PembandingDeleteRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PembandingResource;
 use App\Http\Resources\SimilarPembandingResource;
@@ -11,7 +12,14 @@ use App\Http\Requests\FindSimilarPembandingRequest;
 use App\Services\PembandingService;
 use App\Services\PembandingFactory;
 use App\Traits\ApiResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use App\Http\Requests\App\PembandingStoreRequest;
+use App\Http\Requests\App\PembandingUpdateRequest;
 
 class DataPembandingController extends Controller
 {
@@ -111,6 +119,192 @@ class DataPembandingController extends Controller
         $radiusMeters = $this->calculateRadiusMeters($rangeKm);
 
         return $this->getSimilarResults($pembanding, $limit, $radiusMeters);
+    }
+
+    /**
+     * GET /api/v1/pembandings/{pembanding}/history
+     */
+    public function history(string $id): JsonResponse
+    {
+        $pembanding = Pembanding::find($id);
+
+        if (!$pembanding) {
+            return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
+        }
+
+        $activities = $pembanding->activities()
+            ->latest()
+            ->with('causer:id,name,email')
+            ->take(100)
+            ->get()
+            ->map(function ($activity) {
+                $propertiesRaw = $activity->properties;
+
+                if ($propertiesRaw instanceof Collection) {
+                    $properties = $propertiesRaw->all();
+                } elseif (is_array($propertiesRaw)) {
+                    $properties = $propertiesRaw;
+                } else {
+                    $properties = [];
+                }
+
+                $attributes = data_get($properties, 'attributes', []);
+                $old = data_get($properties, 'old', []);
+
+                if (! is_array($attributes)) {
+                    $attributes = [];
+                }
+
+                if (! is_array($old)) {
+                    $old = [];
+                }
+
+                $changes = [];
+                foreach ($attributes as $key => $newVal) {
+                    $oldVal = $old[$key] ?? null;
+                    if ($newVal === $oldVal) {
+                        continue;
+                    }
+                    $changes[] = [
+                        'field' => $key,
+                        'old' => $oldVal,
+                        'new' => $newVal,
+                    ];
+                }
+
+                return [
+                    'id' => $activity->id,
+                    'event' => $activity->event ?? $activity->description,
+                    'causer' => $activity->causer?->name ?? 'Sistem',
+                    'causer_email' => $activity->causer?->email,
+                    'created_at' => $activity->created_at?->toDateTimeString(),
+                    'changes' => $changes,
+                ];
+            });
+
+        return $this->success($activities, 'Riwayat perubahan data pembanding');
+    }
+
+    /**
+     * POST /api/v1/pembandings/{pembanding}/delete-request
+     */
+    public function requestDelete(Request $request, string $id): JsonResponse
+    {
+        $pembanding = Pembanding::find($id);
+
+        if (!$pembanding) {
+            return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
+        }
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'reason.required' => 'Alasan penghapusan wajib diisi.',
+        ]);
+
+        $alreadyPending = $pembanding->deleteRequests()
+            ->where('status', PembandingDeleteRequest::STATUS_PENDING)
+            ->exists();
+
+        if ($alreadyPending) {
+            return response()->json([
+                'message' => 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi super_admin.'
+            ], 422);
+        }
+
+        PembandingDeleteRequest::create([
+            'pembanding_id' => $pembanding->id,
+            'requested_by_id' => $request->user()->id,
+            'reason' => trim($data['reason']),
+            'status' => PembandingDeleteRequest::STATUS_PENDING,
+        ]);
+
+        return $this->success(null, 'Permintaan hapus berhasil dikirim dan menunggu evaluasi super_admin.');
+    }
+
+    /**
+     * POST /api/v1/pembandings
+     */
+    public function store(PembandingStoreRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $data['created_by'] = $request->user()->id;
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $this->storeImage($request->file('image'));
+        }
+
+        $pembanding = Pembanding::create($data);
+
+        $pembanding->load([
+            'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name', 
+            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email'
+        ]);
+
+        return $this->success(
+            new PembandingResource($pembanding),
+            'Data pembanding berhasil ditambahkan.'
+        );
+    }
+
+    /**
+     * PUT/PATCH /api/v1/pembandings/{pembanding}
+     * or POST /api/v1/pembandings/{pembanding} with _method=PUT
+     */
+    public function update(PembandingUpdateRequest $request, string $id): JsonResponse
+    {
+        $pembanding = Pembanding::find($id);
+        
+        if (!$pembanding) {
+            return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
+        }
+
+        $data = $request->validated();
+
+        if ($request->hasFile('image')) {
+            $data['image'] = $this->storeImage($request->file('image'));
+        } else {
+            unset($data['image']);
+        }
+
+        $pembanding->update($data);
+
+        $pembanding->load([
+            'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name', 
+            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email'
+        ]);
+
+        return $this->success(
+            new PembandingResource($pembanding),
+            'Data pembanding berhasil diperbarui.'
+        );
+    }
+
+    /**
+     * DELETE /api/v1/pembandings/{pembanding}
+     */
+    public function destroy(string $id): JsonResponse
+    {
+        $pembanding = Pembanding::find($id);
+        
+        if (!$pembanding) {
+            return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
+        }
+
+        if (!auth()->user()->can('delete_data::pembanding')) {
+            return response()->json(['message' => 'Anda tidak memiliki akses untuk menghapus data secara langsung.'], 403);
+        }
+
+        $pembanding->delete();
+
+        return $this->success(null, 'Data pembanding berhasil dihapus.');
+    }
+
+    private function storeImage(UploadedFile $file): string
+    {
+        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
+
+        return $file->storeAs('foto_pembanding', strtolower($filename), 'public');
     }
 
     /**

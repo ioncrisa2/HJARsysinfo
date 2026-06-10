@@ -61,7 +61,7 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
 </script>
 
 <template>
-    <div class="space-y-8 p-6 sm:p-8">
+    <div class="space-y-5 p-4 sm:p-5">
         <UiSectionHeader
             title="Catatan & Review"
             subtitle="Tambahkan informasi pendukung dan periksa kembali kelengkapan data sebelum disimpan."
@@ -79,7 +79,7 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
                     v-model="form.catatan"
                     inputId="catatan"
                     auto-resize
-                    rows="6"
+                    rows="4"
                     :maxlength="charLimit"
                     placeholder="Tulis catatan penting di sini, misalnya detail akses jalan, kondisi lingkungan sekitar, atau alasan harga tinggi/rendah..."
                     class="w-full rounded-xl bg-slate-50/50 border-slate-200 group-hover:bg-white transition-all"
@@ -117,7 +117,7 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
             </div>
         </div>
 
-        <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-5">
             <Button label="Kembali ke Properti" icon="pi pi-arrow-left" severity="secondary" outlined class="rounded-xl px-6" @click="emit('prev')" />
 
             <div class="flex flex-wrap items-center gap-3">

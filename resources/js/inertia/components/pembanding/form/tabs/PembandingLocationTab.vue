@@ -101,7 +101,7 @@ const mapsUrl = computed(() =>
 </script>
 
 <template>
-    <div class="space-y-8 p-6 sm:p-8">
+    <div class="space-y-5 p-4 sm:p-5">
         <UiSectionHeader title="Lokasi & Koordinat" subtitle="Detail alamat, wilayah administratif, dan titik koordinat GPS properti." icon="pi pi-map-marker" />
 
         <UiField id="alamat_data" label="Alamat Lengkap" :required="true" :error="form.errors.alamat_data">
@@ -115,7 +115,7 @@ const mapsUrl = computed(() =>
             />
         </UiField>
 
-        <div class="grid gap-6 md:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
             <UiField id="province_id" label="Provinsi" :required="true" :error="form.errors.province_id">
                 <Select
                     v-model="form.province_id"
@@ -172,8 +172,8 @@ const mapsUrl = computed(() =>
             </UiField>
         </div>
 
-        <UiSurface variant="inset" class="p-6 bg-slate-50 text-slate-900 rounded-2xl overflow-hidden shadow-sm border border-slate-200">
-            <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <UiSurface variant="inset" class="p-4 bg-slate-50 text-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-200">
+            <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
                 <div>
                     <p class="text-lg font-bold text-slate-900">Titik Koordinat GPS</p>
                     <p class="text-xs text-slate-500 mt-1">Masukkan koordinat secara manual atau cari melalui Google Maps.</p>
@@ -190,7 +190,7 @@ const mapsUrl = computed(() =>
                 </a>
             </div>
 
-            <div class="grid gap-6 sm:grid-cols-2 mb-6">
+            <div class="grid gap-4 sm:grid-cols-2 mb-4">
                 <UiField id="latitude" label="Latitude" :required="true" :error="form.errors.latitude">
                     <InputText v-model="form.latitude" id="latitude" placeholder="mis. -6.200000" class="w-full rounded-xl bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 font-mono" />
                 </UiField>
@@ -219,7 +219,7 @@ const mapsUrl = computed(() =>
             </div>
         </UiSurface>
 
-        <div class="flex justify-between border-t border-slate-100 pt-6">
+        <div class="flex justify-between border-t border-slate-100 pt-5">
             <Button label="Kembali" icon="pi pi-arrow-left" severity="secondary" outlined class="rounded-xl px-6" @click="emit('prev')" />
             <Button
                 label="Lanjut ke Properti"

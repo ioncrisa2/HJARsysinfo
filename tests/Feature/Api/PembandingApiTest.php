@@ -411,3 +411,125 @@ it('returns 422 when similar payload is invalid', function () {
             'range_km',
         ]);
 });
+
+it('can store new pembanding', function () {
+    $response = $this->postJson('/api/v1/pembandings', [
+        'nama_pemberi_informasi' => 'Test User',
+        'nomer_telepon_pemberi_informasi' => '08123456789',
+        'alamat_data' => 'Jl. Test Create',
+        'latitude' => -2.5,
+        'longitude' => 118.0,
+        'luas_tanah' => 100,
+        'lebar_depan' => 10,
+        'lebar_jalan' => 5,
+        'harga' => 100000000,
+        'tanggal_data' => now()->toDateString(),
+        'province_id' => $this->province->id,
+        'regency_id' => $this->regency->id,
+        'district_id' => $this->district->id,
+        'village_id' => $this->village->id,
+        'jenis_listing_id' => $this->refs['jenis_listing_id'],
+        'jenis_objek_id' => $this->refs['jenis_objek_id'],
+        'status_pemberi_informasi_id' => $this->refs['status_pemberi_informasi_id'],
+        'bentuk_tanah_id' => $this->refs['bentuk_tanah_id'],
+        'dokumen_tanah_id' => $this->refs['dokumen_tanah_id'],
+        'posisi_tanah_id' => $this->refs['posisi_tanah_id'],
+        'kondisi_tanah_id' => $this->refs['kondisi_tanah_id'],
+        'topografi_id' => $this->refs['topografi_id'],
+        'peruntukan_id' => $this->refs['peruntukan_rumah_id'],
+        'image' => \Illuminate\Http\UploadedFile::fake()->image('foto.jpg'),
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.alamat_data', 'Jl. Test Create');
+});
+
+it('can update existing pembanding', function () {
+    $record = ($this->makePembanding)();
+
+    $response = $this->putJson("/api/v1/pembandings/{$record->id}", array_merge($record->toArray(), [
+        'alamat_data' => 'Jl. Updated',
+        'harga' => 200000000,
+    ]));
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.alamat_data', 'Jl. Updated')
+        ->assertJsonPath('data.harga', 200000000);
+});
+
+it('cannot destroy pembanding without permission', function () {
+    $record = ($this->makePembanding)();
+
+    $this->deleteJson("/api/v1/pembandings/{$record->id}")
+        ->assertStatus(403);
+});
+
+it('can destroy pembanding with permission', function () {
+    $record = ($this->makePembanding)();
+    
+    // Assign permission to user (bypassing guard check)
+    $permission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'delete_data::pembanding', 'guard_name' => 'web']);
+    \Illuminate\Support\Facades\DB::table('model_has_permissions')->insert([
+        'permission_id' => $permission->id,
+        'model_type' => get_class($this->user),
+        'model_id' => $this->user->id,
+    ]);
+    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+    $this->deleteJson("/api/v1/pembandings/{$record->id}")
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
+
+    $this->assertSoftDeleted('data_pembanding', ['id' => $record->id]);
+});
+
+it('can fetch history of pembanding', function () {
+    $record = ($this->makePembanding)();
+
+    $record->update(['alamat_data' => 'Jl. History Updated']);
+
+    $response = $this->getJson("/api/v1/pembandings/{$record->id}/history");
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
+        
+    expect($response->json('data'))->toBeArray();
+});
+
+it('can submit delete request for pembanding', function () {
+    $record = ($this->makePembanding)();
+
+    $response = $this->postJson("/api/v1/pembandings/{$record->id}/delete-request", [
+        'reason' => 'Data salah input',
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
+
+    $this->assertDatabaseHas('pembanding_delete_requests', [
+        'pembanding_id' => $record->id,
+        'requested_by_id' => $this->user->id,
+        'reason' => 'Data salah input',
+        'status' => 'pending',
+    ]);
+});
+
+it('cannot submit duplicate pending delete request', function () {
+    $record = ($this->makePembanding)();
+
+    $this->postJson("/api/v1/pembandings/{$record->id}/delete-request", [
+        'reason' => 'Alasan pertama',
+    ])->assertOk();
+
+    $response = $this->postJson("/api/v1/pembandings/{$record->id}/delete-request", [
+        'reason' => 'Alasan kedua',
+    ]);
+
+    $response->assertStatus(422);
+});

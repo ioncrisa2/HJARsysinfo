@@ -11,6 +11,7 @@ use App\Services\Auth\RefreshTokenService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -66,5 +67,41 @@ class AuthController extends Controller
         $this->authService->logout($request->user());
 
         return $this->success(null, 'Successfully logged out');
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+        ]);
+
+        $user->update($data);
+
+        return $this->success(
+            new UserResource($user),
+            'Profile updated successfully'
+        );
+    }
+
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->update([
+            'password' => Hash::make($data['password']),
+        ]);
+
+        return $this->success(
+            null,
+            'Password updated successfully'
+        );
     }
 }

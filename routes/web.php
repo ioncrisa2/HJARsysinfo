@@ -124,6 +124,7 @@ Route::middleware('auth')->group(function () {
             Route::post('moderation/restore/{id}', [\App\Http\Controllers\Admin\ModerationController::class, 'restore'])->name('moderation.restore');
             Route::delete('moderation/force-delete/{id}', [\App\Http\Controllers\Admin\ModerationController::class, 'forceDelete'])->name('moderation.force-delete');
 
+            Route::get('pembanding/{pembanding}/history', [\App\Http\Controllers\Admin\DataPembandingController::class, 'history'])->name('pembanding.history');
             Route::resource('pembanding', \App\Http\Controllers\Admin\DataPembandingController::class);
 
             // Geo Data Routes

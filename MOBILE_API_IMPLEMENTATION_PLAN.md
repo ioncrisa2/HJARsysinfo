@@ -25,10 +25,12 @@ Catatan keras: API saat ini belum siap untuk CRUD penuh mobile. Yang ada baru cu
 - [ ] Mobile bisa create data pembanding untuk semua `jenis_listing`.
 - [ ] Mobile bisa create data pembanding `sewa` dengan periode harga sewa eksplisit.
 - [ ] Mobile bisa update data pembanding.
+- [ ] Mobile bisa mengedit profil (nama, email) dan password.
+- [ ] Mobile bisa melihat history perubahan data pembanding.
 - [ ] Mobile bisa mengajukan hapus data pembanding.
 - [ ] Mobile bisa delete langsung jika permission mengizinkan.
-- [ ] Mobile bisa menambah master data jika nilai belum tersedia.
-- [ ] Mobile bisa menambah lokasi jika wilayah belum tersedia.
+- [x] (Dibatalkan) Mobile bisa menambah master data jika nilai belum tersedia.
+- [x] (Dibatalkan) Mobile bisa menambah lokasi jika wilayah belum tersedia.
 - [ ] Semua endpoint write punya permission check yang konsisten dengan web.
 - [ ] Semua endpoint API mengembalikan JSON, termasuk 401, 403, dan 422.
 - [ ] Dokumentasi API cukup jelas untuk developer mobile tanpa membaca source Laravel.
@@ -49,19 +51,19 @@ Catatan keras: API saat ini belum siap untuk CRUD penuh mobile. Yang ada baru cu
 
 ### Belum Ada
 
+- [ ] `PUT /api/auth/profile`
+- [ ] `PUT /api/auth/profile/password`
 - [ ] `POST /api/v1/pembandings`
 - [ ] `PUT/PATCH /api/v1/pembandings/{id}`
 - [ ] `POST /api/v1/pembandings/{id}` dengan `_method=PUT` untuk multipart mobile.
+- [ ] `GET /api/v1/pembandings/{id}/history`
 - [ ] `POST /api/v1/pembandings/{id}/delete-request`
 - [ ] `DELETE /api/v1/pembandings/{id}`
-- [ ] CRUD master data di jalur `/api/v1`.
-- [ ] CRUD lokasi di jalur `/api/v1`.
-- [ ] Response `/api/auth/me` memuat `roles`.
+- [x] (Dibatalkan) CRUD master data di jalur `/api/v1`.
+- [x] (Dibatalkan) CRUD lokasi di jalur `/api/v1`.
 - [ ] Response `/api/auth/me` memuat `permissions`.
 - [ ] Dokumentasi request body create/update pembanding.
-- [ ] Test API untuk create/update/delete pembanding.
-- [ ] Test API untuk master data.
-- [ ] Test API untuk lokasi.
+- [ ] Test API untuk create/update/delete/history pembanding dan profile.
 
 ## Prinsip Implementasi
 
@@ -114,7 +116,6 @@ Tujuan: mobile tahu user login punya role dan permission apa.
 
 ### Checklist
 
-- [ ] Tambahkan `roles` ke `UserResource`.
 - [ ] Tambahkan `permissions` ke `UserResource`.
 - [ ] Pastikan response login memakai struktur user yang sama dengan `/me`.
 - [ ] Pastikan permission `view_any_data::pembanding` muncul jika user punya akses lihat.
@@ -225,9 +226,10 @@ Tujuan: mobile bisa create/update data pembanding untuk semua `jenis_listing`.
 - [ ] Test API user tanpa permission mendapat 403 JSON.
 - [ ] Test API validasi gagal mendapat 422 JSON.
 
-## Phase 4 - CRUD Master Data API
+## Phase 4 - CRUD Master Data API (DIBATALKAN)
 
-Tujuan: mobile bisa menambah master data ketika nilai tidak tersedia, tanpa memakai endpoint web.
+Tujuan: mobile bisa menambah master data ketika nilai tidak tersedia, tanpa memakai endpoint web. 
+**Status**: Dibatalkan atas permintaan user, master data tidak perlu dikelola via mobile.
 
 ### Endpoint
 
@@ -267,9 +269,10 @@ Tujuan: mobile bisa menambah master data ketika nilai tidak tersedia, tanpa mema
 - [ ] Duplicate name/slug ditolak.
 - [ ] User tanpa permission mendapat 403 JSON.
 
-## Phase 5 - CRUD Lokasi API
+## Phase 5 - CRUD Lokasi API (DIBATALKAN)
 
 Tujuan: mobile bisa menambah lokasi saat data wilayah belum tersedia.
+**Status**: Dibatalkan atas permintaan user, master data/lokasi tidak perlu dikelola via mobile.
 
 ### Endpoint
 

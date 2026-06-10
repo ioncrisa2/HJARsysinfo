@@ -15,14 +15,14 @@ const emit = defineEmits(["next"]);
 </script>
 
 <template>
-    <div class="space-y-8 p-6 sm:p-8">
+    <div class="space-y-5 p-4 sm:p-5">
         <UiSectionHeader
             title="Informasi Umum"
             subtitle="Tentukan klasifikasi data, identitas pemberi informasi, dan waktu pengambilan data."
             icon="pi pi-info-circle"
         />
 
-        <div class="grid gap-6 md:grid-cols-2">
+        <div class="grid gap-4 md:grid-cols-2">
             <UiField id="jenis_listing_id" label="Jenis Listing" :required="true" :error="form.errors.jenis_listing_id">
                 <Select
                     v-model="form.jenis_listing_id"
@@ -48,9 +48,9 @@ const emit = defineEmits(["next"]);
             </UiField>
         </div>
 
-        <div class="border-t border-slate-100 pt-8">
-            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Pemberi Informasi & Waktu</h3>
-            <div class="grid gap-6 md:grid-cols-2">
+        <div class="border-t border-slate-100 pt-5">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Pemberi Informasi & Waktu</h3>
+            <div class="grid gap-4 md:grid-cols-2">
                 <UiField
                     id="nama_pemberi_informasi"
                     label="Nama Pemberi Informasi"
@@ -120,7 +120,7 @@ const emit = defineEmits(["next"]);
             </div>
         </div>
 
-        <div class="flex justify-end border-t border-slate-100 pt-6">
+        <div class="flex justify-end border-t border-slate-100 pt-5">
             <Button
                 label="Lanjut ke Lokasi"
                 icon="pi pi-arrow-right"

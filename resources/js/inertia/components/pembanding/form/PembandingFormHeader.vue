@@ -78,14 +78,14 @@ const basePath = typeof window !== 'undefined' && window.location.pathname.start
                         />
                     </template>
                     <template v-else>
-                        <Button
-                            label="Batalkan"
-                            severity="secondary"
-                            text
-                            class="rounded-xl px-4 font-bold text-xs"
-                            as="Link"
-                            :href="basePath"
-                        />
+                        <Link :href="basePath">
+                            <Button
+                                label="Batalkan"
+                                severity="secondary"
+                                text
+                                class="rounded-xl px-4 font-bold text-xs"
+                            />
+                        </Link>
                         <Button
                             label="Update Data"
                             icon="pi pi-save"

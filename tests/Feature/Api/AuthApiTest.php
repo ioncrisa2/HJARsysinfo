@@ -172,3 +172,74 @@ it('revokes access and refresh tokens on logout', function () {
     expect(RefreshToken::query()->where('user_id', $user->id)->where('revoked', false)->exists())
         ->toBeFalse();
 });
+
+it('can update profile information', function () {
+    $user = User::factory()->create();
+
+    $accessToken = $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'password',
+        'device_name' => 'pest-test',
+    ])->assertOk()->json('data.access_token');
+
+    $this->withToken($accessToken)
+        ->putJson('/api/auth/profile', [
+            'name' => 'New Name',
+            'email' => 'newemail@example.com',
+        ])
+        ->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.name', 'New Name')
+        ->assertJsonPath('data.email', 'newemail@example.com');
+
+    $this->assertDatabaseHas('users', [
+        'id' => $user->id,
+        'name' => 'New Name',
+        'email' => 'newemail@example.com',
+    ]);
+});
+
+it('can update password', function () {
+    $user = User::factory()->create([
+        'password' => Hash::make('oldpassword'),
+    ]);
+
+    $accessToken = $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'oldpassword',
+        'device_name' => 'pest-test',
+    ])->assertOk()->json('data.access_token');
+
+    $this->withToken($accessToken)
+        ->putJson('/api/auth/profile/password', [
+            'current_password' => 'oldpassword',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'newpassword123',
+        ])
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
+
+    $user->refresh();
+    expect(Hash::check('newpassword123', $user->password))->toBeTrue();
+});
+
+it('validates password update', function () {
+    $user = User::factory()->create([
+        'password' => Hash::make('oldpassword'),
+    ]);
+
+    $accessToken = $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => 'oldpassword',
+        'device_name' => 'pest-test',
+    ])->assertOk()->json('data.access_token');
+
+    $this->withToken($accessToken)
+        ->putJson('/api/auth/profile/password', [
+            'current_password' => 'wrongpassword',
+            'password' => 'newpassword123',
+            'password_confirmation' => 'mismatch123',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['current_password', 'password']);
+});

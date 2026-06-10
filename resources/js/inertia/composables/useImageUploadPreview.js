@@ -3,7 +3,6 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 export const useImageUploadPreview = (target, config = {}) => {
     const imageKey = config.imageKey ?? "image";
     const imagePreview = ref(config.initialPreview ?? null);
-    const enablePaste = config.enablePaste ?? true;
 
     const applyImageFile = (file) => {
         if (!file) return;
@@ -32,35 +31,9 @@ export const useImageUploadPreview = (target, config = {}) => {
         imagePreview.value = null;
     };
 
-    const handlePaste = (event) => {
-        const items = event.clipboardData?.items;
-        if (!items) return;
-
-        for (const item of items) {
-            if (!item.type.startsWith("image/")) continue;
-
-            const file = item.getAsFile();
-            if (!file) continue;
-
-            applyImageFile(file);
-            break;
-        }
-    };
-
-    if (enablePaste) {
-        onMounted(() => {
-            window.addEventListener("paste", handlePaste);
-        });
-
-        onBeforeUnmount(() => {
-            window.removeEventListener("paste", handlePaste);
-        });
-    }
-
     return {
         imagePreview,
         handleImageUpload,
         clearImage,
-        handlePaste,
     };
 };

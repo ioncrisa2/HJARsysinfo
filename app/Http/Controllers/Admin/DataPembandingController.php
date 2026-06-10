@@ -22,6 +22,7 @@ use App\Models\Topografi;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -208,6 +209,76 @@ class DataPembandingController extends Controller
         $pembanding->delete();
 
         return redirect()->back()->with('success', 'Property successfully deleted.');
+    }
+
+    public function history(Pembanding $pembanding, Request $request)
+    {
+        $activities = $pembanding->activities()
+            ->latest()
+            ->with('causer:id,name,email')
+            ->take(100)
+            ->get()
+            ->map(function ($activity) {
+                $propertiesRaw = $activity->properties;
+
+                if ($propertiesRaw instanceof Collection) {
+                    $properties = $propertiesRaw->all();
+                } elseif (is_array($propertiesRaw)) {
+                    $properties = $propertiesRaw;
+                } else {
+                    $properties = [];
+                }
+
+                $attributes = data_get($properties, 'attributes', []);
+                $old = data_get($properties, 'old', []);
+
+                if (! is_array($attributes)) {
+                    $attributes = [];
+                }
+
+                if (! is_array($old)) {
+                    $old = [];
+                }
+
+                $changes = [];
+                foreach ($attributes as $key => $newVal) {
+                    $oldVal = $old[$key] ?? null;
+                    if ($newVal === $oldVal) {
+                        continue;
+                    }
+                    $changes[] = [
+                        'field' => $key,
+                        'old' => $oldVal,
+                        'new' => $newVal,
+                    ];
+                }
+
+                return [
+                    'id' => $activity->id,
+                    'event' => $activity->event ?? $activity->description,
+                    'causer' => $activity->causer?->name ?? 'Sistem',
+                    'causer_email' => $activity->causer?->email,
+                    'created_at' => $activity->created_at?->toDateTimeString(),
+                    'changes' => $changes,
+                ];
+            });
+
+        if ($request->boolean('json')) {
+            return response()->json(['data' => $activities]);
+        }
+
+        return Inertia::render('Admin/Pembanding/History', [
+            'record' => [
+                'id' => $pembanding->id,
+                'alamat' => $pembanding->alamat_data,
+                'location' => collect([
+                    $pembanding->village?->name,
+                    $pembanding->district?->name,
+                    $pembanding->regency?->name,
+                ])->filter()->implode(', '),
+            ],
+            'activities' => $activities,
+        ]);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
