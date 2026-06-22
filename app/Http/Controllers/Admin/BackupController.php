@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Services\Backup\SystemBackupService;
+use App\Support\AdminAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
@@ -13,8 +15,12 @@ use Throwable;
 
 class BackupController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     public function index(): Response
     {
+        $this->authorizeAdmin('view_backup');
+
         $connectionName = (string) config('database.default');
         $connection = config("database.connections.{$connectionName}", []);
 
@@ -34,17 +40,24 @@ class BackupController extends Controller
                 'requirements' => [
                     'zip' => class_exists(\ZipArchive::class),
                     'mysqldump' => (string) env('MYSQLDUMP_BINARY', 'mysqldump'),
+                    'database_fallback' => 'PHP PDO',
                 ],
             ],
             'history' => [
                 'database' => $this->backupFiles(storage_path('app/backups/database')),
                 'uploads' => $this->backupFiles(storage_path('app/backups/uploads')),
             ],
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'database' => 'create_database_backup',
+                'uploads' => 'create_uploads_backup',
+            ]),
         ]);
     }
 
     public function database(SystemBackupService $backupService): BinaryFileResponse|JsonResponse
     {
+        $this->authorizeAdmin('create_database_backup');
+
         try {
             $path = $backupService->createDatabaseBackup();
 
@@ -58,6 +71,8 @@ class BackupController extends Controller
 
     public function uploads(SystemBackupService $backupService): BinaryFileResponse|JsonResponse
     {
+        $this->authorizeAdmin('create_uploads_backup');
+
         try {
             $path = $backupService->createUploadedFilesBackup();
 
@@ -99,12 +114,12 @@ class BackupController extends Controller
 
         foreach ($units as $unit) {
             if ($value < 1024) {
-                return number_format($value, 1) . " {$unit}";
+                return number_format($value, 1)." {$unit}";
             }
 
             $value /= 1024;
         }
 
-        return number_format($value, 1) . ' TB';
+        return number_format($value, 1).' TB';
     }
 }

@@ -2,12 +2,15 @@
 
 namespace App\Services\Backup;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use PDO;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use RuntimeException;
 use Symfony\Component\Process\Process;
+use Throwable;
 use ZipArchive;
-use RecursiveIteratorIterator;
-use RecursiveDirectoryIterator;
 
 class SystemBackupService
 {
@@ -16,8 +19,8 @@ class SystemBackupService
         $defaultConnection = (string) config('database.default');
         $connection = config("database.connections.{$defaultConnection}");
 
-        if (($connection['driver'] ?? null) !== 'mysql') {
-            throw new RuntimeException('Backup database hanya didukung untuk koneksi MySQL.');
+        if (! in_array($connection['driver'] ?? null, ['mysql', 'mariadb'], true)) {
+            throw new RuntimeException('Backup database hanya didukung untuk koneksi MySQL/MariaDB.');
         }
 
         $database = (string) ($connection['database'] ?? '');
@@ -28,36 +31,14 @@ class SystemBackupService
         $backupDir = storage_path('app/backups/database');
         File::ensureDirectoryExists($backupDir);
 
-        $fileName = 'database-backup-' . now()->format('Ymd_His') . '.sql';
-        $outputPath = $backupDir . DIRECTORY_SEPARATOR . $fileName;
+        $fileName = 'database-backup-'.now()->format('Ymd_His').'.sql';
+        $outputPath = $backupDir.DIRECTORY_SEPARATOR.$fileName;
 
-        $mysqldumpBinary = (string) env('MYSQLDUMP_BINARY', 'mysqldump');
-
-        $command = [
-            $mysqldumpBinary,
-            '--host=' . (string) ($connection['host'] ?? '127.0.0.1'),
-            '--port=' . (string) ($connection['port'] ?? '3306'),
-            '--user=' . (string) ($connection['username'] ?? ''),
-            '--single-transaction',
-            '--quick',
-            '--skip-lock-tables',
-            $database,
-            '--result-file=' . $outputPath,
-        ];
-
-        $password = (string) ($connection['password'] ?? '');
-        if ($password !== '') {
-            $command[] = '--password=' . $password;
+        if ($this->createMysqldumpBackup($connection, $database, $outputPath)) {
+            return $outputPath;
         }
 
-        $process = new Process($command, base_path(), null, null, 3600);
-        $process->run();
-
-        if (! $process->isSuccessful() || ! File::exists($outputPath)) {
-            throw new RuntimeException(
-                'Gagal membuat backup database. Pastikan mysqldump tersedia di server.'
-            );
-        }
+        $this->createPdoMysqlBackup($defaultConnection, $database, $outputPath);
 
         return $outputPath;
     }
@@ -76,15 +57,17 @@ class SystemBackupService
         $backupDir = storage_path('app/backups/uploads');
         File::ensureDirectoryExists($backupDir);
 
-        $fileName = 'uploads-backup-' . now()->format('Ymd_His') . '.zip';
-        $outputPath = $backupDir . DIRECTORY_SEPARATOR . $fileName;
+        $fileName = 'uploads-backup-'.now()->format('Ymd_His').'.zip';
+        $outputPath = $backupDir.DIRECTORY_SEPARATOR.$fileName;
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $result = $zip->open($outputPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
         if ($result !== true) {
             throw new RuntimeException('Tidak dapat membuat file zip backup upload.');
         }
+
+        $sourceRoot = $this->normalizePath((string) realpath($sourcePath)).DIRECTORY_SEPARATOR;
 
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($sourcePath, RecursiveDirectoryIterator::SKIP_DOTS),
@@ -101,7 +84,11 @@ class SystemBackupService
                 continue;
             }
 
-            $relativePath = ltrim(str_replace($sourcePath, '', $filePath), DIRECTORY_SEPARATOR);
+            $relativePath = $this->relativeZipPath($sourceRoot, $filePath);
+            if ($relativePath === '') {
+                continue;
+            }
+
             $zip->addFile($filePath, $relativePath);
         }
 
@@ -112,5 +99,180 @@ class SystemBackupService
         }
 
         return $outputPath;
+    }
+
+    private function createMysqldumpBackup(array $connection, string $database, string $outputPath): bool
+    {
+        $binary = (string) env('MYSQLDUMP_BINARY', 'mysqldump');
+        $password = (string) ($connection['password'] ?? '');
+
+        $command = [
+            $binary,
+            '--host='.(string) ($connection['host'] ?? '127.0.0.1'),
+            '--port='.(string) ($connection['port'] ?? '3306'),
+            '--user='.(string) ($connection['username'] ?? ''),
+            '--default-character-set='.(string) ($connection['charset'] ?? 'utf8mb4'),
+            '--single-transaction',
+            '--quick',
+            '--skip-lock-tables',
+            '--result-file='.$outputPath,
+        ];
+
+        if ($password !== '') {
+            $command[] = '--password='.$password;
+        }
+
+        $command[] = $database;
+
+        $process = new Process($command, base_path(), null, null, 3600);
+
+        try {
+            $process->run();
+        } catch (Throwable) {
+            return false;
+        }
+
+        return $process->isSuccessful() && File::exists($outputPath) && File::size($outputPath) > 0;
+    }
+
+    private function createPdoMysqlBackup(string $connectionName, string $database, string $outputPath): void
+    {
+        $connection = DB::connection($connectionName);
+        $pdo = $connection->getPdo();
+        $handle = fopen($outputPath, 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Tidak dapat membuat file backup database.');
+        }
+
+        try {
+            $this->writeSql($handle, '-- Database backup generated by Bank Data');
+            $this->writeSql($handle, '-- Generated at: '.now()->toDateTimeString());
+            $this->writeSql($handle, '-- Database: '.$database);
+            $this->writeSql($handle, '');
+            $this->writeSql($handle, 'SET NAMES utf8mb4;');
+            $this->writeSql($handle, 'SET FOREIGN_KEY_CHECKS=0;');
+            $this->writeSql($handle, '');
+
+            foreach ($this->mysqlTables($pdo) as $table) {
+                $this->dumpMysqlTable($pdo, $handle, $table);
+            }
+
+            $this->writeSql($handle, 'SET FOREIGN_KEY_CHECKS=1;');
+        } finally {
+            fclose($handle);
+        }
+
+        if (! File::exists($outputPath) || File::size($outputPath) === 0) {
+            throw new RuntimeException('File backup database gagal dibuat.');
+        }
+    }
+
+    private function mysqlTables(PDO $pdo): array
+    {
+        $tables = [];
+        $statement = $pdo->query('SHOW FULL TABLES');
+
+        while ($row = $statement->fetch(PDO::FETCH_NUM)) {
+            if (($row[1] ?? null) !== 'BASE TABLE') {
+                continue;
+            }
+
+            $tables[] = (string) $row[0];
+        }
+
+        return $tables;
+    }
+
+    /**
+     * @param  resource  $handle
+     */
+    private function dumpMysqlTable(PDO $pdo, $handle, string $table): void
+    {
+        $quotedTable = $this->quoteIdentifier($table);
+        $createStatement = $pdo->query("SHOW CREATE TABLE {$quotedTable}");
+        $createRow = $createStatement->fetch(PDO::FETCH_ASSOC);
+        $createSql = (string) ($createRow['Create Table'] ?? array_values($createRow)[1] ?? '');
+
+        if ($createSql === '') {
+            return;
+        }
+
+        $this->writeSql($handle, '');
+        $this->writeSql($handle, "-- Table structure for {$quotedTable}");
+        $this->writeSql($handle, "DROP TABLE IF EXISTS {$quotedTable};");
+        $this->writeSql($handle, $createSql.';');
+        $this->writeSql($handle, '');
+
+        $statement = $pdo->query("SELECT * FROM {$quotedTable}");
+        $columns = null;
+        $rows = [];
+
+        while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+            $columns ??= array_keys($row);
+            $rows[] = '('.implode(', ', array_map(fn ($value): string => $this->sqlValue($pdo, $value), array_values($row))).')';
+
+            if (count($rows) >= 100) {
+                $this->writeInsertRows($handle, $table, $columns, $rows);
+                $rows = [];
+            }
+        }
+
+        if ($columns !== null && $rows !== []) {
+            $this->writeInsertRows($handle, $table, $columns, $rows);
+        }
+    }
+
+    /**
+     * @param  resource  $handle
+     */
+    private function writeInsertRows($handle, string $table, array $columns, array $rows): void
+    {
+        $columnList = implode(', ', array_map(fn (string $column): string => $this->quoteIdentifier($column), $columns));
+        $this->writeSql($handle, 'INSERT INTO '.$this->quoteIdentifier($table)." ({$columnList}) VALUES");
+        $this->writeSql($handle, implode(",\n", $rows).';');
+    }
+
+    private function sqlValue(PDO $pdo, mixed $value): string
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        $quoted = $pdo->quote((string) $value);
+
+        return $quoted === false ? "''" : $quoted;
+    }
+
+    private function quoteIdentifier(string $identifier): string
+    {
+        return '`'.str_replace('`', '``', $identifier).'`';
+    }
+
+    /**
+     * @param  resource  $handle
+     */
+    private function writeSql($handle, string $line): void
+    {
+        fwrite($handle, $line.PHP_EOL);
+    }
+
+    private function relativeZipPath(string $sourceRoot, string $filePath): string
+    {
+        $normalizedFilePath = $this->normalizePath($filePath);
+        $relativePath = str_starts_with($normalizedFilePath, $sourceRoot)
+            ? substr($normalizedFilePath, strlen($sourceRoot))
+            : basename($normalizedFilePath);
+
+        return str_replace(DIRECTORY_SEPARATOR, '/', $relativePath);
+    }
+
+    private function normalizePath(string $path): string
+    {
+        return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
     }
 }

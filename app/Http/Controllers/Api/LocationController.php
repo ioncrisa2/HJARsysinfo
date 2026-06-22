@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\District;
 use App\Models\Province;
 use App\Models\Regency;
-use App\Models\District;
 use App\Models\Village;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -15,66 +15,103 @@ class LocationController extends Controller
 {
     use ApiResponse;
 
-    public function provinces(): JsonResponse
+    private const DEFAULT_LIMIT = 50;
+
+    private const MAX_LIMIT = 200;
+
+    public function provinces(Request $request): JsonResponse
     {
-        $items = Province::query()->orderBy('name')->get(['id', 'name']);
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
+        ]);
+
+        $items = Province::query()
+            ->when($data['q'] ?? null, fn ($query, string $q) => $query->where('name', 'like', "%{$q}%"))
+            ->orderBy('name')
+            ->limit($this->limit($request))
+            ->get(['id', 'name']);
+
         return $this->success($items, 'Data Provinsi');
     }
 
     public function regencies(Request $request): JsonResponse
     {
-        $provinceId = $request->query('province_id');
-        $q = $request->query('q');
+        $data = $request->validate([
+            'province_id' => ['nullable', 'string', 'max:20'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
+        ]);
 
         $query = Regency::query();
 
-        if ($provinceId) {
-            $query->where('province_id', $provinceId);
+        if ($data['province_id'] ?? null) {
+            $query->where('province_id', $data['province_id']);
         }
-        if ($q) {
-            $query->where('name', 'like', "%{$q}%");
+        if ($data['q'] ?? null) {
+            $query->where('name', 'like', "%{$data['q']}%");
         }
 
-        $items = $query->orderBy('name')->get(['id', 'name', 'province_id']);
+        $items = $query->orderBy('name')
+            ->limit($this->limit($request))
+            ->get(['id', 'name', 'province_id']);
 
         return $this->success($items, 'Data Kabupaten/Kota');
     }
 
     public function districts(Request $request): JsonResponse
     {
-        $regencyId = $request->query('regency_id');
-        $q = $request->query('q');
+        $data = $request->validate([
+            'regency_id' => ['nullable', 'string', 'max:20'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
+        ]);
 
         $query = District::query();
 
-        if ($regencyId) {
-            $query->where('regency_id', $regencyId);
+        if ($data['regency_id'] ?? null) {
+            $query->where('regency_id', $data['regency_id']);
         }
-        if ($q) {
-            $query->where('name', 'like', "%{$q}%");
+        if ($data['q'] ?? null) {
+            $query->where('name', 'like', "%{$data['q']}%");
         }
 
-        $items = $query->orderBy('name')->get(['id', 'name', 'regency_id']);
+        $items = $query->orderBy('name')
+            ->limit($this->limit($request))
+            ->get(['id', 'name', 'regency_id']);
 
         return $this->success($items, 'Data Kecamatan');
     }
 
     public function villages(Request $request): JsonResponse
     {
-        $districtId = $request->query('district_id');
-        $q = $request->query('q');
+        $data = $request->validate([
+            'district_id' => ['nullable', 'string', 'max:20'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
+        ]);
 
         $query = Village::query();
 
-        if ($districtId) {
-            $query->where('district_id', $districtId);
+        if ($data['district_id'] ?? null) {
+            $query->where('district_id', $data['district_id']);
         }
-        if ($q) {
-            $query->where('name', 'like', "%{$q}%");
+        if ($data['q'] ?? null) {
+            $query->where('name', 'like', "%{$data['q']}%");
         }
 
-        $items = $query->orderBy('name')->get(['id', 'name', 'district_id']);
+        $items = $query->orderBy('name')
+            ->limit($this->limit($request))
+            ->get(['id', 'name', 'district_id']);
 
         return $this->success($items, 'Data Desa/Kelurahan');
+    }
+
+    private function limit(Request $request): int
+    {
+        return min(
+            (int) $request->integer('limit', self::DEFAULT_LIMIT),
+            self::MAX_LIMIT
+        );
     }
 }

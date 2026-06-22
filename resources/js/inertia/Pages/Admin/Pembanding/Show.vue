@@ -6,6 +6,7 @@ import Button from "primevue/button";
 
 const props = defineProps({
     record: { type: Object, required: true },
+    can: { type: Object, default: () => ({}) },
 });
 
 const formatCurrency = (val) => {
@@ -51,11 +52,10 @@ const isSewa = props.record.is_sewa || props.record.jenis_listing?.name?.toLower
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <Link :href="`/admin/pembanding/${record.id}/history`">
+                    <Link v-if="props.can.viewHistory" :href="`/admin/pembanding/${record.id}/history`">
                         <Button label="Riwayat" icon="pi pi-history" severity="secondary" outlined size="small" class="rounded-xl px-4 text-slate-700 font-bold bg-white" />
                     </Link>
-                    <Button label="Request Hapus" icon="pi pi-trash" severity="secondary" outlined size="small" class="rounded-xl px-4 text-slate-700 font-bold bg-white" />
-                    <Link :href="`/admin/pembanding/${record.id}/edit`">
+                    <Link v-if="props.can.update" :href="`/admin/pembanding/${record.id}/edit`">
                         <Button label="Edit" icon="pi pi-pencil" size="small" class="rounded-xl px-6 bg-slate-900 border-slate-900 hover:bg-slate-800 text-white font-bold" />
                     </Link>
                 </div>

@@ -2,17 +2,29 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Models\User;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UserStoreRequest;
 use App\Http\Requests\Admin\UserUpdateRequest;
+use App\Support\AdminAccess;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
+    private const ROLE_LABELS = [
+        'pimpinan' => 'Pimpinan',
+        'data_contributor' => 'Kontributor Data',
+        'super_admin' => 'Super Admin',
+    ];
+
     public function index(Request $request)
     {
+        $this->authorizeAdmin('view_any_user');
+
         $users = User::with('roles')
             ->when($request->search, function ($query, $search) {
                 $query->where(function($q) use ($search) {
@@ -39,13 +51,21 @@ class UserController extends Controller
             'filters' => $request->only(['search', 'role', 'status']),
             'roles' => Role::all()->map(fn($role) => [
                 'value' => $role->name,
-                'label' => ucwords(str_replace('_', ' ', $role->name))
-            ])
+                'label' => self::ROLE_LABELS[$role->name] ?? ucwords(str_replace('_', ' ', $role->name))
+            ]),
+            'can' => AdminAccess::capabilityMap($request->user(), [
+                'create' => 'create_user',
+                'update' => 'update_user',
+                'delete' => 'delete_user',
+                'deleteAny' => 'delete_any_user',
+            ]),
         ]);
     }
 
     public function toggleStatus(User $user)
     {
+        $this->authorizeAdmin('update_user');
+
         $user->deactivated_at = $user->deactivated_at ? null : now();
         $user->save();
 
@@ -57,15 +77,22 @@ class UserController extends Controller
 
     public function create()
     {
+        $this->authorizeAdmin('create_user');
+
         return inertia('Admin/Users/Form', [
             'user' => new User(),
             'roles' => Role::all(),
-            'userRoles' => []
+            'userRoles' => [],
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'assignRoles' => 'update_user',
+            ]),
         ]);
     }
 
     public function store(UserStoreRequest $request)
     {
+        $this->authorizeAdmin('create_user');
+
         $validated = $request->validated();
         
         $user = User::create([
@@ -85,15 +112,22 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorizeAdmin('update_user');
+
         return inertia('Admin/Users/Form', [
             'user' => $user,
             'roles' => Role::all(),
-            'userRoles' => $user->roles->pluck('name')->toArray()
+            'userRoles' => $user->roles->pluck('name')->toArray(),
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'assignRoles' => 'update_user',
+            ]),
         ]);
     }
 
     public function update(UserUpdateRequest $request, User $user)
     {
+        $this->authorizeAdmin('update_user');
+
         $validated = $request->validated();
 
         $user->name = $validated['name'];
@@ -116,6 +150,8 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorizeAdmin('delete_user');
+
         $user->delete();
 
         return redirect()->route('admin.users.index')
@@ -124,7 +160,14 @@ class UserController extends Controller
 
     public function bulkDelete(Request $request)
     {
-        $ids = $request->ids;
+        $this->authorizeAdmin('delete_any_user');
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        $ids = $validated['ids'];
         User::whereIn('id', $ids)->delete();
 
         return redirect()->route('admin.users.index')

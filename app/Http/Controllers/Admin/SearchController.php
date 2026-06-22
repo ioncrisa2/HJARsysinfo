@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\BentukTanah;
 use App\Models\District;
@@ -19,6 +20,7 @@ use App\Models\StatusPemberiInformasi;
 use App\Models\Topografi;
 use App\Models\User;
 use App\Models\Village;
+use App\Support\AdminAccess;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -27,6 +29,8 @@ use Inertia\Response;
 
 class SearchController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     private const PER_RESOURCE_LIMIT = 40;
 
     private array $masterResources = [
@@ -50,6 +54,8 @@ class SearchController extends Controller
 
     public function __invoke(): Response
     {
+        $this->authorizeAdmin('view_admin_search');
+
         $filters = $this->filters();
         $rawResults = $filters['q'] !== '' ? $this->search($filters['q']) : collect();
         $filteredResults = $this->applyResultFilters($rawResults, $filters);
@@ -118,6 +124,10 @@ class SearchController extends Controller
 
     private function searchUsers(string $keyword): Collection
     {
+        if (! AdminAccess::can(request()->user(), 'view_any_user')) {
+            return collect();
+        }
+
         return User::query()
             ->with('roles:id,name')
             ->where(function ($query) use ($keyword): void {
@@ -145,6 +155,10 @@ class SearchController extends Controller
 
     private function searchPembanding(string $keyword): Collection
     {
+        if (! AdminAccess::can(request()->user(), 'view_any_data::pembanding')) {
+            return collect();
+        }
+
         return Pembanding::query()
             ->with(['jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name', 'regency:id,name'])
             ->where(function ($query) use ($keyword): void {
@@ -176,6 +190,10 @@ class SearchController extends Controller
 
     private function searchModeration(string $keyword): Collection
     {
+        if (! AdminAccess::can(request()->user(), 'view_moderation')) {
+            return collect();
+        }
+
         $requests = PembandingDeleteRequest::query()
             ->with(['pembanding:id,alamat_data', 'requestedBy:id,name'])
             ->where(function ($query) use ($keyword): void {
@@ -233,6 +251,10 @@ class SearchController extends Controller
 
     private function searchMasterData(string $keyword): Collection
     {
+        if (! AdminAccess::can(request()->user(), 'view_master_data')) {
+            return collect();
+        }
+
         $results = collect();
 
         foreach ($this->masterResources as $slug => [$modelClass, $label]) {
@@ -268,6 +290,10 @@ class SearchController extends Controller
 
     private function searchGeoData(string $keyword): Collection
     {
+        if (! AdminAccess::can(request()->user(), 'view_geo_data')) {
+            return collect();
+        }
+
         $results = collect();
 
         foreach ($this->geoResources as $slug => [$modelClass, $label]) {

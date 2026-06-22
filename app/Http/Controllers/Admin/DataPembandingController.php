@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingBrowseRequest;
 use App\Http\Requests\App\PembandingStoreRequest;
@@ -21,6 +22,7 @@ use App\Models\StatusPemberiInformasi;
 use App\Models\Topografi;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
+use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,8 +34,12 @@ use Inertia\Response;
 
 class DataPembandingController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     public function index(PembandingBrowseRequest $request, PembandingBrowseFilterService $filterService): Response
     {
+        $this->authorizeAdmin('view_any_data::pembanding');
+
         $filters = $request->filters($filterService);
 
         $records = $filterService
@@ -98,18 +104,31 @@ class DataPembandingController extends Controller
             'records' => $records,
             'perPage' => (int) $request->perPage(),
             'options' => $options,
+            'can' => AdminAccess::capabilityMap($request->user(), [
+                'create' => 'create_data::pembanding',
+                'view' => ['view_data::pembanding', 'view_any_data::pembanding'],
+                'update' => 'update_data::pembanding',
+                'delete' => 'delete_data::pembanding',
+            ]),
         ]);
     }
 
     public function create(): Response
     {
+        $this->authorizeAdmin('create_data::pembanding');
+
         return Inertia::render('Admin/Pembanding/Create', [
             'options' => $this->formOptions(),
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'create' => 'create_data::pembanding',
+            ]),
         ]);
     }
 
     public function store(PembandingStoreRequest $request): RedirectResponse
     {
+        $this->authorizeAdmin('create_data::pembanding');
+
         $data = $request->validated();
         $createAnother = $request->boolean('create_another');
         $data['created_by'] = $request->user()->id;
@@ -127,6 +146,8 @@ class DataPembandingController extends Controller
 
     public function show(Pembanding $pembanding): Response
     {
+        $this->authorizeAdmin(['view_data::pembanding', 'view_any_data::pembanding']);
+
         $pembanding->load([
             'jenisListing:id,name,badge_color',
             'jenisObjek:id,name',
@@ -150,11 +171,17 @@ class DataPembandingController extends Controller
 
         return Inertia::render('Admin/Pembanding/Show', [
             'record' => $pembanding,
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'update' => 'update_data::pembanding',
+                'viewHistory' => ['view_data::pembanding', 'view_any_data::pembanding'],
+            ]),
         ]);
     }
 
     public function edit(Pembanding $pembanding): Response
     {
+        $this->authorizeAdmin('update_data::pembanding');
+
         $pembanding->load([
             'jenisListing:id,name',
             'jenisObjek:id,name',
@@ -179,11 +206,16 @@ class DataPembandingController extends Controller
         return Inertia::render('Admin/Pembanding/Edit', [
             'record' => $pembanding,
             'options' => $this->formOptions($pembanding),
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'update' => 'update_data::pembanding',
+            ]),
         ]);
     }
 
     public function update(PembandingUpdateRequest $request, Pembanding $pembanding): RedirectResponse
     {
+        $this->authorizeAdmin('update_data::pembanding');
+
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
@@ -201,6 +233,8 @@ class DataPembandingController extends Controller
 
     public function destroy(Pembanding $pembanding)
     {
+        $this->authorizeAdmin('delete_data::pembanding');
+
         $pembanding->forceFill([
             'deleted_by_id' => auth()->id(),
             'deleted_reason' => 'Deleted by Super Admin via Admin Panel',
@@ -213,6 +247,8 @@ class DataPembandingController extends Controller
 
     public function history(Pembanding $pembanding, Request $request)
     {
+        $this->authorizeAdmin(['view_data::pembanding', 'view_any_data::pembanding']);
+
         $activities = $pembanding->activities()
             ->latest()
             ->with('causer:id,name,email')

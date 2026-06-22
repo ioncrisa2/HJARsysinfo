@@ -19,6 +19,8 @@ class DashboardController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
+        $isDataContributor = (bool) $request->user()?->hasRole('data_contributor');
+
         // "Non properti" context is deprecated. Keep it out of the user dashboard without deleting data.
         $nonPropertiJenisObjekIds = DB::table('master_jenis_objek')
             ->where(function ($q) {
@@ -51,6 +53,31 @@ class DashboardController extends Controller
             ])
             ->values();
 
+        $stats = [
+            'total'          => Pembanding::count(),
+            'this_month'     => Pembanding::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count(),
+            'last_month'     => Pembanding::whereBetween('created_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count(),
+            'with_coords'    => Pembanding::whereNotNull('latitude')->whereNotNull('longitude')->count(),
+            'province_count' => Pembanding::whereNotNull('province_id')->distinct('province_id')->count('province_id'),
+        ];
+
+        $jenisListingOptions = JenisListing::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn($item) => ['label' => $item->name, 'value' => $item->id])
+            ->values();
+
+        if ($isDataContributor) {
+            return Inertia::render('Dashboard', [
+                'dashboardVariant' => 'data_contributor',
+                'mapPoints' => $mapPoints,
+                'stats' => $stats,
+                'jenisListingOptions' => $jenisListingOptions,
+            ]);
+        }
+
         $recentData = Pembanding::query()
             ->orderByDesc('created_at')
             ->when($nonPropertiJenisObjekIds, fn ($q) => $q->whereNotIn('jenis_objek_id', $nonPropertiJenisObjekIds))
@@ -68,14 +95,6 @@ class DashboardController extends Controller
                 'jenis_objek'   => $row->jenisObjek?->name,
             ])
             ->values();
-
-        $stats = [
-            'total'          => Pembanding::count(),
-            'this_month'     => Pembanding::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count(),
-            'last_month'     => Pembanding::whereBetween('created_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count(),
-            'with_coords'    => Pembanding::whereNotNull('latitude')->whereNotNull('longitude')->count(),
-            'province_count' => Pembanding::whereNotNull('province_id')->distinct('province_id')->count('province_id'),
-        ];
 
         $monthlyData = collect(range(11, 0))->map(function (int $monthsAgo): array {
             $date = now()->subMonths($monthsAgo);
@@ -296,15 +315,8 @@ class DashboardController extends Controller
                 ->values(),
         ];
 
-        $jenisListingOptions = JenisListing::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn($item) => ['label' => $item->name, 'value' => $item->id])
-            ->values();
-
         return Inertia::render('Dashboard', [
+            'dashboardVariant'   => 'default',
             'mapPoints'          => $mapPoints,
             'recentData'         => $recentData,
             'stats'              => $stats,

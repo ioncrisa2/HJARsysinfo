@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\PembandingSelectionExport;
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\District;
 use App\Models\JenisListing;
@@ -11,6 +12,7 @@ use App\Models\Pembanding;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\Village;
+use App\Support\AdminAccess;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -25,10 +27,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     private const MAX_EXPORT_ROWS = 5000;
 
     public function index(Request $request): InertiaResponse
     {
+        $this->authorizeAdmin('view_export');
+
         $filters = $this->filters($request);
         $query = $this->applyFilters($this->baseQuery(), $filters);
 
@@ -47,11 +53,16 @@ class ExportController extends Controller
                 'total' => (clone $query)->count(),
                 'max_export_rows' => self::MAX_EXPORT_ROWS,
             ],
+            'can' => AdminAccess::capabilityMap($request->user(), [
+                'download' => 'export_data::pembanding',
+            ]),
         ]);
     }
 
     public function download(Request $request): BinaryFileResponse|StreamedResponse
     {
+        $this->authorizeAdmin('export_data::pembanding');
+
         $data = $request->validate([
             'format' => ['required', 'string', 'in:excel,pdf'],
             'ids' => ['nullable', 'string'],

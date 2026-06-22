@@ -15,6 +15,7 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
     options: { type: Object, default: () => ({}) },
     summary: { type: Object, default: () => ({ total: 0, max_export_rows: 5000 }) },
+    can: { type: Object, default: () => ({}) },
 });
 
 const filterState = reactive({
@@ -175,12 +176,16 @@ const toggleSelected = (id) => {
 };
 
 const openExport = (format, scope) => {
+    if (!props.can.download) return;
+
     pendingFormat.value = format;
     pendingScope.value = scope;
     exportDialog.value = true;
 };
 
 const confirmExport = () => {
+    if (!props.can.download) return;
+
     const params = buildParams({
         includePagination: false,
         includeSelection: pendingScope.value === "selected",
@@ -206,7 +211,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                 </p>
             </div>
 
-            <div class="flex flex-wrap gap-2">
+            <div v-if="props.can.download" class="flex flex-wrap gap-2">
                 <Button
                     label="Export Excel"
                     icon="pi pi-file-excel"
@@ -253,11 +258,13 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
             <ExportSidebar 
                 :summary="summary" 
                 :selectedIdsLength="selectedIds.length" 
+                :canDownload="props.can.download"
                 @openExport="openExport" 
             />
         </div>
 
         <ExportDialog 
+            v-if="props.can.download"
             v-model:visible="exportDialog" 
             :pendingFormat="pendingFormat" 
             :pendingScope="pendingScope" 

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
+use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,6 +15,8 @@ use Spatie\Permission\PermissionRegistrar;
 
 class AccessControlController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     private const GUARD = 'web';
 
     private const LOCKED_ROLES = [
@@ -21,11 +25,12 @@ class AccessControlController extends Controller
 
     private const LOCKED_PERMISSIONS = [
         'can_access_admin',
-        'can_access_admin_panel',
     ];
 
     public function index(): Response
     {
+        $this->authorizeAdmin('view_access_control');
+
         $roles = Role::query()
             ->where('guard_name', self::GUARD)
             ->with(['permissions:id,name'])
@@ -68,11 +73,20 @@ class AccessControlController extends Controller
                 'permissions' => $permissions->count(),
                 'assigned_permissions' => $roles->sum('permissions_count'),
             ],
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'createRole' => 'create_role',
+                'updateRole' => 'update_role',
+                'deleteRole' => 'delete_role',
+                'createPermission' => 'create_permission',
+                'deletePermission' => 'delete_permission',
+            ]),
         ]);
     }
 
     public function storeRole(Request $request): RedirectResponse
     {
+        $this->authorizeAdmin('create_role');
+
         $validated = $this->validateRole($request);
 
         $role = Role::query()->create([
@@ -90,6 +104,8 @@ class AccessControlController extends Controller
 
     public function updateRole(Request $request, Role $role): RedirectResponse
     {
+        $this->authorizeAdmin('update_role');
+
         $this->ensureWebGuard($role);
 
         $validated = $this->validateRole($request, $role);
@@ -108,6 +124,8 @@ class AccessControlController extends Controller
 
     public function destroyRole(Role $role): RedirectResponse
     {
+        $this->authorizeAdmin('delete_role');
+
         $this->ensureWebGuard($role);
         $role->loadCount('users');
 
@@ -133,6 +151,8 @@ class AccessControlController extends Controller
 
     public function storePermission(Request $request): RedirectResponse
     {
+        $this->authorizeAdmin('create_permission');
+
         $validated = $request->validate([
             'name' => [
                 'required',
@@ -158,6 +178,8 @@ class AccessControlController extends Controller
 
     public function destroyPermission(Permission $permission): RedirectResponse
     {
+        $this->authorizeAdmin('delete_permission');
+
         $this->ensureWebGuard($permission);
         $permission->loadCount(['roles', 'users']);
 

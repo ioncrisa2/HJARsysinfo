@@ -3,17 +3,21 @@ import { computed, ref } from "vue";
 import { Link, router, useForm } from "@inertiajs/vue3";
 import AdminLayout from "../../../Layouts/AdminLayout.vue";
 import { useConfirm } from "primevue/useconfirm";
+import Dialog from "primevue/dialog";
 
 const props = defineProps({
     roles: Array,
     permissions: Array,
     metrics: Object,
+    can: { type: Object, default: () => ({}) },
 });
 
 const confirm = useConfirm();
 const activeTab = ref("roles");
 const permissionSearch = ref("");
 const editingRoleId = ref(null);
+const roleDialogVisible = ref(false);
+const permissionDialogVisible = ref(false);
 
 const roleForm = useForm({
     name: "",
@@ -59,14 +63,32 @@ const selectedRole = computed(() => {
 
 const resetRoleForm = () => {
     editingRoleId.value = null;
+    permissionSearch.value = "";
     roleForm.reset();
     roleForm.clearErrors();
 };
 
+const openCreateRole = () => {
+    if (!props.can.createRole) return;
+
+    resetRoleForm();
+    activeTab.value = "roles";
+    roleDialogVisible.value = true;
+};
+
 const editRole = (role) => {
+    if (!props.can.updateRole) return;
+
     editingRoleId.value = role.id;
     roleForm.name = role.name;
     roleForm.permissions = [...role.permissions];
+    activeTab.value = "roles";
+    roleDialogVisible.value = true;
+};
+
+const closeRoleDialog = () => {
+    roleDialogVisible.value = false;
+    resetRoleForm();
 };
 
 const togglePermission = (permissionName) => {
@@ -80,10 +102,12 @@ const togglePermission = (permissionName) => {
 };
 
 const submitRole = () => {
+    if ((isEditingRole.value && !props.can.updateRole) || (!isEditingRole.value && !props.can.createRole)) return;
+
     if (isEditingRole.value) {
         roleForm.put(`/admin/access-control/roles/${editingRoleId.value}`, {
             preserveScroll: true,
-            onSuccess: resetRoleForm,
+            onSuccess: closeRoleDialog,
         });
 
         return;
@@ -91,11 +115,13 @@ const submitRole = () => {
 
     roleForm.post("/admin/access-control/roles", {
         preserveScroll: true,
-        onSuccess: resetRoleForm,
+        onSuccess: closeRoleDialog,
     });
 };
 
 const deleteRole = (role) => {
+    if (!props.can.deleteRole) return;
+
     confirm.require({
         message: `Hapus role "${role.name}"?`,
         header: "Konfirmasi hapus role",
@@ -106,13 +132,36 @@ const deleteRole = (role) => {
 };
 
 const submitPermission = () => {
+    if (!props.can.createPermission) return;
+
     permissionForm.post("/admin/access-control/permissions", {
         preserveScroll: true,
-        onSuccess: () => permissionForm.reset(),
+        onSuccess: () => {
+            permissionForm.reset();
+            permissionDialogVisible.value = false;
+            activeTab.value = "permissions";
+        },
     });
 };
 
+const openCreatePermission = () => {
+    if (!props.can.createPermission) return;
+
+    permissionForm.reset();
+    permissionForm.clearErrors();
+    activeTab.value = "permissions";
+    permissionDialogVisible.value = true;
+};
+
+const closePermissionDialog = () => {
+    permissionDialogVisible.value = false;
+    permissionForm.reset();
+    permissionForm.clearErrors();
+};
+
 const deletePermission = (permission) => {
+    if (!props.can.deletePermission) return;
+
     confirm.require({
         message: `Hapus permission "${permission.name}"?`,
         header: "Konfirmasi hapus permission",
@@ -157,27 +206,50 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                 </div>
             </div>
 
-            <div class="inline-flex rounded-lg border border-slate-200 bg-white p-1">
-                <button
-                    type="button"
-                    class="rounded-md px-4 py-2 text-sm font-semibold transition-colors"
-                    :class="activeTab === 'roles' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
-                    @click="activeTab = 'roles'"
-                >
-                    Roles
-                </button>
-                <button
-                    type="button"
-                    class="rounded-md px-4 py-2 text-sm font-semibold transition-colors"
-                    :class="activeTab === 'permissions' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
-                    @click="activeTab = 'permissions'"
-                >
-                    Permissions
-                </button>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                    <button
+                        v-if="props.can.createPermission"
+                        type="button"
+                        class="rounded-md px-4 py-2 text-sm font-semibold transition-colors"
+                        :class="activeTab === 'roles' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                        @click="activeTab = 'roles'"
+                    >
+                        Roles
+                    </button>
+                    <button
+                        v-if="props.can.createRole"
+                        type="button"
+                        class="rounded-md px-4 py-2 text-sm font-semibold transition-colors"
+                        :class="activeTab === 'permissions' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                        @click="activeTab = 'permissions'"
+                    >
+                        Permissions
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        @click="openCreatePermission"
+                    >
+                        <i class="pi pi-key text-xs" />
+                        Permission Baru
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        @click="openCreateRole"
+                    >
+                        <i class="pi pi-shield text-xs" />
+                        Role Baru
+                    </button>
+                </div>
             </div>
         </div>
 
-        <section v-if="activeTab === 'roles'" class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section v-if="activeTab === 'roles'">
             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-100 px-5 py-4">
                     <h2 class="text-sm font-bold text-slate-900">Role List</h2>
@@ -216,6 +288,7 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                                 <td class="px-5 py-4">
                                     <div class="flex items-center justify-end gap-1">
                                         <button
+                                            v-if="props.can.updateRole"
                                             type="button"
                                             class="inline-flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-700"
                                             :aria-label="`Edit role ${role.name}`"
@@ -224,6 +297,7 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                                             <i class="pi pi-pencil text-xs" />
                                         </button>
                                         <button
+                                            v-if="props.can.deleteRole"
                                             type="button"
                                             class="inline-flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
                                             :disabled="role.is_locked || role.users_count > 0"
@@ -244,94 +318,9 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                     </table>
                 </div>
             </div>
-
-            <form class="rounded-xl border border-slate-200 bg-white shadow-sm" @submit.prevent="submitRole">
-                <div class="border-b border-slate-100 px-5 py-4">
-                    <h2 class="text-sm font-bold text-slate-900">{{ isEditingRole ? 'Edit Role' : 'Create Role' }}</h2>
-                    <p class="mt-1 text-xs text-slate-500">Pilih permission efektif untuk role ini.</p>
-                </div>
-
-                <div class="space-y-5 p-5">
-                    <div>
-                        <label for="role_name" class="mb-1.5 block text-xs font-bold uppercase text-slate-700">Role name</label>
-                        <input
-                            id="role_name"
-                            v-model="roleForm.name"
-                            type="text"
-                            class="w-full rounded-lg border px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:bg-slate-100"
-                            :class="roleForm.errors.name ? 'border-red-400' : 'border-slate-200'"
-                            :disabled="selectedRole?.is_locked"
-                            placeholder="finance_admin"
-                        />
-                        <p v-if="roleForm.errors.name" class="mt-1.5 text-xs text-red-500">{{ roleForm.errors.name }}</p>
-                    </div>
-
-                    <div>
-                        <div class="mb-2 flex items-center justify-between gap-3">
-                            <label for="permission_search" class="text-xs font-bold uppercase text-slate-700">Permissions</label>
-                            <span class="text-xs font-medium text-slate-500">{{ roleForm.permissions.length }} selected</span>
-                        </div>
-                        <div class="relative">
-                            <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
-                            <input
-                                id="permission_search"
-                                v-model="permissionSearch"
-                                type="search"
-                                class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                                placeholder="Cari permission"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="max-h-[480px] space-y-4 overflow-y-auto pr-1">
-                        <div v-for="(items, group) in groupedPermissions" :key="group" class="space-y-2">
-                            <p class="text-[11px] font-bold uppercase text-slate-500">{{ group }}</p>
-                            <label
-                                v-for="permission in items"
-                                :key="permission.id"
-                                class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
-                                :class="roleForm.permissions.includes(permission.name) ? 'border-amber-300 bg-amber-50/60' : 'border-slate-200 hover:bg-slate-50'"
-                            >
-                                <input
-                                    type="checkbox"
-                                    class="mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
-                                    :checked="roleForm.permissions.includes(permission.name)"
-                                    @change="togglePermission(permission.name)"
-                                />
-                                <span class="min-w-0">
-                                    <span class="block truncate text-sm font-semibold text-slate-800">{{ permission.name }}</span>
-                                    <span class="mt-0.5 block text-xs text-slate-500">
-                                        {{ permission.roles_count }} roles
-                                    </span>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4">
-                    <button
-                        v-if="isEditingRole"
-                        type="button"
-                        class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200"
-                        @click="resetRoleForm"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        :disabled="roleForm.processing"
-                        class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                    >
-                        <i v-if="roleForm.processing" class="pi pi-spin pi-spinner text-xs" />
-                        <i v-else class="pi pi-check text-xs" />
-                        {{ isEditingRole ? 'Save Role' : 'Create Role' }}
-                    </button>
-                </div>
-            </form>
         </section>
 
-        <section v-else class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <section v-else>
             <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-100 px-5 py-4">
                     <h2 class="text-sm font-bold text-slate-900">Permission List</h2>
@@ -362,6 +351,7 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     <button
+                                        v-if="props.can.deletePermission"
                                         type="button"
                                         class="inline-flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
                                         :disabled="permission.is_locked || permission.roles_count > 0 || permission.users_count > 0"
@@ -381,31 +371,130 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                     </table>
                 </div>
             </div>
+        </section>
 
-            <form class="rounded-xl border border-slate-200 bg-white shadow-sm" @submit.prevent="submitPermission">
-                <div class="border-b border-slate-100 px-5 py-4">
-                    <h2 class="text-sm font-bold text-slate-900">Create Permission</h2>
-                    <p class="mt-1 text-xs text-slate-500">Gunakan nama stabil karena permission bisa dipakai middleware.</p>
+        <Dialog
+            v-model:visible="roleDialogVisible"
+            modal
+            :header="isEditingRole ? 'Edit Role' : 'Create Role'"
+            class="w-[min(920px,calc(100vw-2rem))]"
+            @hide="resetRoleForm"
+        >
+            <form class="space-y-5" @submit.prevent="submitRole">
+                <div>
+                    <label for="role_name" class="mb-1.5 block text-xs font-bold uppercase text-slate-700">Role name</label>
+                    <input
+                        id="role_name"
+                        v-model="roleForm.name"
+                        type="text"
+                        class="w-full rounded-lg border px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:bg-slate-100"
+                        :class="roleForm.errors.name ? 'border-red-400' : 'border-slate-200'"
+                        :disabled="selectedRole?.is_locked"
+                        placeholder="finance_admin"
+                    />
+                    <p v-if="roleForm.errors.name" class="mt-1.5 text-xs text-red-500">{{ roleForm.errors.name }}</p>
                 </div>
 
-                <div class="space-y-4 p-5">
-                    <div>
-                        <label for="permission_name" class="mb-1.5 block text-xs font-bold uppercase text-slate-700">Permission name</label>
-                        <input
-                            id="permission_name"
-                            v-model="permissionForm.name"
-                            type="text"
-                            class="w-full rounded-lg border px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                            :class="permissionForm.errors.name ? 'border-red-400' : 'border-slate-200'"
-                            placeholder="manage_reports"
-                        />
-                        <p v-if="permissionForm.errors.name" class="mt-1.5 text-xs text-red-500">{{ permissionForm.errors.name }}</p>
+                <div>
+                    <div class="mb-2 flex items-center justify-between gap-3">
+                        <label for="permission_search" class="text-xs font-bold uppercase text-slate-700">Permissions</label>
+                        <span class="text-xs font-medium text-slate-500">{{ roleForm.permissions.length }} selected</span>
                     </div>
+                    <div class="relative">
+                        <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+                        <input
+                            id="permission_search"
+                            v-model="permissionSearch"
+                            type="search"
+                            class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                            placeholder="Cari permission"
+                        />
+                    </div>
+                </div>
 
+                <div class="max-h-[52vh] space-y-4 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                    <div v-for="(items, group) in groupedPermissions" :key="group" class="space-y-2">
+                        <p class="text-[11px] font-bold uppercase text-slate-500">{{ group }}</p>
+                        <label
+                            v-for="permission in items"
+                            :key="permission.id"
+                            class="flex cursor-pointer items-start gap-3 rounded-lg border bg-white p-3 transition-colors"
+                            :class="roleForm.permissions.includes(permission.name) ? 'border-amber-300 bg-amber-50/60' : 'border-slate-200 hover:bg-slate-50'"
+                        >
+                            <input
+                                type="checkbox"
+                                class="mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                                :checked="roleForm.permissions.includes(permission.name)"
+                                @change="togglePermission(permission.name)"
+                            />
+                            <span class="min-w-0">
+                                <span class="block truncate text-sm font-semibold text-slate-800">{{ permission.name }}</span>
+                                <span class="mt-0.5 block text-xs text-slate-500">
+                                    {{ permission.roles_count }} roles
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                    <button
+                        type="button"
+                        class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                        :disabled="roleForm.processing"
+                        @click="closeRoleDialog"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        :disabled="roleForm.processing"
+                        class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                    >
+                        <i v-if="roleForm.processing" class="pi pi-spin pi-spinner text-xs" />
+                        <i v-else class="pi pi-check text-xs" />
+                        {{ isEditingRole ? 'Save Role' : 'Create Role' }}
+                    </button>
+                </div>
+            </form>
+        </Dialog>
+
+        <Dialog
+            v-model:visible="permissionDialogVisible"
+            modal
+            header="Create Permission"
+            class="w-[min(460px,calc(100vw-2rem))]"
+            @hide="permissionForm.clearErrors()"
+        >
+            <form class="space-y-4" @submit.prevent="submitPermission">
+                <p class="text-sm text-slate-500">Gunakan nama stabil karena permission bisa dipakai middleware, policy, dan route.</p>
+
+                <div>
+                    <label for="permission_name" class="mb-1.5 block text-xs font-bold uppercase text-slate-700">Permission name</label>
+                    <input
+                        id="permission_name"
+                        v-model="permissionForm.name"
+                        type="text"
+                        class="w-full rounded-lg border px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                        :class="permissionForm.errors.name ? 'border-red-400' : 'border-slate-200'"
+                        placeholder="manage_reports"
+                    />
+                    <p v-if="permissionForm.errors.name" class="mt-1.5 text-xs text-red-500">{{ permissionForm.errors.name }}</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+                    <button
+                        type="button"
+                        class="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                        :disabled="permissionForm.processing"
+                        @click="closePermissionDialog"
+                    >
+                        Cancel
+                    </button>
                     <button
                         type="submit"
                         :disabled="permissionForm.processing"
-                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                        class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                     >
                         <i v-if="permissionForm.processing" class="pi pi-spin pi-spinner text-xs" />
                         <i v-else class="pi pi-plus text-xs" />
@@ -413,6 +502,6 @@ const formatName = (value) => value.replace(/[_:-]+/g, " ").replace(/\b\w/g, (le
                     </button>
                 </div>
             </form>
-        </section>
+        </Dialog>
     </AdminLayout>
 </template>

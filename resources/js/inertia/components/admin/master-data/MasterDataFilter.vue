@@ -6,6 +6,7 @@ import InputText from "primevue/inputtext";
 const props = defineProps({
     filterState: { type: Object, required: true },
     canReorder: { type: Boolean, default: false },
+    canBulkDelete: { type: Boolean, default: false },
     hasOrderChanges: { type: Boolean, default: false },
     savingOrder: { type: Boolean, default: false },
     deletingBulk: { type: Boolean, default: false },
@@ -93,6 +94,7 @@ const perPageOptions = [10, 20, 50, 100];
                 @click="emit('resetFilters')"
             />
             <Button
+                v-if="canReorder"
                 label="Simpan Urutan"
                 icon="pi pi-save"
                 severity="secondary"
@@ -103,6 +105,7 @@ const perPageOptions = [10, 20, 50, 100];
                 @click="emit('saveOrder')"
             />
             <Button
+                v-if="canReorder"
                 label="Reset Urutan"
                 icon="pi pi-undo"
                 severity="secondary"
@@ -112,6 +115,7 @@ const perPageOptions = [10, 20, 50, 100];
                 @click="emit('resetOrder')"
             />
             <Button
+                v-if="canBulkDelete"
                 label="Hapus Terpilih"
                 icon="pi pi-trash"
                 severity="danger"
@@ -121,7 +125,7 @@ const perPageOptions = [10, 20, 50, 100];
                 :loading="deletingBulk"
                 @click="emit('bulkDelete')"
             />
-            <span v-if="!canReorder" class="text-pretty text-xs font-medium text-slate-500">
+            <span v-if="canReorder === false" class="text-pretty text-xs font-medium text-slate-500">
                 Drag urutan aktif saat sort = Urutan dan arah = asc.
             </span>
         </div>

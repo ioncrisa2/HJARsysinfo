@@ -11,6 +11,7 @@ const props = defineProps({
     filters: Object,
     options: Object,
     perPage: Number,
+    can: { type: Object, default: () => ({}) },
 });
 
 const formFilters = ref({
@@ -126,6 +127,7 @@ const formatDate = (val) => {
             </div>
             
             <Link
+                v-if="props.can.create"
                 href="/admin/pembanding/create"
                 class="inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition shadow-sm shadow-slate-200"
             >
@@ -254,7 +256,7 @@ const formatDate = (val) => {
                             <th class="px-6 py-4">Properti</th>
                             <th class="px-6 py-4">Tipe & Luas</th>
                             <th class="px-6 py-4">Harga / Nilai</th>
-                            <th class="px-6 py-4 text-right">Aksi</th>
+                            <th v-if="props.can.view || props.can.update || props.can.delete" class="px-6 py-4 text-right">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -322,9 +324,10 @@ const formatDate = (val) => {
                             </td>
 
                             <!-- Actions -->
-                            <td class="px-6 py-4 text-right">
+                            <td v-if="props.can.view || props.can.update || props.can.delete" class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                                    <Link 
+                                    <Link
+                                        v-if="props.can.view"
                                         :href="`/admin/pembanding/${row.id}`"
                                         class="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
                                         title="Lihat Detail"
@@ -341,6 +344,7 @@ const formatDate = (val) => {
                                         <i class="pi pi-map-marker" />
                                     </a>
                                     <Link
+                                        v-if="props.can.update"
                                         :href="`/admin/pembanding/${row.id}/edit`"
                                         class="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Edit"
@@ -348,6 +352,7 @@ const formatDate = (val) => {
                                         <i class="pi pi-pencil" />
                                     </Link>
                                     <button
+                                        v-if="props.can.delete"
                                         @click="deleteRecord(row.id)"
                                         class="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         title="Hapus"

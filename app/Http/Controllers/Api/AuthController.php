@@ -9,6 +9,7 @@ use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthenticationService;
 use App\Services\Auth\RefreshTokenService;
 use App\Traits\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -27,12 +28,14 @@ class AuthController extends Controller
         $credentials = $request->only(['email', 'password']);
         $deviceName = $request->input('device_name');
 
-        $result = $this->authService->authenticate($credentials, $deviceName);
+        try {
+            $result = $this->authService->authenticate($credentials, $deviceName);
+        } catch (AuthorizationException $exception) {
+            return $this->error($exception->getMessage(), 403);
+        }
 
-        if (!$result) {
-            return response()->json([
-                'message' => 'Invalid credentials.',
-            ], 422);
+        if (! $result) {
+            return $this->error('Invalid credentials.', 422);
         }
 
         return $this->success($result, 'Login Success');
@@ -45,10 +48,8 @@ class AuthController extends Controller
 
         $result = $this->refreshTokenService->refresh($refreshToken, $deviceName);
 
-        if (!$result) {
-            return response()->json([
-                'message' => 'Invalid or expired refresh token.',
-            ], 401);
+        if (! $result) {
+            return $this->error('Invalid or expired refresh token.', 401);
         }
 
         return $this->success($result, 'Token refreshed successfully');
@@ -75,7 +76,7 @@ class AuthController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
         ]);
 
         $user->update($data);

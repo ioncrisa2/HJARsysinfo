@@ -11,6 +11,7 @@ import { useToast } from "primevue/usetoast";
 
 const props = defineProps({
     settings: { type: Object, default: () => ({}) },
+    can: { type: Object, default: () => ({}) },
 });
 
 const toast = useToast();
@@ -31,6 +32,8 @@ const modeOptions = [
 ];
 
 const submit = () => {
+    if (!props.can.update) return;
+
     // Convert color to hex with #
     const data = { ...form };
     if (data.primary_color) {
@@ -61,6 +64,8 @@ const handleLogoSelect = (event) => {
 };
 
 const clearCache = () => {
+    if (!props.can.clearCache) return;
+
     router.post("/admin/settings/clear-cache", {}, {
         preserveScroll: true,
         onSuccess: () => {
@@ -88,6 +93,7 @@ const clearCache = () => {
             </div>
             <div>
                 <Button
+                    v-if="props.can.clearCache"
                     label="Bersihkan Cache"
                     icon="pi pi-refresh"
                     severity="secondary"
@@ -110,6 +116,7 @@ const clearCache = () => {
                             <label class="mb-1 block text-sm font-semibold text-slate-700">Mode Sistem</label>
                             <Dropdown
                                 v-model="form.system_mode"
+                                :disabled="!props.can.update"
                                 :options="modeOptions"
                                 optionLabel="label"
                                 optionValue="value"
@@ -132,6 +139,7 @@ const clearCache = () => {
                         <div>
                             <label class="mb-1 block text-sm font-semibold text-slate-700">Logo Aplikasi</label>
                             <FileUpload
+                                v-if="props.can.update"
                                 mode="basic"
                                 accept="image/*"
                                 :maxFileSize="2000000"
@@ -146,7 +154,7 @@ const clearCache = () => {
                         <div>
                             <label class="mb-1 block text-sm font-semibold text-slate-700">Primary Color</label>
                             <div class="flex items-center gap-3">
-                                <ColorPicker v-model="form.primary_color" />
+                                <ColorPicker v-model="form.primary_color" :disabled="!props.can.update" />
                                 <span class="font-mono text-sm text-slate-600 uppercase">#{{ form.primary_color }}</span>
                             </div>
                         </div>
@@ -162,16 +170,16 @@ const clearCache = () => {
                     <div class="grid gap-6 md:grid-cols-2">
                         <div>
                             <label class="mb-1 block text-sm font-semibold text-slate-700">App Version</label>
-                            <InputText v-model="form.app_version" class="w-full" placeholder="Misal: v1.0.0" />
+                            <InputText v-model="form.app_version" class="w-full" placeholder="Misal: v1.0.0" :disabled="!props.can.update" />
                         </div>
                         <div class="md:col-span-2 grid gap-6 md:grid-cols-2">
                             <div>
                                 <label class="mb-1 block text-sm font-semibold text-slate-700">Nama Organisasi</label>
-                                <InputText v-model="form.company_name" class="w-full" placeholder="Nama perusahaan atau entitas" />
+                                <InputText v-model="form.company_name" class="w-full" placeholder="Nama perusahaan atau entitas" :disabled="!props.can.update" />
                             </div>
                             <div>
                                 <label class="mb-1 block text-sm font-semibold text-slate-700">Email Dukungan</label>
-                                <InputText v-model="form.support_email" type="email" class="w-full" placeholder="support@domain.com" />
+                                <InputText v-model="form.support_email" type="email" class="w-full" placeholder="support@domain.com" :disabled="!props.can.update" />
                             </div>
                         </div>
                     </div>
@@ -183,6 +191,7 @@ const clearCache = () => {
                     <p class="text-sm font-bold text-slate-900">Aksi</p>
                     <p class="mt-1 mb-4 text-xs text-slate-500">Simpan perubahan pengaturan yang telah Anda buat.</p>
                     <Button
+                        v-if="props.can.update"
                         type="submit"
                         label="Simpan Pengaturan"
                         icon="pi pi-check"

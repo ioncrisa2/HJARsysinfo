@@ -14,6 +14,7 @@ const props = defineProps({
     requestsPaginator: Object,
     trashedPaginator: Object,
     filters: Object,
+    can: { type: Object, default: () => ({}) },
 });
 
 const confirm = useConfirm();
@@ -92,6 +93,26 @@ const formatDate = (val) => {
     if (!val) return "-";
     return new Date(val).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
+
+const formatCurrency = (value) => {
+    const amount = Number(value);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+        return null;
+    }
+
+    return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        maximumFractionDigits: 0,
+    }).format(amount);
+};
+
+const listingBadgeStyle = (listing) => ({
+    backgroundColor: listing?.badge_color ? `${listing.badge_color}1A` : "#f1f5f9",
+    borderColor: listing?.badge_color || "#cbd5e1",
+    color: listing?.badge_color || "#475569",
+});
 </script>
 
 <template>
@@ -193,8 +214,9 @@ const formatDate = (val) => {
                                 />
                             </td>
                             <td class="px-8 py-5 text-right">
-                                <div class="flex items-center justify-end gap-2" v-if="req.status === 'pending'">
+                                <div class="flex items-center justify-end gap-2" v-if="req.status === 'pending' && (props.can.approve || props.can.reject)">
                                     <Button
+                                        v-if="props.can.approve"
                                         icon="pi pi-check"
                                         severity="success"
                                         text
@@ -204,6 +226,7 @@ const formatDate = (val) => {
                                         class="hover:bg-emerald-50"
                                     />
                                     <Button
+                                        v-if="props.can.reject"
                                         icon="pi pi-times"
                                         severity="danger"
                                         text
@@ -232,60 +255,88 @@ const formatDate = (val) => {
 
             <!-- TRASH TAB -->
             <div class="overflow-x-auto" v-if="tab === 'trash'">
-                <table class="w-full text-left text-sm whitespace-nowrap">
+                <table class="w-full min-w-[980px] table-fixed text-left text-sm">
                     <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-black uppercase tracking-widest text-[10px]">
                         <tr>
-                            <th class="px-8 py-5">Properti Terhapus</th>
-                            <th class="px-8 py-5">Dihapus Oleh</th>
-                            <th class="px-8 py-5">Alasan</th>
-                            <th class="px-8 py-5 text-right">Aksi</th>
+                            <th class="w-[42%] px-8 py-5">Properti Terhapus</th>
+                            <th class="w-[18%] px-6 py-5">Dihapus Oleh</th>
+                            <th class="w-[28%] px-6 py-5">Alasan</th>
+                            <th class="w-[12%] px-6 py-5 text-right">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr v-for="res in trashedPaginator?.data" :key="res.id" class="hover:bg-slate-50/50 transition-colors group">
+                        <tr v-for="res in trashedPaginator?.data" :key="res.id" class="align-top transition-colors hover:bg-slate-50/70">
                             <td class="px-8 py-5">
-                                <div class="max-w-xs">
-                                    <p class="font-bold text-slate-900 truncate" :title="res.alamat_data">{{ res.alamat_data }}</p>
-                                    <div class="flex items-center gap-2 mt-1">
-                                        <Tag :value="res.jenis_listing" class="bg-slate-100 text-slate-600 text-[8px] font-black uppercase px-2 py-0.5 border border-slate-200" />
-                                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Dihapus {{ formatDate(res.deleted_at) }}</span>
+                                <div class="min-w-0 space-y-2">
+                                    <div class="flex items-start gap-3">
+                                        <div class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-500">
+                                            <i class="pi pi-trash text-sm" />
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="truncate font-bold text-slate-900" :title="res.alamat_data">
+                                                {{ res.alamat_data || 'Alamat tidak tersedia' }}
+                                            </p>
+                                            <div class="mt-1 flex flex-wrap items-center gap-2">
+                                                <span
+                                                    class="inline-flex max-w-[180px] items-center rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider"
+                                                    :style="listingBadgeStyle(res.jenis_listing)"
+                                                >
+                                                    <span class="truncate">{{ res.jenis_listing?.name || 'Tanpa Listing' }}</span>
+                                                </span>
+                                                <span v-if="formatCurrency(res.harga)" class="text-xs font-semibold text-slate-500">
+                                                    {{ formatCurrency(res.harga) }}
+                                                </span>
+                                            </div>
+                                            <p class="mt-1 text-[11px] font-semibold text-slate-400">
+                                                Dihapus {{ formatDate(res.deleted_at) }}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-8 py-5">
+                            <td class="px-6 py-5">
                                 <div class="flex items-center gap-2">
-                                    <div class="size-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 border border-slate-200">
-                                        {{ (res.deletedBy?.name || '?').slice(0, 1).toUpperCase() }}
+                                    <div class="flex size-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[11px] font-black text-slate-500">
+                                        {{ (res.deleted_by?.name || '?').slice(0, 1).toUpperCase() }}
                                     </div>
-                                    <span class="font-bold text-slate-700 text-xs">{{ res.deletedBy?.name || 'Unknown Admin' }}</span>
+                                    <span class="min-w-0 truncate text-xs font-bold text-slate-700" :title="res.deleted_by?.name || 'Unknown Admin'">
+                                        {{ res.deleted_by?.name || 'Unknown Admin' }}
+                                    </span>
                                 </div>
                             </td>
-                            <td class="px-8 py-5">
-                                <p class="text-xs text-slate-600 whitespace-normal line-clamp-2 max-w-sm italic leading-relaxed">
+                            <td class="px-6 py-5">
+                                <p class="line-clamp-3 text-xs italic leading-6 text-slate-600" :title="res.deleted_reason || '-'">
                                     "{{ res.deleted_reason || '-' }}"
                                 </p>
                             </td>
-                            <td class="px-8 py-5 text-right">
-                                <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                            <td class="px-6 py-5 text-right">
+                                <div v-if="props.can.restore || props.can.forceDelete" class="flex items-center justify-end gap-2">
                                     <Button
+                                        v-if="props.can.restore"
                                         icon="pi pi-refresh"
                                         severity="info"
                                         text
                                         rounded
+                                        aria-label="Pulihkan data"
                                         v-tooltip.top="'Pulihkan Data (Restore)'"
                                         @click="restoreData(res.id)"
-                                        class="hover:bg-blue-50"
+                                        class="shrink-0 border border-blue-100 bg-blue-50 hover:bg-blue-100"
                                     />
                                     <Button
+                                        v-if="props.can.forceDelete"
                                         icon="pi pi-trash"
                                         severity="danger"
                                         text
                                         rounded
+                                        aria-label="Hapus permanen"
                                         v-tooltip.top="'Hapus Permanen'"
                                         @click="forceDeleteData(res.id)"
-                                        class="hover:bg-red-50"
+                                        class="shrink-0 border border-red-100 bg-red-50 hover:bg-red-100"
                                     />
                                 </div>
+                                <span v-else class="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                                    No Action
+                                </span>
                             </td>
                         </tr>
                         <tr v-if="!trashedPaginator?.data.length">
@@ -367,4 +418,3 @@ const formatDate = (val) => {
         </Dialog>
     </AdminLayout>
 </template>
-

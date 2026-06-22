@@ -18,6 +18,7 @@ const props = defineProps({
     resources: { type: Array, default: () => [] },
     filters: { type: Object, default: () => ({}) },
     supportsBadgeColor: { type: Boolean, default: false },
+    can: { type: Object, default: () => ({}) },
 });
 
 const confirm = useConfirm();
@@ -58,7 +59,7 @@ const hasOrderChanges = computed(() => {
 });
 
 const canReorder = computed(() => {
-    return props.currentResource && filterState.sort_by === "sort_order" && filterState.sort_dir === "asc";
+    return props.can.reorder && props.currentResource && filterState.sort_by === "sort_order" && filterState.sort_dir === "asc";
 });
 
 watch(
@@ -125,6 +126,8 @@ const resetFilters = () => {
 };
 
 const openCreate = () => {
+    if (!props.can.create) return;
+
     editingRecord.value = null;
     form.reset();
     form.clearErrors();
@@ -136,6 +139,8 @@ const openCreate = () => {
 };
 
 const openEdit = (record) => {
+    if (!props.can.update) return;
+
     editingRecord.value = record;
     form.clearErrors();
     form.name = record.name ?? "";
@@ -146,6 +151,8 @@ const openEdit = (record) => {
 };
 
 const submit = () => {
+    if ((editingRecord.value && !props.can.update) || (!editingRecord.value && !props.can.create)) return;
+
     const options = {
         preserveScroll: true,
         onSuccess: () => (showForm.value = false),
@@ -160,6 +167,8 @@ const submit = () => {
 };
 
 const deleteRecord = (record) => {
+    if (!props.can.delete) return;
+
     confirm.require({
         message: `Hapus "${record.name}"? Tindakan ini mungkin gagal jika data masih digunakan.`,
         header: "Konfirmasi Hapus",
@@ -172,10 +181,14 @@ const deleteRecord = (record) => {
 };
 
 const toggleStatus = (record) => {
+    if (!props.can.toggleStatus) return;
+
     router.patch(`${resourceUrl()}/${record.id}/toggle-status`, {}, { preserveScroll: true });
 };
 
 const toggleAllVisible = () => {
+    if (!props.can.deleteAny) return;
+
     const ids = rows.value.map((row) => row.id);
 
     selectedIds.value = allVisibleSelected.value
@@ -184,13 +197,15 @@ const toggleAllVisible = () => {
 };
 
 const toggleSelected = (id) => {
+    if (!props.can.deleteAny) return;
+
     selectedIds.value = selectedIds.value.includes(id)
         ? selectedIds.value.filter((selectedId) => selectedId !== id)
         : [...selectedIds.value, id];
 };
 
 const bulkDelete = () => {
-    if (selectedIds.value.length === 0) return;
+    if (!props.can.deleteAny || selectedIds.value.length === 0) return;
 
     confirm.require({
         message: `Hapus ${selectedIds.value.length} data terpilih? Data yang masih digunakan bisa membuat proses gagal.`,
@@ -241,7 +256,7 @@ const onDrop = (targetRecord) => {
 };
 
 const saveOrder = () => {
-    if (!hasOrderChanges.value) return;
+    if (!canReorder.value || !hasOrderChanges.value) return;
 
     savingOrder.value = true;
     router.post(
@@ -296,13 +311,14 @@ const resetOrder = () => {
                             </p>
                         </div>
 
-                        <Button label="Tambah Data" icon="pi pi-plus" @click="openCreate" />
+                        <Button v-if="props.can.create" label="Tambah Data" icon="pi pi-plus" @click="openCreate" />
                     </div>
 
                     <UiSurface padding="none" class="overflow-hidden">
                         <MasterDataFilter 
                             :filterState="filterState" 
                             :canReorder="canReorder" 
+                            :canBulkDelete="props.can.deleteAny"
                             :hasOrderChanges="hasOrderChanges" 
                             :savingOrder="savingOrder" 
                             :deletingBulk="deletingBulk" 
@@ -319,6 +335,11 @@ const resetOrder = () => {
                             :records="records" 
                             :supportsBadgeColor="supportsBadgeColor" 
                             :canReorder="canReorder" 
+                            :canSelect="props.can.deleteAny"
+                            :canCreate="props.can.create"
+                            :canUpdate="props.can.update"
+                            :canToggleStatus="props.can.toggleStatus"
+                            :canDelete="props.can.delete"
                             :draggedId="draggedId" 
                             :selectedIds="selectedIds" 
                             :allVisibleSelected="allVisibleSelected" 

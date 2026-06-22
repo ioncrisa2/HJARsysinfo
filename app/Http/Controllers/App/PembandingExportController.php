@@ -10,6 +10,7 @@ use App\Services\Pembanding\PembandingBrowseFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -20,6 +21,8 @@ class PembandingExportController extends Controller
 
     public function byFilter(PembandingBrowseRequest $request, PembandingBrowseFilterService $filterService)
     {
+        Gate::authorize('exportPembanding');
+
         $format = $request->get('format', 'excel');
         $filters = $request->filters($filterService);
 

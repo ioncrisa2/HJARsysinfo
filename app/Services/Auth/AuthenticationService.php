@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Hash;
 
 class AuthenticationService
@@ -16,8 +17,12 @@ class AuthenticationService
     {
         $user = $this->findUserByEmail($credentials['email']);
 
-        if (!$user || !$this->verifyPassword($credentials['password'], $user->password)) {
+        if (! $user || ! $this->verifyPassword($credentials['password'], $user->password)) {
             return null;
+        }
+
+        if (! $this->canAccessMobile($user)) {
+            throw new AuthorizationException('Akun ini tidak diizinkan mengakses mobile app.');
         }
 
         return $this->createAuthResponse($user, $deviceName);
@@ -50,6 +55,13 @@ class AuthenticationService
         $refreshToken = $this->refreshTokenService->create($user->id);
 
         return $this->responseBuilder->build($user, $accessToken, $refreshToken);
+    }
+
+    protected function canAccessMobile(User $user): bool
+    {
+        $allowedRoles = config('mobile.allowed_roles', []);
+
+        return $user->hasAnyRole($allowedRoles);
     }
 
     protected function createAccessToken(User $user, string $deviceName): string

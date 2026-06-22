@@ -5,6 +5,7 @@ import UiSurface from "../../ui/UiSurface.vue";
 const props = defineProps({
     summary: { type: Object, required: true },
     selectedIdsLength: { type: Number, default: 0 },
+    canDownload: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["openExport"]);
@@ -14,7 +15,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
 
 <template>
     <aside class="space-y-4">
-        <UiSurface>
+        <UiSurface v-if="canDownload">
             <p class="text-sm font-bold text-slate-900">Ringkasan Export</p>
             <dl class="mt-4 space-y-3">
                 <div class="flex items-center justify-between">
@@ -32,7 +33,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
             </dl>
         </UiSurface>
 
-        <UiSurface>
+        <UiSurface v-if="canDownload">
             <p class="text-sm font-bold text-slate-900">Bulk Action</p>
             <div class="mt-4 space-y-2">
                 <Button

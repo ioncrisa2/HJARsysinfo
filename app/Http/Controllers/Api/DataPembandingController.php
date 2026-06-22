@@ -2,33 +2,38 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Pembanding;
-use App\Models\PembandingDeleteRequest;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\PembandingResource;
-use App\Http\Resources\SimilarPembandingResource;
-use App\Http\Requests\PembandingIndexRequest;
-use App\Http\Requests\FindSimilarPembandingRequest;
-use App\Services\PembandingService;
-use App\Services\PembandingFactory;
-use App\Traits\ApiResponse;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use App\Http\Requests\App\PembandingStoreRequest;
 use App\Http\Requests\App\PembandingUpdateRequest;
+use App\Http\Requests\FindSimilarPembandingRequest;
+use App\Http\Requests\PembandingIndexRequest;
+use App\Http\Resources\PembandingResource;
+use App\Http\Resources\SimilarPembandingResource;
+use App\Models\Pembanding;
+use App\Models\PembandingDeleteRequest;
+use App\Services\PembandingFactory;
+use App\Services\PembandingService;
+use App\Traits\ApiResponse;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class DataPembandingController extends Controller
 {
     use ApiResponse;
 
     protected const MAX_INDEX_LIMIT = 200;
+
     protected const DEFAULT_INDEX_LIMIT = 50;
+
     protected const MAX_SIMILAR_LIMIT = 1000;
+
     protected const DEFAULT_SIMILAR_LIMIT = 100;
+
     protected const DEFAULT_RANGE_KM = 10.0;
 
     public function __construct(
@@ -41,6 +46,8 @@ class DataPembandingController extends Controller
      */
     public function index(PembandingIndexRequest $request)
     {
+        Gate::authorize('viewAny', Pembanding::class);
+
         $limit = $this->calculateLimit(
             $request->input('limit'),
             self::DEFAULT_INDEX_LIMIT,
@@ -85,9 +92,11 @@ class DataPembandingController extends Controller
             'peruntukanRef',
         ])->find($id);
 
-        if (!$pembanding) {
+        if (! $pembanding) {
             return $this->notFound("Data Pembanding dengan ID {$id} tidak ditemukan");
         }
+
+        Gate::authorize('view', $pembanding);
 
         return $this->success(
             new PembandingResource($pembanding),
@@ -102,9 +111,11 @@ class DataPembandingController extends Controller
     {
         $pembanding = Pembanding::find($id);
 
-        if (!$pembanding) {
+        if (! $pembanding) {
             return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
         }
+
+        Gate::authorize('view', $pembanding);
 
         $limit = $this->calculateLimit(
             $request->input('limit'),
@@ -128,9 +139,11 @@ class DataPembandingController extends Controller
     {
         $pembanding = Pembanding::find($id);
 
-        if (!$pembanding) {
+        if (! $pembanding) {
             return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
         }
+
+        Gate::authorize('view', $pembanding);
 
         $activities = $pembanding->activities()
             ->latest()
@@ -192,9 +205,11 @@ class DataPembandingController extends Controller
     {
         $pembanding = Pembanding::find($id);
 
-        if (!$pembanding) {
+        if (! $pembanding) {
             return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
         }
+
+        Gate::authorize('view', $pembanding);
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
@@ -208,7 +223,7 @@ class DataPembandingController extends Controller
 
         if ($alreadyPending) {
             return response()->json([
-                'message' => 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi super_admin.'
+                'message' => 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi super_admin.',
             ], 422);
         }
 
@@ -227,6 +242,8 @@ class DataPembandingController extends Controller
      */
     public function store(PembandingStoreRequest $request): JsonResponse
     {
+        Gate::authorize('create', Pembanding::class);
+
         $data = $request->validated();
         $data['created_by'] = $request->user()->id;
 
@@ -237,8 +254,8 @@ class DataPembandingController extends Controller
         $pembanding = Pembanding::create($data);
 
         $pembanding->load([
-            'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name', 
-            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email'
+            'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name',
+            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email',
         ]);
 
         return $this->success(
@@ -254,10 +271,12 @@ class DataPembandingController extends Controller
     public function update(PembandingUpdateRequest $request, string $id): JsonResponse
     {
         $pembanding = Pembanding::find($id);
-        
-        if (!$pembanding) {
+
+        if (! $pembanding) {
             return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
         }
+
+        Gate::authorize('update', $pembanding);
 
         $data = $request->validated();
 
@@ -270,8 +289,8 @@ class DataPembandingController extends Controller
         $pembanding->update($data);
 
         $pembanding->load([
-            'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name', 
-            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email'
+            'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name',
+            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email',
         ]);
 
         return $this->success(
@@ -286,14 +305,12 @@ class DataPembandingController extends Controller
     public function destroy(string $id): JsonResponse
     {
         $pembanding = Pembanding::find($id);
-        
-        if (!$pembanding) {
+
+        if (! $pembanding) {
             return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
         }
 
-        if (!auth()->user()->can('delete_data::pembanding')) {
-            return response()->json(['message' => 'Anda tidak memiliki akses untuk menghapus data secara langsung.'], 403);
-        }
+        Gate::authorize('delete', $pembanding);
 
         $pembanding->delete();
 
@@ -312,6 +329,8 @@ class DataPembandingController extends Controller
      */
     public function similarByPayload(FindSimilarPembandingRequest $request)
     {
+        Gate::authorize('viewAny', Pembanding::class);
+
         $validated = $request->validated();
 
         $input = $this->factory->createFromArray($validated);
@@ -357,5 +376,4 @@ class DataPembandingController extends Controller
 
         return (int) round($effectiveRangeKm * 1000);
     }
-
 }

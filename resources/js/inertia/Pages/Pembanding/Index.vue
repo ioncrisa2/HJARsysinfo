@@ -15,6 +15,9 @@ const page = usePage();
 
 const records = computed(() => page.props.records ?? { data: [], links: [], total: 0, from: 0, to: 0 });
 const options = computed(() => page.props.options ?? {});
+const permissions = computed(() => page.props.auth?.permissions ?? []);
+const canCreate = computed(() => permissions.value.includes("create_data::pembanding"));
+const canExport = computed(() => permissions.value.includes("export_data::pembanding"));
 const DEFAULT_PER_PAGE = 16;
 
 const isLoading = ref(false);
@@ -127,6 +130,8 @@ const buildExportUrl = (format = "excel") => {
 };
 
 const exportByFilter = (format = "excel") => {
+    if (!canExport.value) return;
+
     exportMeta.format = format;
     exportMeta.count = records.value.total ?? 0;
     confirmVisible.filter = true;
@@ -169,6 +174,8 @@ const resetFilters = () => {
             :total="records.total ?? 0"
             :active-filter-count="activeFilterChips.length"
             :records="records"
+            :can-create="canCreate"
+            :can-export="canExport"
             @export-excel="() => exportByFilter('excel')"
             @export-pdf="() => exportByFilter('pdf')"
             @open-filter-drawer="filterDrawerVisible = true"
@@ -223,6 +230,7 @@ const resetFilters = () => {
     </main>
 
     <PembandingExportDialog
+        v-if="canExport"
         v-model:visible="confirmVisible.filter"
         :count="exportMeta.count"
         :format="exportMeta.format"

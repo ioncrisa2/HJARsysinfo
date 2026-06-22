@@ -135,7 +135,7 @@ const displayLabel = (label) => {
                 </div>
 
                 <div class="flex items-center justify-between border-t border-slate-100 px-3.5 py-2.5">
-                    <Link :href="`/home/pembanding/${item.id}/edit`"
+                    <Link v-if="item.can_update" :href="`/home/pembanding/${item.id}/edit`"
                         class="text-xs font-semibold text-blue-700 hover:text-blue-900 transition-colors">
                         Edit
                     </Link>
@@ -188,7 +188,7 @@ const displayLabel = (label) => {
                     </div>
 
                     <div class="flex items-center gap-3 shrink-0 text-sm">
-                        <Link :href="`/home/pembanding/${item.id}/edit`" class="font-semibold text-blue-700 hover:text-blue-900">Edit</Link>
+                        <Link v-if="item.can_update" :href="`/home/pembanding/${item.id}/edit`" class="font-semibold text-blue-700 hover:text-blue-900">Edit</Link>
                         <Link :href="`/home/pembanding/${item.id}`" class="font-semibold text-amber-700 hover:text-amber-900">Detail</Link>
                         <a v-if="item.latitude && item.longitude" :href="`https://www.google.com/maps?q=${item.latitude},${item.longitude}`"
                             target="_blank" class="text-slate-500 hover:text-slate-800">Maps</a>

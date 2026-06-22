@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
+use App\Support\AdminAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
@@ -11,15 +13,23 @@ use Inertia\Inertia;
 
 class SettingController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     /**
      * Display the settings form.
      */
     public function index()
     {
+        $this->authorizeAdmin('view_settings');
+
         $settings = SystemSetting::getAll();
 
         return Inertia::render('Admin/Settings/Index', [
             'settings' => $settings,
+            'can' => AdminAccess::capabilityMap(request()->user(), [
+                'update' => 'update_settings',
+                'clearCache' => 'clear_cache',
+            ]),
         ]);
     }
 
@@ -28,6 +38,8 @@ class SettingController extends Controller
      */
     public function update(Request $request)
     {
+        $this->authorizeAdmin('update_settings');
+
         $validated = $request->validate([
             'system_mode' => 'nullable|string|in:live,maintenance,off',
             'app_version' => 'nullable|string|max:50',
@@ -69,6 +81,8 @@ class SettingController extends Controller
      */
     public function clearCache()
     {
+        $this->authorizeAdmin('clear_cache');
+
         Artisan::call('cache:clear');
         Artisan::call('view:clear');
         Artisan::call('route:clear');

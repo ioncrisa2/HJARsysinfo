@@ -4,21 +4,31 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class AdminPanelPermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $permission = Permission::findOrCreate('can_access_admin_panel', 'web');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // Opsional: pastikan super_admin memiliki permission ini (jika role ada)
-        $superAdmin = Role::whereRaw('LOWER(name) = ?', ['super_admin'])
+        $canonical = Permission::findOrCreate('can_access_admin', 'web');
+        $legacy = Permission::query()
+            ->where('name', 'can_access_admin_panel')
             ->where('guard_name', 'web')
             ->first();
 
-        if ($superAdmin) {
-            $superAdmin->givePermissionTo($permission);
+        if (! $legacy) {
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+            return;
         }
+
+        $legacy->roles()->each(fn ($role) => $role->givePermissionTo($canonical));
+        $legacy->users()->each(fn ($user) => $user->givePermissionTo($canonical));
+
+        $legacy->delete();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

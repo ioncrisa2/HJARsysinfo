@@ -11,6 +11,7 @@ it('returns 401 for protected auth endpoints without token', function (string $m
 
     $response
         ->assertStatus(401)
+        ->assertJsonPath('status', 'error')
         ->assertJsonPath('message', 'Unauthenticated.');
 })->with([
     ['GET', '/api/auth/me'],
@@ -29,9 +30,14 @@ it('returns 401 for protected pembanding endpoints without token', function (str
 
     $response
         ->assertStatus(401)
+        ->assertJsonPath('status', 'error')
         ->assertJsonPath('message', 'Unauthenticated.');
 })->with([
     ['GET', '/api/v1/dictionaries/peruntukan'],
+    ['GET', '/api/v1/locations/provinces'],
+    ['GET', '/api/v1/locations/regencies'],
+    ['GET', '/api/v1/locations/districts'],
+    ['GET', '/api/v1/locations/villages'],
     ['GET', '/api/v1/pembandings'],
     ['GET', '/api/v1/pembandings/1'],
     ['GET', '/api/v1/pembandings/1/similar'],

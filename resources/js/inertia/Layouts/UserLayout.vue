@@ -16,21 +16,21 @@ const navItems = computed(() =>
             label: "Dashboard",
             href: "/home",
             icon: "pi pi-home",
-            permission: "view_any_data::pembanding",
+            permissions: ["view_map", "view_any_data::pembanding"],
         },
         {
             label: "Data Pembanding",
             href: "/home/pembanding",
             icon: "pi pi-database",
-            permission: "view_any_data::pembanding",
+            permissions: ["view_any_data::pembanding"],
         },
         {
             label: "Master Data",
             href: "/home/master-data",
             icon: "pi pi-sitemap",
-            permission: "view_any_data::pembanding",
+            permissions: ["view_master_data", "view_geo_data"],
         },
-    ].filter((item) => permissions.value.includes(item.permission))
+    ].filter((item) => item.permissions.some((permission) => permissions.value.includes(permission)))
 );
 
 const isActive = (href) => page.url === href || page.url.startsWith(`${href}/`);
@@ -85,6 +85,7 @@ const logout = () => {
 
                         <div class="flex items-center gap-2">
                             <Button
+                                v-if="page.props.auth?.can_access_admin"
                                 label="Buka Admin"
                                 icon="pi pi-external-link"
                                 outlined

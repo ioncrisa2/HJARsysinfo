@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Models\Pembanding;
 use App\Models\PembandingDeleteRequest;
 use App\Http\Controllers\Controller;
+use App\Support\AdminAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ModerationController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     public function index(Request $request)
     {
+        $this->authorizeAdmin('view_moderation');
+
         $tab = $request->query('tab', 'requests');
 
         $requests = null;
@@ -27,26 +33,48 @@ class ModerationController extends Controller
                 ->withQueryString();
         } else {
             $trashed = Pembanding::onlyTrashed()
-                ->with(['deletedBy'])
+                ->with(['deletedBy:id,name', 'jenisListing:id,name,badge_color'])
                 ->when($request->search, function ($query, $search) {
                     $query->where('alamat_data', 'like', "%{$search}%")
                           ->orWhere('deleted_reason', 'like', "%{$search}%");
                 })
                 ->latest('deleted_at')
                 ->paginate(10)
-                ->withQueryString();
+                ->withQueryString()
+                ->through(fn (Pembanding $pembanding): array => [
+                    'id' => $pembanding->id,
+                    'alamat_data' => $pembanding->alamat_data,
+                    'harga' => $pembanding->harga,
+                    'deleted_at' => $pembanding->deleted_at,
+                    'deleted_reason' => $pembanding->deleted_reason,
+                    'jenis_listing' => [
+                        'name' => $pembanding->jenisListing?->name,
+                        'badge_color' => $pembanding->jenisListing?->badge_color,
+                    ],
+                    'deleted_by' => [
+                        'name' => $pembanding->deletedBy?->name,
+                    ],
+                ]);
         }
 
         return inertia('Admin/Moderation/Index', [
             'tab' => $tab,
             'requestsPaginator' => $requests,
             'trashedPaginator' => $trashed,
-            'filters' => $request->only('search', 'tab')
+            'filters' => $request->only('search', 'tab'),
+            'can' => AdminAccess::capabilityMap($request->user(), [
+                'approve' => 'approve_delete_request',
+                'reject' => 'reject_delete_request',
+                'restore' => 'restore_data::pembanding',
+                'forceDelete' => 'force_delete_data::pembanding',
+            ]),
         ]);
     }
 
     public function approve($id)
     {
+        $this->authorizeAdmin('approve_delete_request');
+
         $requestObj = PembandingDeleteRequest::findOrFail($id);
         
         if ($requestObj->status !== PembandingDeleteRequest::STATUS_PENDING) {
@@ -77,6 +105,8 @@ class ModerationController extends Controller
 
     public function reject(Request $http, $id)
     {
+        $this->authorizeAdmin('reject_delete_request');
+
         $requestObj = PembandingDeleteRequest::findOrFail($id);
         $http->validate(['review_note' => 'required|string|max:1000']);
 
@@ -96,6 +126,8 @@ class ModerationController extends Controller
 
     public function restore($id)
     {
+        $this->authorizeAdmin('restore_data::pembanding');
+
         $pembanding = Pembanding::onlyTrashed()->findOrFail($id);
         
         $pembanding->forceFill([
@@ -110,6 +142,8 @@ class ModerationController extends Controller
 
     public function forceDelete($id)
     {
+        $this->authorizeAdmin('force_delete_data::pembanding');
+
         $pembanding = Pembanding::onlyTrashed()->findOrFail($id);
         $pembanding->forceDelete();
 

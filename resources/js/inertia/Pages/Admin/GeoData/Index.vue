@@ -21,6 +21,7 @@ const props = defineProps({
     filters: { type: Object, default: () => ({}) },
     stats: { type: Object, default: () => ({}) },
     options: { type: Object, default: () => ({ provinces: [], regencies: [], districts: [] }) },
+    can: { type: Object, default: () => ({}) },
 });
 
 const confirm = useConfirm();
@@ -180,6 +181,8 @@ const resetForm = () => {
 };
 
 const openCreate = async () => {
+    if (!props.can.create) return;
+
     editingRecord.value = null;
     resetForm();
     form.province_id = filterState.province_id ?? null;
@@ -193,6 +196,8 @@ const openCreate = async () => {
 };
 
 const openEdit = async (record) => {
+    if (!props.can.update) return;
+
     editingRecord.value = record;
     resetForm();
     form.id = record.id;
@@ -231,6 +236,8 @@ const handleFormRegencyChange = async () => {
 };
 
 const submit = () => {
+    if ((editingRecord.value && !props.can.update) || (!editingRecord.value && !props.can.create)) return;
+
     if (editingRecord.value) {
         form.put(`${resourceUrl(props.currentResource)}/${editingRecord.value.id}`, {
             preserveScroll: true,
@@ -246,6 +253,8 @@ const submit = () => {
 };
 
 const deleteRecord = (record) => {
+    if (!props.can.delete) return;
+
     confirm.require({
         header: `Hapus ${currentMeta.value?.singular ?? "data"}?`,
         message: `Data "${record.name}" akan dihapus. Data turunan juga dapat ikut terhapus jika ada relasi cascade.`,
@@ -349,7 +358,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                             </p>
                         </div>
 
-                        <Button label="Tambah Data" icon="pi pi-plus" @click="openCreate" />
+                        <Button v-if="props.can.create" label="Tambah Data" icon="pi pi-plus" @click="openCreate" />
                     </div>
 
                     <UiSurface padding="none" class="overflow-hidden">
@@ -440,7 +449,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                         <th class="px-5 py-4">Nama</th>
                                         <th v-if="hasParentColumn" class="px-5 py-4">Induk</th>
                                         <th v-if="hasChildCount" class="px-5 py-4">{{ currentMeta?.children_label }}</th>
-                                        <th class="px-5 py-4 text-right">Aksi</th>
+                                        <th v-if="props.can.update || props.can.delete" class="px-5 py-4 text-right">Aksi</th>
                                     </tr>
                                 </thead>
 
@@ -458,10 +467,10 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                                 {{ formatNumber(childCount(record)) }}
                                             </span>
                                         </td>
-                                        <td class="px-5 py-4">
+                                        <td v-if="props.can.update || props.can.delete" class="px-5 py-4">
                                             <div class="flex justify-end gap-1">
-                                                <Button icon="pi pi-pencil" text rounded severity="secondary" aria-label="Edit" @click="openEdit(record)" />
-                                                <Button icon="pi pi-trash" text rounded severity="danger" aria-label="Hapus" @click="deleteRecord(record)" />
+                                                <Button v-if="props.can.update" icon="pi pi-pencil" text rounded severity="secondary" aria-label="Edit" @click="openEdit(record)" />
+                                                <Button v-if="props.can.delete" icon="pi pi-trash" text rounded severity="danger" aria-label="Hapus" @click="deleteRecord(record)" />
                                             </div>
                                         </td>
                                     </tr>
@@ -474,7 +483,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                                 icon="pi pi-map-marker"
                                             >
                                                 <template #actions>
-                                                    <Button label="Tambah Data" icon="pi pi-plus" size="small" @click="openCreate" />
+                                                    <Button v-if="props.can.create" label="Tambah Data" icon="pi pi-plus" size="small" @click="openCreate" />
                                                 </template>
                                             </UiEmptyState>
                                         </td>

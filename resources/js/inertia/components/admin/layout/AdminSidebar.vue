@@ -1,7 +1,8 @@
 <script setup>
 import { Link, usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
 
-const props = defineProps({
+defineProps({
     sidebarOpen: { type: Boolean, required: true },
     mobileOverlay: { type: Boolean, required: true },
 });
@@ -11,44 +12,11 @@ const emit = defineEmits(["toggleSidebar"]);
 const page = usePage();
 const PREFIX = "/admin";
 
-// ── Menu ─────────────────────────────────────────────────────────────────────
-const menuSections = [
-    {
-        label: "Overview",
-        items: [
-            { label: "Dashboard", href: `${PREFIX}`, icon: "pi-home" },
-        ],
-    },
-    {
-        label: "User Management",
-        items: [
-            { label: "Users", href: `${PREFIX}/users`, icon: "pi-users" },
-            { label: "Access Control", href: `${PREFIX}/access-control`, icon: "pi-key" },
-        ],
-    },
-    {
-        label: "Data Operations",
-        items: [
-            { label: "Moderation Desk", href: `${PREFIX}/moderation`, icon: "pi-shield" },
-            { label: "Appraisal Data", href: `${PREFIX}/pembanding`, icon: "pi-database" },
-            { label: "Master Data", href: `${PREFIX}/master-data`, icon: "pi-box" },
-            { label: "Geo Data", href: `${PREFIX}/geo`, icon: "pi-map" },
-        ],
-    },
-    {
-        label: "System",
-        items: [
-            { label: "Export Data", href: `${PREFIX}/export`, icon: "pi-download" },
-            { label: "System Backup", href: `${PREFIX}/backup`, icon: "pi-archive" },
-            { label: "Settings", href: `${PREFIX}/settings`, icon: "pi-cog" },
-            { label: "Activity Logs", href: `${PREFIX}/activity-logs`, icon: "pi-list" },
-            { label: "Search", href: `${PREFIX}/search`, icon: "pi-search" },
-        ],
-    },
-];
+const menuSections = computed(() => page.props.adminMenu ?? []);
+const homeHref = computed(() => menuSections.value?.[0]?.items?.[0]?.href ?? PREFIX);
 
 const isActive = (href) => {
-    const url = page.url.split("?")[0]; // strip query string
+    const url = page.url.split("?")[0];
     if (href === PREFIX) return url === PREFIX || url === `${PREFIX}/`;
     return url === href || url.startsWith(`${href}/`);
 };
@@ -64,9 +32,8 @@ const isActive = (href) => {
         ]"
     >
         <div class="h-full flex flex-col">
-            <!-- Branding -->
             <div class="h-16 flex items-center justify-center border-b border-slate-800">
-                <Link :href="PREFIX" class="flex items-center gap-3">
+                <Link :href="homeHref" class="flex items-center gap-3">
                     <div v-if="page.props.appSettings?.app_logo" class="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden bg-white">
                         <img :src="'/storage/' + page.props.appSettings.app_logo" class="h-full w-full object-cover" />
                     </div>
@@ -82,7 +49,6 @@ const isActive = (href) => {
                 </Link>
             </div>
 
-            <!-- Navigation -->
             <nav class="flex-1 overflow-y-auto px-3 py-6">
                 <div v-for="section in menuSections" :key="section.label" class="mb-5 last:mb-0">
                     <p
@@ -110,7 +76,6 @@ const isActive = (href) => {
                 </div>
             </nav>
 
-            <!-- Sidebar Footer Toggle (Desktop only) -->
             <div class="hidden md:flex p-4 border-t border-slate-800 justify-center">
                 <button @click="emit('toggleSidebar')" class="p-2 rounded-md hover:bg-slate-800 text-slate-400 transition-colors">
                     <i class="pi" :class="sidebarOpen ? 'pi-angle-double-left' : 'pi-angle-double-right'" />

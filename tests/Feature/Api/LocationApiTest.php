@@ -11,7 +11,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
-    
+
     // Setup some data
     $this->province = Province::create(['id' => 11, 'name' => 'ACEH']);
     $this->regency = Regency::create(['id' => 1101, 'province_id' => 11, 'name' => 'KABUPATEN SIMEULUE']);
@@ -27,8 +27,20 @@ it('can fetch provinces', function () {
         ->assertJsonPath('status', 'success')
         ->assertJsonFragment([
             'id' => '11',
-            'name' => 'ACEH'
+            'name' => 'ACEH',
         ]);
+});
+
+it('supports q and limit for provinces', function () {
+    Province::create(['id' => 12, 'name' => 'SUMATERA UTARA']);
+    Province::create(['id' => 13, 'name' => 'SUMATERA BARAT']);
+
+    $response = $this->actingAs($this->user)->getJson('/api/v1/locations/provinces?q=SUMATERA&limit=1');
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonCount(1, 'data');
 });
 
 it('can fetch regencies with or without province filter', function () {
@@ -40,6 +52,9 @@ it('can fetch regencies with or without province filter', function () {
 
     $responseEmpty = $this->actingAs($this->user)->getJson('/api/v1/locations/regencies?province_id=99');
     $responseEmpty->assertOk()->assertJsonCount(0, 'data');
+
+    $responseSearch = $this->actingAs($this->user)->getJson('/api/v1/locations/regencies?q=SIMEULUE&limit=1');
+    $responseSearch->assertOk()->assertJsonCount(1, 'data');
 });
 
 it('can fetch districts with or without regency filter', function () {

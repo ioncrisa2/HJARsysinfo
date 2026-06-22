@@ -9,6 +9,7 @@ const props = defineProps({
     users: Object,
     filters: Object,
     roles: Array,
+    can: { type: Object, default: () => ({}) },
 });
 
 const confirm = useConfirm();
@@ -92,7 +93,7 @@ const toggleStatus = (id) => {
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
                     <h2 class="text-xl font-bold text-slate-900">Users</h2>
-                    <div v-if="selectedUsers.length > 0" class="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div v-if="props.can.deleteAny && selectedUsers.length > 0" class="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-300">
                         <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
                             {{ selectedUsers.length }} Selected
                         </span>
@@ -106,6 +107,7 @@ const toggleStatus = (id) => {
                     </div>
                 </div>
                 <Link
+                    v-if="props.can.create"
                     href="/admin/users/create"
                     class="inline-flex items-center justify-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition shadow-sm"
                 >
@@ -159,7 +161,7 @@ const toggleStatus = (id) => {
                 <table class="w-full text-left text-sm whitespace-nowrap">
                     <thead class="bg-slate-50/50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
                         <tr>
-                            <th class="px-6 py-4 w-10">
+                            <th v-if="props.can.deleteAny" class="px-6 py-4 w-10">
                                 <input 
                                     type="checkbox" 
                                     :checked="isAllSelected"
@@ -170,7 +172,7 @@ const toggleStatus = (id) => {
                             <th class="px-6 py-4">User Details</th>
                             <th class="px-6 py-4">Roles</th>
                             <th class="px-6 py-4">Status</th>
-                            <th class="px-6 py-4 text-right">Actions</th>
+                            <th v-if="props.can.update || props.can.delete" class="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -180,7 +182,7 @@ const toggleStatus = (id) => {
                             class="hover:bg-slate-50/50 transition-colors"
                             :class="selectedUsers.includes(user.id) ? 'bg-slate-50' : ''"
                         >
-                            <td class="px-6 py-4 w-10">
+                            <td v-if="props.can.deleteAny" class="px-6 py-4 w-10">
                                 <input 
                                     type="checkbox" 
                                     v-model="selectedUsers"
@@ -212,7 +214,8 @@ const toggleStatus = (id) => {
                                 </div>
                             </td>
                             <td class="px-6 py-4">
-                                <button 
+                                <button
+                                    v-if="props.can.update"
                                     @click="toggleStatus(user.id)"
                                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all"
                                     :class="!user.deactivated_at 
@@ -224,9 +227,10 @@ const toggleStatus = (id) => {
                                     {{ !user.deactivated_at ? 'Active' : 'Inactive' }}
                                 </button>
                             </td>
-                            <td class="px-6 py-4 text-right">
+                            <td v-if="props.can.update || props.can.delete" class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-1">
                                     <Link
+                                        v-if="props.can.update"
                                         :href="`/admin/users/${user.id}/edit`"
                                         class="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                                         title="Edit User"
@@ -234,6 +238,7 @@ const toggleStatus = (id) => {
                                         <i class="pi pi-pencil text-xs" />
                                     </Link>
                                     <button
+                                        v-if="props.can.delete"
                                         @click="deleteUser(user.id)"
                                         class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                         title="Delete User"
@@ -286,4 +291,3 @@ const toggleStatus = (id) => {
         </div>
     </AdminLayout>
 </template>
-

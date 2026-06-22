@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
+use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +16,8 @@ use Throwable;
 
 class MasterDataController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     private array $resourceMap = [
         'bentuk-tanah'              => \App\Models\BentukTanah::class,
         'dokumen-tanah'             => \App\Models\DokumenTanah::class,
@@ -28,6 +32,8 @@ class MasterDataController extends Controller
 
     public function index(Request $request, ?string $resource = null): Response
     {
+        $this->authorizeAdmin('view_master_data');
+
         if (!$resource || !isset($this->resourceMap[$resource])) {
             return Inertia::render('Admin/MasterData/Index', [
                 'currentResource' => null,
@@ -35,6 +41,7 @@ class MasterDataController extends Controller
                 'records'         => ['data' => [], 'links' => []],
                 'filters'         => $this->filters($request),
                 'resources'       => $this->getAvailableResources(),
+                'can'             => $this->capabilities($request),
             ]);
         }
 
@@ -74,11 +81,14 @@ class MasterDataController extends Controller
             'resources'       => $this->getAvailableResources(),
             'filters'         => $filters,
             'supportsBadgeColor' => $this->supportsBadgeColor($modelClass),
+            'can' => $this->capabilities($request),
         ]);
     }
 
     public function store(Request $request, string $resource): RedirectResponse
     {
+        $this->authorizeAdmin('create_master_data');
+
         $modelClass = $this->modelClass($resource);
 
         $data = $this->validatedData($request, $modelClass);
@@ -92,6 +102,8 @@ class MasterDataController extends Controller
 
     public function update(Request $request, string $resource, $id): RedirectResponse
     {
+        $this->authorizeAdmin('update_master_data');
+
         $modelClass = $this->modelClass($resource);
         $record = $modelClass::findOrFail($id);
 
@@ -105,6 +117,8 @@ class MasterDataController extends Controller
 
     public function destroy(string $resource, $id): RedirectResponse
     {
+        $this->authorizeAdmin('delete_master_data');
+
         $modelClass = $this->modelClass($resource);
         $record = $modelClass::findOrFail($id);
 
@@ -118,6 +132,8 @@ class MasterDataController extends Controller
 
     public function toggleStatus(string $resource, $id): RedirectResponse
     {
+        $this->authorizeAdmin('update_master_data_status');
+
         $modelClass = $this->modelClass($resource);
         $record = $modelClass::findOrFail($id);
 
@@ -128,6 +144,8 @@ class MasterDataController extends Controller
 
     public function reorder(Request $request, string $resource): RedirectResponse
     {
+        $this->authorizeAdmin('reorder_master_data');
+
         $modelClass = $this->modelClass($resource);
 
         $data = $request->validate([
@@ -150,6 +168,8 @@ class MasterDataController extends Controller
 
     public function bulkDestroy(Request $request, string $resource): RedirectResponse
     {
+        $this->authorizeAdmin('delete_any_master_data');
+
         $modelClass = $this->modelClass($resource);
 
         $data = $request->validate([
@@ -181,6 +201,18 @@ class MasterDataController extends Controller
             'sort_dir' => $sortDir === 'desc' ? 'desc' : 'asc',
             'per_page' => min(max((int) $request->integer('per_page', 20), 10), 100),
         ];
+    }
+
+    private function capabilities(Request $request): array
+    {
+        return AdminAccess::capabilityMap($request->user(), [
+            'create' => 'create_master_data',
+            'update' => 'update_master_data',
+            'toggleStatus' => 'update_master_data_status',
+            'delete' => 'delete_master_data',
+            'deleteAny' => 'delete_any_master_data',
+            'reorder' => 'reorder_master_data',
+        ]);
     }
 
     private function validatedData(Request $request, string $modelClass): array

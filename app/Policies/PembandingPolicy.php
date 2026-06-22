@@ -23,7 +23,8 @@ class PembandingPolicy
      */
     public function view(User $user, Pembanding $pembanding): bool
     {
-        return $user->can('view_data::pembanding');
+        return $user->can('view_data::pembanding')
+            || $user->can('view_any_data::pembanding');
     }
 
     /**
@@ -39,7 +40,11 @@ class PembandingPolicy
      */
     public function update(User $user, Pembanding $pembanding): bool
     {
-        return $user->can('update_data::pembanding');
+        return $user->can('update_data::pembanding')
+            || (
+                $user->can('update_own_data::pembanding')
+                && (int) $pembanding->created_by === (int) $user->id
+            );
     }
 
     /**

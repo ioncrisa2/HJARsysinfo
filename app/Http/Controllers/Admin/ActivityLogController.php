@@ -2,20 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Spatie\Activitylog\Models\Activity;
-use Illuminate\Support\Facades\Gate;
 
 class ActivityLogController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     /**
      * Display a listing of the activity logs.
      */
     public function index(Request $request)
     {
-        // Pastikan hanya super_admin yang bisa akses (sudah di-handle via route middleware sebenarnya)
+        $this->authorizeAdmin('view_activity_log');
         
         $query = Activity::with('causer')->latest();
 
@@ -41,6 +43,8 @@ class ActivityLogController extends Controller
      */
     public function show($id)
     {
+        $this->authorizeAdmin('view_activity_log');
+
         $log = Activity::with('causer')->findOrFail($id);
 
         return Inertia::render('Admin/ActivityLogs/Show', [

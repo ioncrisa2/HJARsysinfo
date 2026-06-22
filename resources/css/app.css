@@ -30,6 +30,14 @@
         text-rendering: geometricPrecision;
     }
 
+    :root {
+        --form-accent: #f59e0b;
+        --form-accent-strong: #d97706;
+        --form-accent-soft: #fffbeb;
+        --form-border: #cbd5e1;
+        --form-focus-ring: color-mix(in oklab, var(--form-accent) 24%, transparent);
+    }
+
     /* Visible keyboard focus everywhere. */
     :where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
         outline: 2px solid var(--focus-outline);
@@ -148,4 +156,104 @@
 .p-toast {
     z-index: 11000 !important;
     top: 72px !important;
+}
+
+/* Global form focus: match the compact master-data search input. */
+:where(
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    textarea,
+    select,
+    .p-inputtext,
+    .p-textarea,
+    .p-select,
+    .p-dropdown,
+    .p-multiselect,
+    .p-autocomplete,
+    .p-datepicker input,
+    .p-inputnumber-input,
+    .p-password input
+) {
+    border-color: var(--form-border) !important;
+}
+
+:where(
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    textarea,
+    select,
+    .p-inputtext,
+    .p-textarea,
+    .p-select,
+    .p-dropdown,
+    .p-multiselect,
+    .p-autocomplete,
+    .p-datepicker input,
+    .p-inputnumber-input,
+    .p-password input
+):hover {
+    border-color: #fbbf24 !important;
+}
+
+:where(
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    textarea,
+    select,
+    .p-inputtext,
+    .p-textarea,
+    .p-select,
+    .p-dropdown,
+    .p-multiselect,
+    .p-autocomplete,
+    .p-datepicker input,
+    .p-inputnumber-input,
+    .p-password input
+):focus,
+:where(
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    textarea,
+    select,
+    .p-inputtext,
+    .p-textarea,
+    .p-select,
+    .p-dropdown,
+    .p-multiselect,
+    .p-autocomplete,
+    .p-datepicker input,
+    .p-inputnumber-input,
+    .p-password input
+):focus-visible,
+:where(.p-inputtext, .p-textarea, .p-select, .p-dropdown, .p-multiselect, .p-autocomplete, .p-datepicker, .p-inputnumber, .p-password).p-focus {
+    border-color: var(--form-accent) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 1px #fdba74 !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+:where(.p-select-overlay, .p-dropdown-panel, .p-multiselect-overlay, .p-autocomplete-overlay) {
+    border-color: #e2e8f0 !important;
+}
+
+:where(.p-select-option, .p-dropdown-item, .p-multiselect-option, .p-autocomplete-option).p-focus,
+:where(.p-select-option, .p-dropdown-item, .p-multiselect-option, .p-autocomplete-option):hover {
+    background: var(--form-accent-soft) !important;
+    color: #0f172a !important;
+}
+
+:where(.p-select-option, .p-dropdown-item, .p-multiselect-option, .p-autocomplete-option).p-selected,
+:where(.p-select-option, .p-dropdown-item, .p-multiselect-option, .p-autocomplete-option).p-highlight,
+:where(.p-select-option, .p-dropdown-item, .p-multiselect-option, .p-autocomplete-option)[aria-selected='true'] {
+    background: var(--form-accent-soft) !important;
+    color: #92400e !important;
+}
+
+:where(.p-checkbox-box, .p-radiobutton-box).p-highlight,
+:where(.p-checkbox-checked .p-checkbox-box, .p-radiobutton-checked .p-radiobutton-box) {
+    background: var(--form-accent) !important;
+    border-color: var(--form-accent) !important;
+}
+
+:where(.p-checkbox-box, .p-radiobutton-box).p-focus,
+:where(.p-checkbox-input:focus-visible + .p-checkbox-box, .p-radiobutton-input:focus-visible + .p-radiobutton-box) {
+    border-color: var(--form-accent) !important;
+    box-shadow: 0 0 0 1px #fdba74 !important;
 }

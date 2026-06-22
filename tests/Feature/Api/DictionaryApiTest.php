@@ -4,6 +4,8 @@ use App\Models\Peruntukan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(RefreshDatabase::class);
 
@@ -38,13 +40,39 @@ it('returns active dictionary rows by default', function () {
 
     $response
         ->assertOk()
-        ->assertJsonCount(2)
-        ->assertJsonPath('0.slug', 'gudang')
-        ->assertJsonPath('1.slug', 'rumah_tinggal')
+        ->assertJsonPath('status', 'success')
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.slug', 'gudang')
+        ->assertJsonPath('data.1.slug', 'rumah_tinggal')
         ->assertJsonMissing(['slug' => 'ruko']);
 });
 
-it('can include inactive dictionary rows with active_only=0', function () {
+it('rejects inactive dictionary rows without master data permission', function () {
+    Peruntukan::query()->create([
+        'slug' => 'gudang',
+        'name' => 'Gudang',
+        'sort_order' => 1,
+        'is_active' => true,
+    ]);
+
+    Peruntukan::query()->create([
+        'slug' => 'ruko',
+        'name' => 'Ruko',
+        'sort_order' => 2,
+        'is_active' => false,
+    ]);
+
+    $response = $this->getJson('/api/v1/dictionaries/peruntukan?active_only=0');
+
+    $response
+        ->assertForbidden()
+        ->assertJsonPath('status', 'error');
+});
+
+it('can include inactive dictionary rows with active_only=0 for authorized users', function () {
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    $this->user->givePermissionTo(Permission::findOrCreate('view_master_data', 'web'));
+
     Peruntukan::query()->create([
         'slug' => 'gudang',
         'name' => 'Gudang',
@@ -63,7 +91,8 @@ it('can include inactive dictionary rows with active_only=0', function () {
 
     $response
         ->assertOk()
-        ->assertJsonCount(2)
+        ->assertJsonPath('status', 'success')
+        ->assertJsonCount(2, 'data')
         ->assertJsonFragment([
             'slug' => 'ruko',
             'is_active' => false,

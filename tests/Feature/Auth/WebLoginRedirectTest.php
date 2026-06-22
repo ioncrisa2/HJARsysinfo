@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -30,8 +31,15 @@ function makeWebLoginUser(array $attributes = [], ?string $role = null): User
     return $user;
 }
 
+function grantWebLoginPermission(User $user, string $permission): void
+{
+    Permission::findOrCreate($permission, 'web');
+    $user->givePermissionTo($permission);
+}
+
 it('redirects super admin to admin dashboard when intended url is home', function () {
     $user = makeWebLoginUser(['email' => 'admin@example.test'], 'super_admin');
+    grantWebLoginPermission($user, 'can_access_admin');
 
     $this
         ->withSession(['url.intended' => 'http://localhost/home'])
@@ -44,6 +52,7 @@ it('redirects super admin to admin dashboard when intended url is home', functio
 
 it('preserves admin intended urls for super admin users', function () {
     $user = makeWebLoginUser(['email' => 'admin-users@example.test'], 'super_admin');
+    grantWebLoginPermission($user, 'can_access_admin');
 
     $this
         ->withSession(['url.intended' => 'http://localhost/admin/users'])
@@ -64,4 +73,17 @@ it('does not redirect non admin users into admin urls after login', function () 
             'password' => 'password',
         ])
         ->assertRedirect(route('home.dashboard'));
+});
+
+it('redirects non super admin users with admin access permission to admin dashboard', function () {
+    $user = makeWebLoginUser(['email' => 'ops-admin@example.test']);
+    grantWebLoginPermission($user, 'can_access_admin');
+
+    $this
+        ->withSession(['url.intended' => 'http://localhost/home'])
+        ->post('/login', [
+            'email' => $user->email,
+            'password' => 'password',
+        ])
+        ->assertRedirect(route('admin.dashboard'));
 });

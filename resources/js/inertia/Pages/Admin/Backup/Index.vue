@@ -13,6 +13,7 @@ import { appendCsrfHeader } from "../../../utils/csrf";
 const props = defineProps({
     meta: { type: Object, default: () => ({}) },
     history: { type: Object, default: () => ({ database: [], uploads: [] }) },
+    can: { type: Object, default: () => ({}) },
 });
 
 const toast = useToast();
@@ -46,6 +47,8 @@ const actionMeta = computed(() => {
 const isLoading = computed(() => loadingType.value !== null);
 
 const openConfirm = (type) => {
+    if ((type === "database" && !props.can.database) || (type === "uploads" && !props.can.uploads)) return;
+
     pendingType.value = type;
     confirmDialog.value = true;
 };
@@ -86,6 +89,8 @@ const errorMessage = async (response) => {
 };
 
 const runBackup = async () => {
+    if ((pendingType.value === "database" && !props.can.database) || (pendingType.value === "uploads" && !props.can.uploads)) return;
+
     const meta = actionMeta.value;
     loadingType.value = pendingType.value;
     confirmDialog.value = false;
@@ -147,6 +152,7 @@ const formatDate = (value) => {
 
             <div class="flex flex-wrap gap-2">
                 <Button
+                    v-if="props.can.database"
                     label="Backup Database"
                     icon="pi pi-database"
                     :loading="loadingType === 'database'"
@@ -154,6 +160,7 @@ const formatDate = (value) => {
                     @click="openConfirm('database')"
                 />
                 <Button
+                    v-if="props.can.uploads"
                     label="Backup Uploaded Files"
                     icon="pi pi-folder"
                     severity="secondary"
@@ -197,6 +204,7 @@ const formatDate = (value) => {
                         </dl>
 
                         <Button
+                            v-if="props.can.database"
                             label="Backup Database"
                             icon="pi pi-download"
                             class="mt-5 w-full"
@@ -241,6 +249,7 @@ const formatDate = (value) => {
                         </dl>
 
                         <Button
+                            v-if="props.can.uploads"
                             label="Backup Uploaded Files"
                             icon="pi pi-download"
                             severity="secondary"
@@ -315,6 +324,10 @@ const formatDate = (value) => {
                             </span>
                         </div>
                         <div class="flex items-center justify-between gap-3">
+                            <span class="text-xs font-semibold text-slate-500">DB fallback</span>
+                            <Tag :value="meta.requirements?.database_fallback || 'PHP PDO'" severity="info" />
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
                             <span class="text-xs font-semibold text-slate-500">ZipArchive</span>
                             <Tag :value="meta.requirements?.zip ? 'Ready' : 'Missing'" :severity="meta.requirements?.zip ? 'success' : 'danger'" />
                         </div>
@@ -324,7 +337,8 @@ const formatDate = (value) => {
                 <UiSurface>
                     <p class="text-sm font-bold text-slate-900">Catatan Operasional</p>
                     <ul class="mt-3 space-y-2 text-pretty text-xs font-medium text-slate-600">
-                        <li>Backup database membutuhkan binary mysqldump di server.</li>
+                        <li>Backup database mencoba mysqldump jika tersedia, lalu fallback ke PHP PDO.</li>
+                        <li>Untuk database besar, set MYSQLDUMP_BINARY agar proses backup lebih cepat dan stabil.</li>
                         <li>Backup upload hanya mengambil isi storage/app/public.</li>
                         <li>File backup tersimpan di storage/app/backups dan langsung diunduh setelah selesai.</li>
                     </ul>

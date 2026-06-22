@@ -10,6 +10,8 @@ const props = defineProps({
         type: Object,
         default: () => ({ data: [], total: 0, current_page: 1, last_page: 1 }),
     },
+    canCreate: { type: Boolean, default: false },
+    canExport: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["exportExcel", "exportPdf", "openFilterDrawer"]);
@@ -48,6 +50,7 @@ const exportItems = [
 
                 <!-- Export SplitButton -->
                 <SplitButton
+                    v-if="canExport"
                     label="Export Excel"
                     icon="pi pi-download"
                     size="small"
@@ -57,6 +60,7 @@ const exportItems = [
                 />
 
                 <Link
+                    v-if="canCreate"
                     href="/home/pembanding/create"
                     class="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
                 >

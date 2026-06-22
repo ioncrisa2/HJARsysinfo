@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\District;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\Village;
 use App\Services\Location\LocationIdGenerator;
+use App\Support\AdminAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,8 @@ use Throwable;
 
 class GeoDataController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     private const RESOURCE_MAP = [
         'provinces' => [
             'label' => 'Provinsi',
@@ -67,6 +71,8 @@ class GeoDataController extends Controller
 
     public function index(Request $request, ?string $resource = null): Response
     {
+        $this->authorizeAdmin('view_geo_data');
+
         if ($resource !== null && ! array_key_exists($resource, self::RESOURCE_MAP)) {
             abort(404);
         }
@@ -90,11 +96,18 @@ class GeoDataController extends Controller
             'filters' => $filters,
             'stats' => $this->stats(),
             'options' => $this->optionsFor($filters),
+            'can' => AdminAccess::capabilityMap($request->user(), [
+                'create' => 'create_geo_data',
+                'update' => 'update_geo_data',
+                'delete' => 'delete_geo_data',
+            ]),
         ]);
     }
 
     public function store(Request $request, string $resource): RedirectResponse
     {
+        $this->authorizeAdmin('create_geo_data');
+
         abort_unless(array_key_exists($resource, self::RESOURCE_MAP), 404);
 
         $record = match ($resource) {
@@ -111,6 +124,8 @@ class GeoDataController extends Controller
 
     public function update(Request $request, string $resource, string $id): RedirectResponse
     {
+        $this->authorizeAdmin('update_geo_data');
+
         abort_unless(array_key_exists($resource, self::RESOURCE_MAP), 404);
 
         $data = $request->validate([
@@ -127,6 +142,8 @@ class GeoDataController extends Controller
 
     public function destroy(string $resource, string $id): RedirectResponse
     {
+        $this->authorizeAdmin('delete_geo_data');
+
         abort_unless(array_key_exists($resource, self::RESOURCE_MAP), 404);
 
         $record = $this->findRecord($resource, $id);
@@ -147,6 +164,8 @@ class GeoDataController extends Controller
 
     public function regencies(Request $request): JsonResponse
     {
+        $this->authorizeAdmin('view_geo_data');
+
         $request->validate([
             'province_id' => ['required', 'string', 'size:2', Rule::exists('provinces', 'id')],
         ]);
@@ -161,6 +180,8 @@ class GeoDataController extends Controller
 
     public function districts(Request $request): JsonResponse
     {
+        $this->authorizeAdmin('view_geo_data');
+
         $request->validate([
             'regency_id' => ['required', 'string', 'size:4', Rule::exists('regencies', 'id')],
         ]);

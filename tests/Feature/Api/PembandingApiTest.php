@@ -16,12 +16,30 @@ use App\Models\Topografi;
 use App\Models\User;
 use App\Models\Village;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $permissions = [
+        'view_any_data::pembanding',
+        'view_data::pembanding',
+        'create_data::pembanding',
+        'update_data::pembanding',
+    ];
+
+    foreach ($permissions as $permission) {
+        Permission::findOrCreate($permission, 'web');
+    }
+
+    $this->user->givePermissionTo($permissions);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
     Sanctum::actingAs($this->user);
 
     $this->province = Province::query()->create([
@@ -125,6 +143,35 @@ beforeEach(function () {
             'topografi_id' => $this->refs['topografi_id'],
             'peruntukan_id' => $this->refs['peruntukan_rumah_id'],
         ], $overrides));
+    };
+
+    $this->validPembandingPayload = function (array $overrides = []) {
+        return array_merge([
+            'nama_pemberi_informasi' => 'Test User',
+            'nomer_telepon_pemberi_informasi' => '08123456789',
+            'alamat_data' => 'Jl. Test Create',
+            'latitude' => -2.5,
+            'longitude' => 118.0,
+            'luas_tanah' => 100,
+            'lebar_depan' => 10,
+            'lebar_jalan' => 5,
+            'harga' => 100000000,
+            'tanggal_data' => now()->toDateString(),
+            'province_id' => $this->province->id,
+            'regency_id' => $this->regency->id,
+            'district_id' => $this->district->id,
+            'village_id' => $this->village->id,
+            'jenis_listing_id' => $this->refs['jenis_listing_id'],
+            'jenis_objek_id' => $this->refs['jenis_objek_id'],
+            'status_pemberi_informasi_id' => $this->refs['status_pemberi_informasi_id'],
+            'bentuk_tanah_id' => $this->refs['bentuk_tanah_id'],
+            'dokumen_tanah_id' => $this->refs['dokumen_tanah_id'],
+            'posisi_tanah_id' => $this->refs['posisi_tanah_id'],
+            'kondisi_tanah_id' => $this->refs['kondisi_tanah_id'],
+            'topografi_id' => $this->refs['topografi_id'],
+            'peruntukan_id' => $this->refs['peruntukan_rumah_id'],
+            'image' => UploadedFile::fake()->image('foto.jpg'),
+        ], $overrides);
     };
 });
 
@@ -413,37 +460,58 @@ it('returns 422 when similar payload is invalid', function () {
 });
 
 it('can store new pembanding', function () {
-    $response = $this->postJson('/api/v1/pembandings', [
-        'nama_pemberi_informasi' => 'Test User',
-        'nomer_telepon_pemberi_informasi' => '08123456789',
-        'alamat_data' => 'Jl. Test Create',
-        'latitude' => -2.5,
-        'longitude' => 118.0,
-        'luas_tanah' => 100,
-        'lebar_depan' => 10,
-        'lebar_jalan' => 5,
-        'harga' => 100000000,
-        'tanggal_data' => now()->toDateString(),
-        'province_id' => $this->province->id,
-        'regency_id' => $this->regency->id,
-        'district_id' => $this->district->id,
-        'village_id' => $this->village->id,
-        'jenis_listing_id' => $this->refs['jenis_listing_id'],
-        'jenis_objek_id' => $this->refs['jenis_objek_id'],
-        'status_pemberi_informasi_id' => $this->refs['status_pemberi_informasi_id'],
-        'bentuk_tanah_id' => $this->refs['bentuk_tanah_id'],
-        'dokumen_tanah_id' => $this->refs['dokumen_tanah_id'],
-        'posisi_tanah_id' => $this->refs['posisi_tanah_id'],
-        'kondisi_tanah_id' => $this->refs['kondisi_tanah_id'],
-        'topografi_id' => $this->refs['topografi_id'],
-        'peruntukan_id' => $this->refs['peruntukan_rumah_id'],
-        'image' => \Illuminate\Http\UploadedFile::fake()->image('foto.jpg'),
-    ]);
+    $response = $this->postJson('/api/v1/pembandings', ($this->validPembandingPayload)());
 
     $response
         ->assertOk()
         ->assertJsonPath('status', 'success')
         ->assertJsonPath('data.alamat_data', 'Jl. Test Create');
+});
+
+it('validates sewa period through API create', function () {
+    $sewaId = JenisListing::query()->create([
+        'slug' => 'sewa',
+        'name' => 'Sewa',
+    ])->id;
+
+    $this->postJson('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'jenis_listing_id' => $sewaId,
+        'jangka_waktu_sewa' => null,
+        'satuan_waktu_sewa' => null,
+    ]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['jangka_waktu_sewa', 'satuan_waktu_sewa']);
+
+    $this->postJson('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'jenis_listing_id' => $sewaId,
+        'alamat_data' => 'Jl. Sewa Bulanan',
+        'jangka_waktu_sewa' => 3,
+        'satuan_waktu_sewa' => 'Bulan',
+    ]))
+        ->assertOk()
+        ->assertJsonPath('data.jangka_waktu_sewa', 3)
+        ->assertJsonPath('data.satuan_waktu_sewa', 'Bulan');
+
+    $this->postJson('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'jenis_listing_id' => $sewaId,
+        'alamat_data' => 'Jl. Sewa Tahunan',
+        'jangka_waktu_sewa' => 1,
+        'satuan_waktu_sewa' => 'Tahun',
+    ]))
+        ->assertOk()
+        ->assertJsonPath('data.satuan_waktu_sewa', 'Tahun');
+});
+
+it('clears rent period for non sewa API create', function () {
+    $response = $this->postJson('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'jangka_waktu_sewa' => 12,
+        'satuan_waktu_sewa' => 'Bulan',
+    ]));
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('data.jangka_waktu_sewa', null)
+        ->assertJsonPath('data.satuan_waktu_sewa', null);
 });
 
 it('can update existing pembanding', function () {
@@ -461,6 +529,45 @@ it('can update existing pembanding', function () {
         ->assertJsonPath('data.harga', 200000000);
 });
 
+it('can update image through multipart workaround without deleting old image when absent', function () {
+    $record = ($this->makePembanding)([
+        'image' => 'foto_pembanding/old.jpg',
+    ]);
+
+    $this->putJson("/api/v1/pembandings/{$record->id}", array_merge($record->toArray(), [
+        'alamat_data' => 'Jl. Updated Without Image',
+    ]))
+        ->assertOk()
+        ->assertJsonPath('data.alamat_data', 'Jl. Updated Without Image');
+
+    expect($record->refresh()->image)->toBe('foto_pembanding/old.jpg');
+
+    $response = $this->post("/api/v1/pembandings/{$record->id}", array_merge(
+        ($this->validPembandingPayload)([
+            '_method' => 'PUT',
+            'alamat_data' => 'Jl. Updated With Image',
+            'image' => UploadedFile::fake()->image('new.jpg'),
+        ])
+    ));
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.alamat_data', 'Jl. Updated With Image');
+
+    expect($record->refresh()->image)->toStartWith('foto_pembanding/');
+    expect($record->image)->not->toBe('foto_pembanding/old.jpg');
+});
+
+it('returns 403 JSON when user lacks create permission', function () {
+    $this->user->revokePermissionTo('create_data::pembanding');
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $this->postJson('/api/v1/pembandings', ($this->validPembandingPayload)())
+        ->assertForbidden()
+        ->assertJsonPath('status', 'error');
+});
+
 it('cannot destroy pembanding without permission', function () {
     $record = ($this->makePembanding)();
 
@@ -470,15 +577,15 @@ it('cannot destroy pembanding without permission', function () {
 
 it('can destroy pembanding with permission', function () {
     $record = ($this->makePembanding)();
-    
+
     // Assign permission to user (bypassing guard check)
-    $permission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'delete_data::pembanding', 'guard_name' => 'web']);
-    \Illuminate\Support\Facades\DB::table('model_has_permissions')->insert([
+    $permission = Permission::firstOrCreate(['name' => 'delete_data::pembanding', 'guard_name' => 'web']);
+    DB::table('model_has_permissions')->insert([
         'permission_id' => $permission->id,
         'model_type' => get_class($this->user),
         'model_id' => $this->user->id,
     ]);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
     $this->deleteJson("/api/v1/pembandings/{$record->id}")
         ->assertOk()
@@ -497,7 +604,7 @@ it('can fetch history of pembanding', function () {
     $response
         ->assertOk()
         ->assertJsonPath('status', 'success');
-        
+
     expect($response->json('data'))->toBeArray();
 });
 

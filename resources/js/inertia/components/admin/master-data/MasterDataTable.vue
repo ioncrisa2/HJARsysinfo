@@ -9,6 +9,11 @@ const props = defineProps({
     records: { type: Object, required: true },
     supportsBadgeColor: { type: Boolean, default: false },
     canReorder: { type: Boolean, default: false },
+    canSelect: { type: Boolean, default: false },
+    canCreate: { type: Boolean, default: false },
+    canUpdate: { type: Boolean, default: false },
+    canToggleStatus: { type: Boolean, default: false },
+    canDelete: { type: Boolean, default: false },
     draggedId: { type: [Number, String], default: null },
     selectedIds: { type: Array, default: () => [] },
     allVisibleSelected: { type: Boolean, default: false },
@@ -33,7 +38,7 @@ const formatStatusSeverity = (active) => (active ? "success" : "danger");
         <table class="w-full min-w-[880px] text-left text-sm">
             <thead class="border-b border-slate-100 bg-white text-[11px] font-bold uppercase text-slate-400">
                 <tr>
-                    <th class="w-12 px-5 py-4">
+                    <th v-if="canSelect" class="w-12 px-5 py-4">
                         <button
                             type="button"
                             class="flex size-5 items-center justify-center rounded border border-slate-300 bg-white"
@@ -47,7 +52,7 @@ const formatStatusSeverity = (active) => (active ? "success" : "danger");
                     <th class="px-5 py-4">Nama / Slug</th>
                     <th class="px-5 py-4">Status</th>
                     <th v-if="supportsBadgeColor" class="px-5 py-4">Badge</th>
-                    <th class="px-5 py-4 text-right">Aksi</th>
+                    <th v-if="canUpdate || canDelete" class="px-5 py-4 text-right">Aksi</th>
                 </tr>
             </thead>
 
@@ -62,7 +67,7 @@ const formatStatusSeverity = (active) => (active ? "success" : "danger");
                     @dragover.prevent
                     @drop="emit('onDrop', record)"
                 >
-                    <td class="px-5 py-4">
+                    <td v-if="canSelect" class="px-5 py-4">
                         <button
                             type="button"
                             class="flex size-5 items-center justify-center rounded border border-slate-300 bg-white"
@@ -89,7 +94,7 @@ const formatStatusSeverity = (active) => (active ? "success" : "danger");
                         <p class="ui-tabular mt-0.5 max-w-md truncate text-xs text-slate-500">{{ record.slug }}</p>
                     </td>
                     <td class="px-5 py-4">
-                        <button type="button" class="text-left" @click="emit('toggleStatus', record)">
+                        <button type="button" class="text-left" :disabled="!canToggleStatus" @click="canToggleStatus && emit('toggleStatus', record)">
                             <Tag
                                 :value="record.is_active ? 'Aktif' : 'Nonaktif'"
                                 :severity="formatStatusSeverity(record.is_active)"
@@ -102,10 +107,10 @@ const formatStatusSeverity = (active) => (active ? "success" : "danger");
                             <span class="ui-tabular text-xs font-semibold text-slate-500">{{ record.badge_color || '#64748b' }}</span>
                         </div>
                     </td>
-                    <td class="px-5 py-4">
+                    <td v-if="canUpdate || canDelete" class="px-5 py-4">
                         <div class="flex justify-end gap-1">
-                            <Button icon="pi pi-pencil" text rounded severity="secondary" aria-label="Edit" @click="emit('openEdit', record)" />
-                            <Button icon="pi pi-trash" text rounded severity="danger" aria-label="Hapus" @click="emit('deleteRecord', record)" />
+                            <Button v-if="canUpdate" icon="pi pi-pencil" text rounded severity="secondary" aria-label="Edit" @click="emit('openEdit', record)" />
+                            <Button v-if="canDelete" icon="pi pi-trash" text rounded severity="danger" aria-label="Hapus" @click="emit('deleteRecord', record)" />
                         </div>
                     </td>
                 </tr>
@@ -118,7 +123,7 @@ const formatStatusSeverity = (active) => (active ? "success" : "danger");
                             icon="pi pi-database"
                         >
                             <template #actions>
-                                <Button label="Tambah Data" icon="pi pi-plus" size="small" @click="emit('openCreate')" />
+                                <Button v-if="canCreate" label="Tambah Data" icon="pi pi-plus" size="small" @click="emit('openCreate')" />
                             </template>
                         </UiEmptyState>
                     </td>

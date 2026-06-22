@@ -17,6 +17,8 @@ defineOptions({ layout: TopNavLayout });
 
 const page = usePage();
 
+const dashboardVariant = computed(() => page.props.dashboardVariant ?? "default");
+const isDataContributorDashboard = computed(() => dashboardVariant.value === "data_contributor");
 const mapPoints = computed(() => page.props.mapPoints ?? []);
 const recentData = computed(() => page.props.recentData ?? []);
 const monthlyData = computed(() => page.props.monthlyData ?? []);
@@ -140,34 +142,36 @@ watch(monthlyData, () => renderNextTick(), { deep: true });
         <!-- Stat Cards -->
         <StatCards :stats="stats" />
 
-        <!-- Monthly Chart -->
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
-                <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <i class="pi pi-chart-line text-amber-500 text-xs" />
-                    Input Data Per Bulan
+        <template v-if="!isDataContributorDashboard">
+            <!-- Monthly Chart -->
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                        <i class="pi pi-chart-line text-amber-500 text-xs" />
+                        Input Data Per Bulan
+                    </div>
+                    <span class="text-xs text-slate-400">12 bulan terakhir</span>
                 </div>
-                <span class="text-xs text-slate-400">12 bulan terakhir</span>
+                <div class="p-3">
+                    <canvas ref="chartContainer" class="h-44 w-full" style="display:block" />
+                </div>
             </div>
-            <div class="p-3">
-                <canvas ref="chartContainer" class="h-44 w-full" style="display:block" />
+
+            <div class="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <ListingRatioChart :data="listingRatioMonthly" />
+                <TopContributorTable :data="topContributors" />
             </div>
-        </div>
 
-        <div class="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <ListingRatioChart :data="listingRatioMonthly" />
-            <TopContributorTable :data="topContributors" />
-        </div>
+            <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+                <DataFreshnessWidget :data="dataFreshness" />
+                <TopAreaActivityTable :data="topAreaActivity" />
+            </div>
 
-        <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
-            <DataFreshnessWidget :data="dataFreshness" />
-            <TopAreaActivityTable :data="topAreaActivity" />
-        </div>
+            <ObjectTypeCountTable :data="objectTypeCounts" />
 
-        <ObjectTypeCountTable :data="objectTypeCounts" />
-
-        <!-- Recent Data -->
-        <RecentDataTable :data="recentData" />
+            <!-- Recent Data -->
+            <RecentDataTable :data="recentData" />
+        </template>
 
     </div>
 </template>

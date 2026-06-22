@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Province;
 use App\Models\User;
+use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Spatie\Permission\Models\Permission;
@@ -18,9 +19,23 @@ class MasterDataApiTest extends TestCase
             'deactivated_at' => null,
         ]);
 
-        // Ensure permission exists and grant for test user
-        Permission::findOrCreate('manage_master_data');
-        $user->givePermissionTo('manage_master_data');
+        $permissions = [
+            'view_master_data',
+            'create_master_data',
+            'update_master_data',
+            'delete_master_data',
+            'reorder_master_data',
+            'view_geo_data',
+            'create_geo_data',
+            'update_geo_data',
+            'delete_geo_data',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::findOrCreate($permission, 'web');
+        }
+
+        $user->givePermissionTo($permissions);
 
         $this->actingAs($user);
 
@@ -28,8 +43,7 @@ class MasterDataApiTest extends TestCase
         $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
     }
 
-    /** @test */
-    public function can_crud_dictionary_items()
+    public function test_can_crud_dictionary_items()
     {
         $this->signIn();
 
@@ -59,7 +73,7 @@ class MasterDataApiTest extends TestCase
             'name' => 'Gudang Pelabuhan',
             'is_active' => false,
         ]);
-        $update->assertOk()->assertJsonFragment(['slug' => 'gudang_pelabuhan', 'is_active' => 0]);
+        $update->assertOk()->assertJsonFragment(['slug' => 'gudang_pelabuhan', 'is_active' => false]);
 
         // Reorder (second becomes first)
         $this->postJson('/home/master-data/dictionaries/jenis-objek/reorder', [
@@ -83,8 +97,7 @@ class MasterDataApiTest extends TestCase
             ->assertJsonMissing(['id' => $firstId]);
     }
 
-    /** @test */
-    public function location_ids_follow_bps_and_are_uppercase()
+    public function test_location_ids_follow_bps_and_are_uppercase()
     {
         $this->signIn();
 
@@ -131,5 +144,38 @@ class MasterDataApiTest extends TestCase
         $this->getJson('/home/master-data/locations/regencies?province_id=99')
             ->assertOk()
             ->assertJsonFragment(['id' => $regId]);
+    }
+
+    public function test_master_data_write_routes_require_granular_permissions()
+    {
+        $user = User::factory()->create(['deactivated_at' => null]);
+        Permission::findOrCreate('view_master_data', 'web');
+        $user->givePermissionTo('view_master_data');
+
+        $this->actingAs($user);
+        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+
+        $this->getJson('/home/master-data/dictionaries/jenis-objek')
+            ->assertOk();
+
+        $this->postJson('/home/master-data/dictionaries/jenis-objek', [
+            'name' => 'Tidak Boleh',
+            'is_active' => true,
+        ])->assertForbidden();
+    }
+
+    public function test_legacy_manage_master_data_permission_is_migrated_to_granular_permissions()
+    {
+        $user = User::factory()->create(['deactivated_at' => null]);
+        $legacy = Permission::findOrCreate('manage_master_data', 'web');
+        $user->givePermissionTo($legacy);
+
+        $this->seed(MasterDataPermissionSeeder::class);
+        $user->refresh();
+
+        $this->assertTrue($user->can('view_master_data'));
+        $this->assertTrue($user->can('create_master_data'));
+        $this->assertTrue($user->can('view_geo_data'));
+        $this->assertFalse(Permission::query()->where('name', 'manage_master_data')->exists());
     }
 }

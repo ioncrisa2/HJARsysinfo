@@ -2,27 +2,45 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Models\JenisListing;
 use App\Models\Pembanding;
 use App\Models\PembandingDeleteRequest;
 use App\Models\User;
+use App\Support\AdminAccess;
 use Flowframe\Trend\Trend;
 use Flowframe\Trend\TrendValue;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    use AuthorizesAdminPermissions;
+
     public function __invoke(Request $request)
     {
+        $this->authorizeAdmin('view_admin_dashboard');
+
         // 1. Stats Overview
         $stats = [
             'total_users' => User::count(),
             'total_pembanding' => Pembanding::count(),
-            'pending_deletions' => PembandingDeleteRequest::where('status', 'pending')->count(),
+            'pending_deletions' => PembandingDeleteRequest::where('status', PembandingDeleteRequest::STATUS_PENDING)->count(),
         ];
+
+        $deleteRequestAlert = null;
+        if ($stats['pending_deletions'] > 0 && AdminAccess::can($request->user(), 'view_moderation')) {
+            $deleteRequestAlert = [
+                'count' => $stats['pending_deletions'],
+                'title' => 'Ada request hapus data',
+                'message' => $stats['pending_deletions'] === 1
+                    ? '1 permintaan penghapusan menunggu review.'
+                    : "{$stats['pending_deletions']} permintaan penghapusan menunggu review.",
+                'href' => route('admin.moderation.index', ['tab' => 'requests']),
+            ];
+        }
 
         // 2. Data Entry Trend Chart (Monthly this year)
         $trendData = Trend::model(Pembanding::class)
@@ -120,6 +138,7 @@ class DashboardController extends Controller
             'compositionChart' => $compositionChart,
             'latestPembanding' => $latestPembanding,
             'markers' => $markers,
+            'deleteRequestAlert' => $deleteRequestAlert,
         ]);
     }
 }

@@ -57,7 +57,8 @@ const sewaPeriodeLabel = computed(() => {
 });
 
 const hasPendingDeleteRequest = computed(() => Boolean(record.value.has_pending_delete_request));
-const canRequestDelete = computed(() => Boolean(record.value.id) && !hasPendingDeleteRequest.value);
+const canRequestDelete = computed(() => Boolean(record.value.can_request_delete) && Boolean(record.value.id) && !hasPendingDeleteRequest.value);
+const canUpdate = computed(() => Boolean(record.value.can_update));
 
 const alertClass = computed(() => {
     if (alertState.tone === "danger") return "border-red-200 bg-red-50 text-red-700";
@@ -170,6 +171,7 @@ const submitDeleteRequest = () => {
                         <Button label="Riwayat" icon="pi pi-history" severity="secondary" outlined size="small" class="rounded-xl px-4 text-slate-700 font-bold bg-white" />
                     </Link>
                     <Button 
+                        v-if="record.can_request_delete || hasPendingDeleteRequest"
                         :label="hasPendingDeleteRequest ? 'Menunggu Approval' : 'Request Hapus'" 
                         icon="pi pi-trash" 
                         severity="secondary" 
@@ -179,7 +181,7 @@ const submitDeleteRequest = () => {
                         :disabled="!canRequestDelete"
                         @click="openDeleteRequestModal"
                     />
-                    <Link :href="`/home/pembanding/${record.id}/edit`">
+                    <Link v-if="canUpdate" :href="`/home/pembanding/${record.id}/edit`">
                         <Button label="Edit" icon="pi pi-pencil" size="small" class="rounded-xl px-6 bg-slate-900 border-slate-900 hover:bg-slate-800 text-white font-bold" />
                     </Link>
                 </div>

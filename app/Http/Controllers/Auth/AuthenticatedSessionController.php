@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -69,7 +70,7 @@ class AuthenticatedSessionController extends Controller
 
     private function redirectPath(Request $request, ?string $intendedUrl = null): string
     {
-        if ($request->user()?->hasRole('super_admin')) {
+        if (AdminAccess::can($request->user(), AdminAccess::ACCESS_ADMIN)) {
             if ($this->intendedPathStartsWith($intendedUrl, '/admin')) {
                 return $intendedUrl;
             }

@@ -1,14 +1,22 @@
 <?php
 
+use App\Http\Middleware\CheckSystemMode;
+use App\Http\Middleware\EnsureAppUser;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Support\AdminAccess;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\HandleInertiaRequests;
-use App\Http\Middleware\EnsureAppUser;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -21,7 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->redirectGuestsTo('/login');
         $middleware->redirectUsersTo(function (Request $request): string {
-            if ((bool) $request->user()?->hasRole('super_admin')) {
+            if (AdminAccess::can($request->user(), AdminAccess::ACCESS_ADMIN)) {
                 return route('admin.dashboard');
             }
 
@@ -35,9 +43,71 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->web(append: [
             HandleInertiaRequests::class,
-            \App\Http\Middleware\CheckSystemMode::class,
+            CheckSystemMode::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        
+        $exceptions->shouldRenderJsonWhen(function (Request $request): bool {
+            return $request->is('api/*') || $request->expectsJson();
+        });
+
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthenticated.',
+                'errors' => null,
+            ], 401);
+        });
+
+        $exceptions->render(function (AuthorizationException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage() ?: 'Forbidden.',
+                'errors' => null,
+            ], 403);
+        });
+
+        $exceptions->render(function (AccessDeniedHttpException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage() ?: 'Forbidden.',
+                'errors' => null,
+            ], 403);
+        });
+
+        $exceptions->render(function (ValidationException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+            ], 422);
+        });
+
+        $exceptions->render(function (NotFoundHttpException|ModelNotFoundException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Not found',
+                'errors' => null,
+            ], 404);
+        });
     })->create();

@@ -26,6 +26,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,6 +37,8 @@ class PembandingController extends Controller
 
     public function index(PembandingBrowseRequest $request, PembandingBrowseFilterService $filterService): Response
     {
+        Gate::authorize('viewAny', Pembanding::class);
+
         $filters = $request->filters($filterService);
 
         $records = $filterService
@@ -70,6 +73,7 @@ class PembandingController extends Controller
                     $record->district?->name,
                     $record->regency?->name,
                 ])->filter()->implode(', '),
+                'can_update' => $request->user()->can('update', $record),
             ])
             ->withQueryString();
 
@@ -120,6 +124,8 @@ class PembandingController extends Controller
 
     public function create(): Response
     {
+        Gate::authorize('create', Pembanding::class);
+
         return Inertia::render('Pembanding/Create', [
             'options' => $this->formOptions(),
         ]);
@@ -129,6 +135,8 @@ class PembandingController extends Controller
 
     public function store(PembandingStoreRequest $request): RedirectResponse
     {
+        Gate::authorize('create', Pembanding::class);
+
         $data = $request->validated();
         $createAnother = $request->boolean('create_another');
         $data['created_by'] = $request->user()->id;
@@ -154,6 +162,8 @@ class PembandingController extends Controller
 
     public function show(Pembanding $pembanding): Response
     {
+        Gate::authorize('view', $pembanding);
+
         $pembanding->load([
             'jenisListing:id,name',
             'jenisObjek:id,name',
@@ -242,6 +252,8 @@ class PembandingController extends Controller
                     'requested_at' => optional($latestDeleteRequest->created_at)->toDateTimeString(),
                     'reviewed_at' => optional($latestDeleteRequest->reviewed_at)->toDateTimeString(),
                 ] : null,
+                'can_update' => request()->user()?->can('update', $pembanding) ?? false,
+                'can_request_delete' => request()->user()?->can('delete', $pembanding) ?? false,
             ],
         ]);
     }
@@ -250,6 +262,8 @@ class PembandingController extends Controller
 
     public function edit(Pembanding $pembanding): Response
     {
+        Gate::authorize('update', $pembanding);
+
         $pembanding->load([
             'jenisListing:id,name',
             'jenisObjek:id,name',
@@ -312,6 +326,8 @@ class PembandingController extends Controller
 
     public function update(PembandingUpdateRequest $request, Pembanding $pembanding): RedirectResponse
     {
+        Gate::authorize('update', $pembanding);
+
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
@@ -329,6 +345,8 @@ class PembandingController extends Controller
 
     public function requestDelete(Request $request, Pembanding $pembanding): RedirectResponse
     {
+        Gate::authorize('delete', $pembanding);
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:1000'],
         ], [
@@ -362,6 +380,8 @@ class PembandingController extends Controller
     // FIX #7: Terima $request secara eksplisit — tidak lagi pakai global helper request()
     public function history(Pembanding $pembanding, Request $request)
     {
+        Gate::authorize('view', $pembanding);
+
         $activities = $pembanding->activities()
             ->latest()
             ->with('causer:id,name,email')

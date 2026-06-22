@@ -8,12 +8,15 @@ const page = usePage();
 
 const user = computed(() => page.props.auth?.user ?? {});
 const initials = computed(() => (user.value.name ?? "U").slice(0, 1).toUpperCase());
+const permissions = computed(() => page.props.auth?.permissions ?? []);
 
-const menuItems = [
-    { label: "Dashboard", href: "/home" },
-    { label: "Bank Data", href: "/home/pembanding" },
-    { label: "Master Data", href: "/home/master-data" },
-];
+const menuItems = computed(() =>
+    [
+        { label: "Dashboard", href: "/home", permissions: ["view_map", "view_any_data::pembanding"] },
+        { label: "Bank Data", href: "/home/pembanding", permissions: ["view_any_data::pembanding"] },
+        { label: "Master Data", href: "/home/master-data", permissions: ["view_master_data", "view_geo_data"] },
+    ].filter((item) => item.permissions.some((permission) => permissions.value.includes(permission)))
+);
 
 const isActive = (href) => {
     if (href === "/home") return page.url === "/home";
@@ -238,7 +241,7 @@ onBeforeUnmount(() => {
                     <!-- Nav Links -->
                     <nav class="flex flex-col gap-1 mb-3">
                         <Link
-                            v-for="item in menuItems"
+                        v-for="item in menuItems"
                             :key="item.href"
                             :href="item.href"
                             class="relative flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors"

@@ -5,14 +5,33 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\PersonalAccessToken;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 uses(RefreshDatabase::class);
 
+function createMobileApiTestUser(array $attributes = [], string $role = 'surveyor', array $permissions = []): User
+{
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $roleModel = Role::findOrCreate($role, 'web');
+
+    foreach ($permissions as $permission) {
+        $roleModel->givePermissionTo(Permission::findOrCreate($permission, 'web'));
+    }
+
+    $user = User::factory()->create($attributes);
+    $user->assignRole($roleModel);
+
+    return $user;
+}
+
 it('can login with valid credentials and receive tokens', function () {
     $password = 'secret123';
-    $user = User::factory()->create([
+    $user = createMobileApiTestUser([
         'password' => Hash::make($password),
-    ]);
+    ], 'surveyor', ['view_any_data::pembanding']);
 
     $response = $this->postJson('/api/auth/login', [
         'email' => $user->email,
@@ -29,9 +48,11 @@ it('can login with valid credentials and receive tokens', function () {
                 'access_token',
                 'refresh_token',
                 'expires_in',
-                'user' => ['id', 'name', 'email'],
+                'user' => ['id', 'name', 'email', 'roles', 'permissions'],
             ],
-        ]);
+        ])
+        ->assertJsonPath('data.user.roles.0', 'surveyor')
+        ->assertJsonPath('data.user.permissions.0', 'view_any_data::pembanding');
 
     $accessToken = $response->json('data.access_token');
     $expiresIn = $response->json('data.expires_in');
@@ -43,8 +64,48 @@ it('can login with valid credentials and receive tokens', function () {
     expect($storedToken->expires_at->isAfter(now()->addSeconds(max(1, $expiresIn - 120))))->toBeTrue();
 });
 
-it('rejects invalid login credentials', function () {
+it('allows only mobile app roles to login', function (string $role) {
+    $password = 'secret123';
+    $user = createMobileApiTestUser([
+        'password' => Hash::make($password),
+    ], $role);
+
+    $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => $password,
+        'device_name' => 'pest-test',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.user.roles.0', $role);
+})->with([
+    'data contributor' => 'data_contributor',
+    'pimpinan' => 'pimpinan',
+    'surveyor' => 'surveyor',
+]);
+
+it('rejects users outside mobile app roles', function () {
+    $password = 'secret123';
+    $role = Role::findOrCreate('super_admin', 'web');
     $user = User::factory()->create([
+        'password' => Hash::make($password),
+    ]);
+    $user->assignRole($role);
+
+    $this->postJson('/api/auth/login', [
+        'email' => $user->email,
+        'password' => $password,
+        'device_name' => 'pest-test',
+    ])
+        ->assertStatus(403)
+        ->assertJsonPath('status', 'error')
+        ->assertJsonPath('message', 'Akun ini tidak diizinkan mengakses mobile app.');
+
+    expect(PersonalAccessToken::query()->count())->toBe(0);
+    expect(RefreshToken::query()->count())->toBe(0);
+});
+
+it('rejects invalid login credentials', function () {
+    $user = createMobileApiTestUser([
         'password' => Hash::make('secret123'),
     ]);
 
@@ -56,6 +117,7 @@ it('rejects invalid login credentials', function () {
 
     $response
         ->assertStatus(422)
+        ->assertJsonPath('status', 'error')
         ->assertJsonPath('message', 'Invalid credentials.');
 });
 
@@ -69,7 +131,7 @@ it('validates required fields for login request', function () {
 
 it('can refresh token and revoke previous refresh token', function () {
     $password = 'secret123';
-    $user = User::factory()->create([
+    $user = createMobileApiTestUser([
         'password' => Hash::make($password),
     ]);
 
@@ -120,9 +182,9 @@ it('validates refresh token format', function () {
 
 it('returns current user from me endpoint when authenticated', function () {
     $password = 'secret123';
-    $user = User::factory()->create([
+    $user = createMobileApiTestUser([
         'password' => Hash::make($password),
-    ]);
+    ], 'data_contributor', ['create_data::pembanding']);
 
     $accessToken = $this->postJson('/api/auth/login', [
         'email' => $user->email,
@@ -135,12 +197,14 @@ it('returns current user from me endpoint when authenticated', function () {
         ->assertOk()
         ->assertJsonPath('status', 'success')
         ->assertJsonPath('data.id', $user->id)
-        ->assertJsonPath('data.email', $user->email);
+        ->assertJsonPath('data.email', $user->email)
+        ->assertJsonPath('data.roles.0', 'data_contributor')
+        ->assertJsonPath('data.permissions.0', 'create_data::pembanding');
 });
 
 it('revokes access and refresh tokens on logout', function () {
     $password = 'secret123';
-    $user = User::factory()->create([
+    $user = createMobileApiTestUser([
         'password' => Hash::make($password),
     ]);
 
@@ -174,7 +238,7 @@ it('revokes access and refresh tokens on logout', function () {
 });
 
 it('can update profile information', function () {
-    $user = User::factory()->create();
+    $user = createMobileApiTestUser();
 
     $accessToken = $this->postJson('/api/auth/login', [
         'email' => $user->email,
@@ -200,7 +264,7 @@ it('can update profile information', function () {
 });
 
 it('can update password', function () {
-    $user = User::factory()->create([
+    $user = createMobileApiTestUser([
         'password' => Hash::make('oldpassword'),
     ]);
 
@@ -224,7 +288,7 @@ it('can update password', function () {
 });
 
 it('validates password update', function () {
-    $user = User::factory()->create([
+    $user = createMobileApiTestUser([
         'password' => Hash::make('oldpassword'),
     ]);
 

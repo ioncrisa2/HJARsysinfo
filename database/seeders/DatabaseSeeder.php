@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AdminAccessPermissionSeeder::class,
             AdminPanelPermissionSeeder::class,
+            PembandingAccessRoleSeeder::class,
             MasterDataPermissionSeeder::class,
         ]);
     }

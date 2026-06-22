@@ -4,24 +4,32 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Supports\DictionaryTypeMap;
+use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class DictionaryController extends Controller
 {
+    use ApiResponse;
+
     public function index(Request $request, string $type): JsonResponse
     {
         $model = $this->resolveModel($type);
+        $activeOnly = $request->boolean('active_only', true);
 
-        $cacheKey = "api_dictionary_{$type}_" . ($request->boolean('active_only', true) ? 'active' : 'all');
+        if (! $activeOnly && ! $request->user()?->can('view_master_data')) {
+            return $this->error('Tidak diizinkan melihat dictionary nonaktif.', 403);
+        }
 
-        $items = Cache::remember($cacheKey, now()->addHours(24), function () use ($model, $request) {
+        $cacheKey = 'api_dictionary_'.$type.'_'.($activeOnly ? 'active' : 'all');
+
+        $items = Cache::remember($cacheKey, now()->addHours(24), function () use ($model, $activeOnly) {
             $query = $model::query()
                 ->orderBy('sort_order')
                 ->orderBy('name');
 
-            if ($request->boolean('active_only', true)) {
+            if ($activeOnly) {
                 $query->where('is_active', true);
             }
 
@@ -39,7 +47,7 @@ class DictionaryController extends Controller
                 ->values();
         });
 
-        return response()->json($items);
+        return $this->success($items, "Data dictionary {$type}");
     }
 
     private function resolveModel(string $type): string

@@ -7,6 +7,7 @@ use App\Models\User;
 class TokenResponseBuilder
 {
     protected const TOKEN_TYPE = 'Bearer';
+
     protected const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 3600;
 
     public function getAccessTokenTtlSeconds(): int
@@ -27,6 +28,8 @@ class TokenResponseBuilder
 
     public function build(User $user, string $accessToken, string $refreshToken): array
     {
+        $user->loadMissing(['roles', 'permissions']);
+
         return [
             'token_type' => self::TOKEN_TYPE,
             'access_token' => $accessToken,
@@ -36,6 +39,8 @@ class TokenResponseBuilder
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'roles' => $user->getRoleNames()->values()->all(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
             ],
         ];
     }

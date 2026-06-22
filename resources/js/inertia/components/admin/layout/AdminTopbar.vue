@@ -13,6 +13,7 @@ const page = usePage();
 const PREFIX = "/admin";
 
 const initials = computed(() => (props.user.name ?? "A").slice(0, 1).toUpperCase());
+const canSearch = computed(() => (page.props.auth?.permissions ?? []).includes("view_admin_search"));
 const globalSearch = ref("");
 
 watch(
@@ -44,6 +45,8 @@ onUnmounted(() => document.removeEventListener("click", closeProfile));
 const logout = () => router.post("/logout");
 
 const submitGlobalSearch = () => {
+    if (!canSearch.value) return;
+
     const q = globalSearch.value.trim();
 
     router.get(`${PREFIX}/search`, q ? { q } : {}, {
@@ -82,7 +85,7 @@ const submitGlobalSearch = () => {
         </div>
 
         <div class="flex items-center gap-3">
-            <form class="hidden lg:block" role="search" @submit.prevent="submitGlobalSearch">
+            <form v-if="canSearch" class="hidden lg:block" role="search" @submit.prevent="submitGlobalSearch">
                 <label for="admin_global_search" class="sr-only">Global search</label>
                 <div class="relative w-72">
                     <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
@@ -97,6 +100,7 @@ const submitGlobalSearch = () => {
             </form>
 
             <Link
+                v-if="canSearch"
                 :href="`${PREFIX}/search`"
                 class="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 lg:hidden"
                 aria-label="Open global search"
