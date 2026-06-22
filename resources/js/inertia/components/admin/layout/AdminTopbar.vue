@@ -5,6 +5,7 @@ import { Link, router, usePage } from "@inertiajs/vue3";
 const props = defineProps({
     breadcrumbs: { type: Array, required: true },
     user: { type: Object, required: true },
+    sidebarOpen: { type: Boolean, required: true },
 });
 
 const emit = defineEmits(["toggleSidebar"]);
@@ -59,12 +60,14 @@ const submitGlobalSearch = () => {
 <template>
     <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0">
         <div class="flex items-center gap-3">
-            <!-- Mobile hamburger -->
             <button
+                type="button"
                 @click="emit('toggleSidebar')"
-                class="md:hidden p-2 -ml-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                class="-ml-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                :aria-label="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'"
+                :aria-expanded="sidebarOpen"
             >
-                <i class="pi pi-bars text-lg" />
+                <i class="pi pi-bars text-base" />
             </button>
 
             <!-- Breadcrumbs -->

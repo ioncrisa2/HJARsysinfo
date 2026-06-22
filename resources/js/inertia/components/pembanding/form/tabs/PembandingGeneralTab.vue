@@ -71,17 +71,14 @@ const emit = defineEmits(["next"]);
                     :error="form.errors.nomer_telepon_pemberi_informasi"
                     help="Opsional. Gunakan format Indonesia (mis. 0812...)."
                 >
-                    <div class="relative">
-                        <div class="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none border-r border-slate-200 pr-3 mr-3">
-                            <span class="text-xs font-bold text-slate-400">+62</span>
-                        </div>
-                        <InputText
-                            v-model="form.nomer_telepon_pemberi_informasi"
-                            id="nomer_telepon_pemberi_informasi"
-                            placeholder="812xxxxxxxx"
-                            class="w-full pl-16 rounded-xl bg-slate-50/50 border-slate-200 font-mono text-sm"
-                        />
-                    </div>
+                    <InputText
+                        v-model="form.nomer_telepon_pemberi_informasi"
+                        id="nomer_telepon_pemberi_informasi"
+                        type="tel"
+                        inputmode="tel"
+                        placeholder="mis. (+62) 812 3456 7890"
+                        class="w-full rounded-xl bg-slate-50/50 border-slate-200 font-mono text-sm"
+                    />
                 </UiField>
 
                 <UiField
@@ -132,5 +129,3 @@ const emit = defineEmits(["next"]);
         </div>
     </div>
 </template>
-
-

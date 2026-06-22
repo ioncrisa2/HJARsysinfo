@@ -128,15 +128,15 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
                         severity="secondary"
                         class="rounded-xl px-6"
                         :loading="form.processing"
+                        :disabled="form.processing"
                         @click="emit('submit-and-create-another')"
                     />
-                    <Button label="Simpan Data" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" @click="emit('submit')" />
+                    <Button label="Simpan Data" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" :disabled="form.processing" @click="emit('submit')" />
                 </template>
                 <template v-else>
-                    <Button label="Simpan Perubahan" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" @click="emit('submit')" />
+                    <Button label="Simpan Perubahan" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" :disabled="form.processing" @click="emit('submit')" />
                 </template>
             </div>
         </div>
     </div>
 </template>
-

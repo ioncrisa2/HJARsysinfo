@@ -3,12 +3,20 @@ import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import UiField from "../../../ui/UiField.vue";
 
-defineProps({
+const props = defineProps({
     form: { type: Object, required: true },
     isTanah: { type: Boolean, default: false },
     bangunanRequired: { type: Boolean, default: true },
     numConfig: { type: Object, default: () => ({}) },
 });
+
+const currentYear = new Date().getFullYear();
+
+const normalizeYearInput = (event) => {
+    const value = event.target.value.replace(/\D/g, "").slice(0, 4);
+    event.target.value = value;
+    props.form.tahun_bangun = value === "" ? null : Number(value);
+};
 </script>
 
 <template>
@@ -71,14 +79,19 @@ defineProps({
             :error="form.errors.tahun_bangun"
             :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah.' : ''"
         >
-            <InputNumber
+            <InputText
                 v-model="form.tahun_bangun"
-                inputId="tahun_bangun"
-                v-bind="numConfig"
+                id="tahun_bangun"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="4"
                 placeholder="mis. 2010"
-                class="w-full rounded-xl bg-slate-50/50"
+                class="w-full rounded-xl bg-slate-50/50 border-slate-200"
                 :disabled="isTanah"
+                :aria-invalid="Boolean(form.errors.tahun_bangun)"
+                @input="normalizeYearInput"
             />
+            <p class="mt-1 text-xs text-slate-400">Rentang tahun 1900-{{ currentYear }}.</p>
         </UiField>
 
         <UiField id="rasio_tapak" label="Rasio Tapak / FAR" :error="form.errors.rasio_tapak">

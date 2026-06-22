@@ -1,19 +1,25 @@
 import { watch } from "vue";
 
-export const formatPhoneNumberId = (value) => {
+const getLocalDigits = (value) => {
     const digitsOnly = String(value ?? "").replace(/\D/g, "");
 
     if (!digitsOnly) return "";
 
-    let normalized = digitsOnly;
-    if (normalized.startsWith("0")) {
-        normalized = `62${normalized.slice(1)}`;
-    } else if (!normalized.startsWith("62")) {
-        normalized = `62${normalized}`;
+    if (digitsOnly.startsWith("0")) {
+        return digitsOnly.slice(1, 16);
     }
 
-    const localNumber = normalized.slice(2, 17);
-    if (!localNumber) return "(+62)";
+    if (digitsOnly.startsWith("62")) {
+        return digitsOnly.slice(2, 17);
+    }
+
+    return digitsOnly.slice(0, 15);
+};
+
+const groupLocalNumber = (value) => {
+    const localNumber = getLocalDigits(value);
+
+    if (!localNumber) return "";
 
     const groups = [];
     groups.push(localNumber.slice(0, 3));
@@ -22,12 +28,17 @@ export const formatPhoneNumberId = (value) => {
         groups.push(localNumber.slice(index, index + 4));
     }
 
-    return `(+62) ${groups.filter(Boolean).join(" ")}`.trim();
+    return groups.filter(Boolean).join(" ").trim();
+};
+
+export const formatPhoneNumberId = (value) => {
+    const grouped = groupLocalNumber(value);
+
+    return grouped ? `(+62) ${grouped}` : "";
 };
 
 export const sanitizePhoneNumberId = (value) => {
-    const formatted = formatPhoneNumberId(value);
-    return formatted === "(+62)" ? "" : formatted;
+    return groupLocalNumber(value);
 };
 
 export const usePhoneNumberField = (source, key = "nomer_telepon_pemberi_informasi", config = {}) => {

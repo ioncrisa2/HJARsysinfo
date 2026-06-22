@@ -39,6 +39,7 @@ onMounted(() => {
 // ── Sidebar State ────────────────────────────────────────────────────────────
 const sidebarOpen = ref(true);
 const mobileOverlay = ref(false);
+const autoCollapseBreakpoint = 1024;
 
 const toggleSidebar = () => {
     if (window.innerWidth < 768) {
@@ -50,6 +51,12 @@ const toggleSidebar = () => {
 
 const closeMobileMenu = () => {
     mobileOverlay.value = false;
+};
+
+const setInitialSidebarState = () => {
+    if (window.innerWidth >= 768 && window.innerWidth < autoCollapseBreakpoint) {
+        sidebarOpen.value = false;
+    }
 };
 
 // Close mobile overlay on route navigation
@@ -64,7 +71,10 @@ const handleResize = () => {
     }
 };
 
-onMounted(() => window.addEventListener("resize", handleResize));
+onMounted(() => {
+    setInitialSidebarState();
+    window.addEventListener("resize", handleResize);
+});
 onUnmounted(() => window.removeEventListener("resize", handleResize));
 
 // ── Breadcrumbs ──────────────────────────────────────────────────────────────
@@ -128,7 +138,6 @@ const breadcrumbs = computed(() => {
         <AdminSidebar 
             :sidebarOpen="sidebarOpen" 
             :mobileOverlay="mobileOverlay" 
-            @toggleSidebar="toggleSidebar"
         />
 
         <!-- Main Content Area -->
@@ -137,6 +146,7 @@ const breadcrumbs = computed(() => {
             <AdminTopbar 
                 :breadcrumbs="breadcrumbs" 
                 :user="user" 
+                :sidebarOpen="sidebarOpen"
                 @toggleSidebar="toggleSidebar" 
             />
 

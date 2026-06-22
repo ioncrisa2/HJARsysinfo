@@ -84,7 +84,7 @@ const postForm = (createAnother = false) =>
 const submit = () => postForm(false);
 const submitAndCreateAnother = () => postForm(true);
 
-const numConfig = { mode: "decimal", locale: "id-ID", useGrouping: false, minFractionDigits: 0 };
+const numConfig = { mode: "decimal", locale: "id-ID", useGrouping: true, minFractionDigits: 0 };
 const currencyConfig = {
     mode: "decimal",
     locale: "id-ID",

@@ -18,6 +18,11 @@ class PembandingUpdateRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->has('tahun_bangun')) {
+            $year = preg_replace('/\D/', '', (string) $this->input('tahun_bangun'));
+            $this->merge(['tahun_bangun' => $year === '' ? null : (int) $year]);
+        }
+
         if ($this->isSewaListing()) {
             return;
         }
@@ -62,6 +67,8 @@ class PembandingUpdateRequest extends FormRequest
                 'nullable',
                 Rule::requiredIf(fn (): bool => $tanahId && (int) $this->input('jenis_objek_id') !== (int) $tanahId),
                 'integer',
+                'digits:4',
+                'min:1900',
                 'max:'.date('Y'),
             ],
             'rasio_tapak' => ['nullable', 'string', 'max:255'],
@@ -123,6 +130,8 @@ class PembandingUpdateRequest extends FormRequest
             'lebar_jalan.numeric' => 'Lebar jalan harus berupa angka.',
             'tahun_bangun.required' => 'Tahun bangun wajib diisi kecuali untuk objek Tanah.',
             'tahun_bangun.integer' => 'Tahun bangun harus berupa angka.',
+            'tahun_bangun.digits' => 'Tahun bangun harus terdiri dari 4 digit.',
+            'tahun_bangun.min' => 'Tahun bangun minimal 1900.',
             'tahun_bangun.max' => 'Tahun bangun tidak boleh melebihi tahun berjalan.',
             'bentuk_tanah_id.required' => 'Bentuk tanah wajib dipilih.',
             'bentuk_tanah_id.exists' => 'Bentuk tanah tidak valid.',

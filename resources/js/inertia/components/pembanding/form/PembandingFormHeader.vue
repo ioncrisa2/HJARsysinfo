@@ -66,6 +66,7 @@ const basePath = typeof window !== 'undefined' && window.location.pathname.start
                             outlined
                             class="rounded-xl px-5 font-bold text-xs"
                             :loading="processing"
+                            :disabled="processing"
                             @click="emit('submit-and-create-another')"
                         />
                         <Button
@@ -74,6 +75,7 @@ const basePath = typeof window !== 'undefined' && window.location.pathname.start
                             severity="primary"
                             class="rounded-xl px-8 font-bold text-xs shadow-lg shadow-slate-200"
                             :loading="processing"
+                            :disabled="processing"
                             @click="emit('submit')"
                         />
                     </template>
@@ -92,7 +94,7 @@ const basePath = typeof window !== 'undefined' && window.location.pathname.start
                             severity="primary"
                             class="rounded-xl px-10 font-bold text-xs shadow-lg shadow-slate-200"
                             :loading="processing"
-                            :disabled="!isDirty"
+                            :disabled="processing || !isDirty"
                             @click="emit('submit')"
                         />
                     </template>

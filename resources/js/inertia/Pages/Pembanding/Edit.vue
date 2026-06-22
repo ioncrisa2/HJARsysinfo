@@ -85,7 +85,7 @@ const submit = () => {
         .post(`/home/pembanding/${sourceRecord.id}`, { forceFormData: true });
 };
 
-const numConfig = { mode: "decimal", locale: "id-ID", useGrouping: false, minFractionDigits: 0 };
+const numConfig = { mode: "decimal", locale: "id-ID", useGrouping: true, minFractionDigits: 0 };
 const currencyConfig = { ...numConfig, prefix: "Rp " };
 </script>
 
