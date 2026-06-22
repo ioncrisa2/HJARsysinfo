@@ -255,7 +255,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="dashboard-map-widget relative z-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
         <!-- Toolbar -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
@@ -299,7 +299,7 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Map -->
-        <div class="relative">
+        <div class="relative z-0">
             <div ref="mapContainer" class="w-full" :style="{ height }" />
 
             <div class="pointer-events-none absolute bottom-3 left-3 z-20 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
@@ -335,4 +335,11 @@ onBeforeUnmount(() => {
 .marker-cluster-medium div { background-color: rgba(245, 158, 11, 0.75); color: white; font-weight: 700; }
 .marker-cluster-large { background-color: rgba(245, 158, 11, 0.45); }
 .marker-cluster-large div { background-color: rgba(245, 158, 11, 0.9); color: white; font-weight: 700; }
+
+.dashboard-map-widget .leaflet-pane,
+.dashboard-map-widget .leaflet-top,
+.dashboard-map-widget .leaflet-bottom,
+.dashboard-map-widget .leaflet-control {
+    z-index: 10;
+}
 </style>

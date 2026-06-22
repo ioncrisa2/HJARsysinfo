@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { Link } from "@inertiajs/vue3";
 import { parseDateValue } from "../../../composables/useDateBridge";
 import UiEmptyState from "../../ui/UiEmptyState.vue";
+import PembandingImage from "../PembandingImage.vue";
 
 const props = defineProps({
     records: {
@@ -11,7 +12,7 @@ const props = defineProps({
     },
 });
 
-const viewMode = ref("list");
+const viewMode = ref("card");
 
 const rows = computed(() => props.records?.data ?? []);
 const links = computed(() => props.records?.links ?? []);
@@ -91,9 +92,7 @@ const displayLabel = (label) => {
             <div v-for="item in rows" :key="item.id"
                 class="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm min-w-0">
                 <div class="relative h-36 w-full overflow-hidden bg-slate-100">
-                    <img :src="item.image_url || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=60'"
-                        alt="Foto properti" class="h-full w-full object-cover"
-                        loading="lazy" />
+                    <PembandingImage :src="item.image_url" :alt="`Foto ${item.alamat_data || 'properti'}`" />
                     <div class="absolute left-3 top-3 flex gap-1.5">
                         <span v-if="item.jenis_listing"
                             class="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm">
@@ -159,8 +158,7 @@ const displayLabel = (label) => {
         <div v-else class="flex flex-col divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div v-for="item in rows" :key="item.id" class="flex items-stretch hover:bg-slate-50 overflow-hidden">
                 <div class="relative w-28 shrink-0 overflow-hidden bg-slate-100">
-                    <img :src="item.image_url || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=400&q=60'"
-                        class="h-full w-full object-cover" loading="lazy" />
+                    <PembandingImage :src="item.image_url" :alt="`Foto ${item.alamat_data || 'properti'}`" />
                     <div class="absolute left-2 top-2 flex flex-col gap-1">
                         <span v-if="item.jenis_listing"
                             class="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-slate-700 shadow-sm">

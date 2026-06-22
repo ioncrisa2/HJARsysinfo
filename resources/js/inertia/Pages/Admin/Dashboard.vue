@@ -14,6 +14,10 @@ const props = defineProps({
     compositionChart: Object,
     latestPembanding: Array,
     markers: Array,
+    canWidgets: {
+        type: Object,
+        default: () => ({}),
+    },
     deleteRequestAlert: {
         type: Object,
         default: null,
@@ -25,6 +29,7 @@ const isDeleteRequestAlertDismissed = ref(false);
 const shouldShowDeleteRequestAlert = computed(() => {
     return Boolean(props.deleteRequestAlert?.count) && !isDeleteRequestAlertDismissed.value;
 });
+const hasAnyVisibleWidget = computed(() => Object.values(props.canWidgets ?? {}).some(Boolean));
 
 const dismissDeleteRequestAlert = () => {
     isDeleteRequestAlertDismissed.value = true;
@@ -88,22 +93,35 @@ const openModerationDesk = () => {
             </section>
 
             <!-- Stats Cards -->
-            <AdminStatCards :stats="stats" />
+            <AdminStatCards v-if="canWidgets.statsOverview" :stats="stats" />
 
             <!-- Middle Section: Charts -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2">
+            <div
+                v-if="canWidgets.dataEntryTrendChart || canWidgets.listingCompositionChart"
+                class="grid grid-cols-1 lg:grid-cols-3 gap-6"
+            >
+                <div v-if="canWidgets.dataEntryTrendChart" class="lg:col-span-2">
                     <TrendChart :chart-data="trendChart" />
                 </div>
-                <div>
+                <div v-if="canWidgets.listingCompositionChart">
                     <CompositionChart :chart-data="compositionChart" />
                 </div>
             </div>
 
             <!-- Bottom Section: Table and Map -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <AdminRecentDataTable :data="latestPembanding" />
-                <AdminMapWidget :markers="markers" />
+            <div
+                v-if="canWidgets.latestPembandingTable || canWidgets.customLeafletMap"
+                class="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+                <AdminRecentDataTable v-if="canWidgets.latestPembandingTable" :data="latestPembanding" />
+                <AdminMapWidget v-if="canWidgets.customLeafletMap" :markers="markers" />
+            </div>
+
+            <div
+                v-if="!hasAnyVisibleWidget"
+                class="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm"
+            >
+                Tidak ada widget dashboard yang diizinkan untuk role Anda.
             </div>
         </div>
     </AdminLayout>

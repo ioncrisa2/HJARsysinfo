@@ -62,7 +62,11 @@ const form = useForm({
 
 const activeTab = ref("umum");
 
-const isTanah = computed(() => Number(form.jenis_objek_id ?? 0) === Number(optionLists.value.tanahId ?? -1));
+const isTanah = computed(() =>
+    [optionLists.value.tanahId, optionLists.value.sawahId, optionLists.value.tanahKebunId].some(
+        (id) => Number(form.jenis_objek_id ?? 0) === Number(id ?? -1),
+    ),
+);
 const bangunanRequired = computed(() => !isTanah.value);
 
 const { regencyOptions, districtOptions, villageOptions } = useCascadingLocation(form, {

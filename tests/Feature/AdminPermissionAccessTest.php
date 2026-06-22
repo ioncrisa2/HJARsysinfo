@@ -126,6 +126,47 @@ it('shows pending delete request alert on admin dashboard only with moderation a
     expect($response->viewData('page')['props']['deleteRequestAlert'])->toBeNull();
 });
 
+it('filters admin dashboard widgets from widget permissions', function () {
+    $user = adminPermissionUser([
+        'can_access_admin',
+        'view_admin_dashboard',
+        'widget_StatsOverview',
+    ]);
+
+    $response = $this->actingAs($user)->get('/admin');
+
+    $response->assertOk();
+
+    $props = $response->viewData('page')['props'];
+
+    expect($response->viewData('page')['component'])->toBe('Admin/Dashboard')
+        ->and($props['canWidgets']['statsOverview'])->toBeTrue()
+        ->and($props['canWidgets']['dataEntryTrendChart'])->toBeFalse()
+        ->and($props['canWidgets']['customLeafletMap'])->toBeFalse()
+        ->and($props['trendChart'])->toMatchArray(['labels' => [], 'datasets' => []])
+        ->and($props['markers'])->toHaveCount(0);
+});
+
+it('filters home dashboard widgets from widget permissions', function () {
+    $user = adminPermissionUser([
+        'view_map',
+        'widget_Map',
+    ]);
+
+    $response = $this->actingAs($user)->get('/home');
+
+    $response->assertOk();
+
+    $props = $response->viewData('page')['props'];
+
+    expect($response->viewData('page')['component'])->toBe('Dashboard')
+        ->and($props['canWidgets']['map'])->toBeTrue()
+        ->and($props['canWidgets']['statsOverview'])->toBeFalse()
+        ->and($props['canWidgets']['dataEntryTrendChart'])->toBeFalse()
+        ->and($props['stats'])->toBe([])
+        ->and($props['monthlyData'])->toHaveCount(0);
+});
+
 it('allows user deletion only with delete user permission', function () {
     $user = adminPermissionUser(['can_access_admin', 'delete_user']);
     $target = User::factory()->create();

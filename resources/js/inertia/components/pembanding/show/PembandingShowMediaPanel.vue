@@ -7,6 +7,7 @@ import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import "leaflet/dist/leaflet.css";
 import UiSurface from "../../ui/UiSurface.vue";
 import UiSectionHeader from "../../ui/UiSectionHeader.vue";
+import PembandingImage from "../PembandingImage.vue";
 
 const props = defineProps({
     record: {
@@ -17,7 +18,6 @@ const props = defineProps({
 
 const mapContainer = ref(null);
 const mapInstance = ref(null);
-const imageError = ref(false);
 
 const latitude = computed(() => {
     const value = Number(props.record?.latitude);
@@ -69,23 +69,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="relative w-full bg-slate-100" style="aspect-ratio: 16/9">
-                <img
-                    v-if="record.image_url && !imageError"
-                    :src="record.image_url"
-                    alt="Foto properti"
-                    class="absolute inset-0 h-full w-full object-cover"
-                    loading="lazy"
-                    @error="imageError = true"
-                />
-
-                <div v-else class="absolute inset-0 flex items-center justify-center p-6">
-                    <div class="flex flex-col items-center gap-2 text-center">
-                        <div class="flex size-14 items-center justify-center rounded-full bg-slate-200">
-                            <i class="pi pi-image text-xl text-slate-400" aria-hidden="true" />
-                        </div>
-                        <p class="text-pretty text-xs font-medium text-slate-500">Foto belum tersedia</p>
-                    </div>
-                </div>
+                <PembandingImage :src="record.image_url" :alt="`Foto ${record.alamat || 'properti'}`" />
             </div>
         </UiSurface>
 
@@ -149,4 +133,3 @@ onBeforeUnmount(() => {
     }
 }
 </style>
-

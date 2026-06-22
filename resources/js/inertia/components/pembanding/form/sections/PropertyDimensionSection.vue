@@ -37,7 +37,7 @@ const normalizeYearInput = (event) => {
             label="Luas Bangunan"
             :required="bangunanRequired"
             :error="form.errors.luas_bangunan"
-            :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah.' : ''"
+            :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah, Sawah, atau Tanah Kebun.' : ''"
         >
             <InputNumber
                 v-model="form.luas_bangunan"
@@ -77,7 +77,7 @@ const normalizeYearInput = (event) => {
             label="Tahun Bangun"
             :required="bangunanRequired"
             :error="form.errors.tahun_bangun"
-            :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah.' : ''"
+            :help="isTanah ? 'Tidak perlu diisi untuk objek Tanah, Sawah, atau Tanah Kebun.' : ''"
         >
             <InputText
                 v-model="form.tahun_bangun"

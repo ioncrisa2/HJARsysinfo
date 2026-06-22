@@ -5,6 +5,9 @@ import TopNavLayout from "../../Layouts/TopNavLayout.vue";
 import UiSurface from "../../components/ui/UiSurface.vue";
 import Button from "primevue/button";
 import PembandingDeleteRequestDialog from "../../components/pembanding/show/PembandingDeleteRequestDialog.vue";
+import PembandingLocationMap from "../../components/pembanding/show/PembandingLocationMap.vue";
+import PembandingImage from "../../components/pembanding/PembandingImage.vue";
+import { formatPhoneNumberId } from "../../composables/usePhoneNumberId";
 
 defineOptions({ layout: TopNavLayout });
 
@@ -33,6 +36,7 @@ const alertState = reactive({
 });
 
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
+const formatPhone = (value) => formatPhoneNumberId(value) || "-";
 
 const formatCurrency = (val) => {
     if (!val) return "-";
@@ -174,10 +178,10 @@ const submitDeleteRequest = () => {
                         v-if="record.can_request_delete || hasPendingDeleteRequest"
                         :label="hasPendingDeleteRequest ? 'Menunggu Approval' : 'Request Hapus'" 
                         icon="pi pi-trash" 
-                        severity="secondary" 
+                        :severity="canRequestDelete ? 'danger' : 'secondary'"
                         outlined 
                         size="small" 
-                        class="rounded-xl px-4 text-slate-700 font-bold bg-white" 
+                        class="rounded-xl px-4 font-bold bg-white"
                         :disabled="!canRequestDelete"
                         @click="openDeleteRequestModal"
                     />
@@ -242,9 +246,8 @@ const submitDeleteRequest = () => {
                             Foto
                         </h2>
                     </div>
-                    <div class="aspect-video bg-slate-100 flex justify-center items-center relative">
-                        <img v-if="record.image_url" :src="record.image_url" class="w-full h-full object-cover" />
-                        <i v-else class="pi pi-image text-4xl text-slate-300" />
+                    <div class="aspect-video bg-slate-100 relative overflow-hidden">
+                        <PembandingImage :src="record.image_url" :alt="`Foto ${record.alamat || 'properti'}`" />
                     </div>
                 </UiSurface>
 
@@ -393,19 +396,11 @@ const submitDeleteRequest = () => {
                             <i class="pi pi-external-link text-[10px]" /> Maps
                         </a>
                     </div>
-                    <div class="aspect-[4/3] bg-slate-100 relative overflow-hidden flex flex-col items-center justify-center">
-                        <div class="absolute inset-0 bg-[url('https://maps.wikimedia.org/osm-intl/12/3342/2165.png')] bg-cover bg-center opacity-40"></div>
-                        
-                        <div v-if="record.latitude && record.longitude" class="relative z-10 flex flex-col items-center">
-                            <i class="pi pi-map-marker text-4xl text-blue-500 drop-shadow-md mb-2" />
-                            <div class="bg-white px-3 py-1.5 rounded shadow-sm text-xs font-bold text-slate-800 border border-slate-200">
-                                {{ record.latitude }}, {{ record.longitude }}
-                            </div>
-                        </div>
-                        <div v-else class="relative z-10 text-slate-400 font-bold text-sm">
-                            Tidak ada koordinat
-                        </div>
-                    </div>
+                    <PembandingLocationMap
+                        :latitude="record.latitude"
+                        :longitude="record.longitude"
+                        :popup-text="record.alamat || 'Lokasi properti'"
+                    />
                 </UiSurface>
 
                 <!-- Lokasi -->
@@ -451,7 +446,7 @@ const submitDeleteRequest = () => {
                         </div>
                         <div class="flex justify-between items-center">
                             <p class="font-bold text-slate-500 text-xs">Telepon</p>
-                            <p class="font-bold text-slate-900">{{ record.nomer_telepon_pemberi_informasi ? `(+62) ${record.nomer_telepon_pemberi_informasi}` : "-" }}</p>
+                            <p class="font-bold text-slate-900">{{ formatPhone(record.nomer_telepon_pemberi_informasi) }}</p>
                         </div>
                         <div class="flex justify-between items-center">
                             <p class="font-bold text-slate-500 text-xs">Dibuat</p>

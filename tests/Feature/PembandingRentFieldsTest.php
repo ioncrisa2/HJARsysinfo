@@ -108,3 +108,45 @@ it('clears rent period fields when listing is not sewa', function () {
     expect($validated['jangka_waktu_sewa'])->toBeNull()
         ->and($validated['satuan_waktu_sewa'])->toBeNull();
 });
+
+it('still requires building fields for objects with buildings', function () {
+    validatePembandingRentPayload(makePembandingRentPayload([
+        'luas_bangunan' => null,
+        'tahun_bangun' => null,
+    ]));
+})->throws(ValidationException::class);
+
+it('does not require and clears building fields for sawah', function () {
+    $sawah = JenisObjek::query()->firstOrCreate(['slug' => 'sawah'], ['name' => 'Sawah']);
+
+    $validated = validatePembandingRentPayload(makePembandingRentPayload([
+        'jenis_objek_id' => $sawah->id,
+        'luas_bangunan' => 80,
+        'tahun_bangun' => 2020,
+    ]));
+
+    expect($validated['luas_bangunan'])->toBeNull()
+        ->and($validated['tahun_bangun'])->toBeNull();
+
+    $validatedWithoutBuildingFields = validatePembandingRentPayload(makePembandingRentPayload([
+        'jenis_objek_id' => $sawah->id,
+        'luas_bangunan' => null,
+        'tahun_bangun' => null,
+    ]));
+
+    expect($validatedWithoutBuildingFields['luas_bangunan'])->toBeNull()
+        ->and($validatedWithoutBuildingFields['tahun_bangun'])->toBeNull();
+});
+
+it('does not require and clears building fields for tanah kebun', function () {
+    $tanahKebun = JenisObjek::query()->firstOrCreate(['slug' => 'tanah_kebun'], ['name' => 'Tanah Kebun']);
+
+    $validated = validatePembandingRentPayload(makePembandingRentPayload([
+        'jenis_objek_id' => $tanahKebun->id,
+        'luas_bangunan' => 80,
+        'tahun_bangun' => 2020,
+    ]));
+
+    expect($validated['luas_bangunan'])->toBeNull()
+        ->and($validated['tahun_bangun'])->toBeNull();
+});

@@ -23,6 +23,19 @@ class PembandingUpdateRequest extends FormRequest
             $this->merge(['tahun_bangun' => $year === '' ? null : (int) $year]);
         }
 
+        if ($this->has('nomer_telepon_pemberi_informasi')) {
+            $this->merge([
+                'nomer_telepon_pemberi_informasi' => $this->normalizePhoneNumberId($this->input('nomer_telepon_pemberi_informasi')),
+            ]);
+        }
+
+        if ($this->isObjectWithoutBuildingFields()) {
+            $this->merge([
+                'luas_bangunan' => null,
+                'tahun_bangun' => null,
+            ]);
+        }
+
         if ($this->isSewaListing()) {
             return;
         }
@@ -38,8 +51,6 @@ class PembandingUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        $tanahId = JenisObjek::query()->where('slug', 'tanah')->value('id');
-
         return [
             'jenis_listing_id' => ['required', 'integer', 'exists:master_jenis_listing,id'],
             'jenis_objek_id' => ['required', 'integer', 'exists:master_jenis_objek,id'],
@@ -58,14 +69,14 @@ class PembandingUpdateRequest extends FormRequest
             'luas_tanah' => ['required', 'numeric'],
             'luas_bangunan' => [
                 'nullable',
-                Rule::requiredIf(fn (): bool => $tanahId && (int) $this->input('jenis_objek_id') !== (int) $tanahId),
+                Rule::requiredIf(fn (): bool => $this->requiresBuildingFields()),
                 'numeric',
             ],
             'lebar_depan' => ['required', 'numeric'],
             'lebar_jalan' => ['required', 'numeric'],
             'tahun_bangun' => [
                 'nullable',
-                Rule::requiredIf(fn (): bool => $tanahId && (int) $this->input('jenis_objek_id') !== (int) $tanahId),
+                Rule::requiredIf(fn (): bool => $this->requiresBuildingFields()),
                 'integer',
                 'digits:4',
                 'min:1900',
@@ -122,13 +133,13 @@ class PembandingUpdateRequest extends FormRequest
             'image.max' => 'Ukuran foto maksimal 15MB.',
             'luas_tanah.required' => 'Luas tanah wajib diisi.',
             'luas_tanah.numeric' => 'Luas tanah harus berupa angka.',
-            'luas_bangunan.required' => 'Luas bangunan wajib diisi kecuali untuk objek Tanah.',
+            'luas_bangunan.required' => 'Luas bangunan wajib diisi kecuali untuk objek Tanah, Sawah, atau Tanah Kebun.',
             'luas_bangunan.numeric' => 'Luas bangunan harus berupa angka.',
             'lebar_depan.required' => 'Lebar depan wajib diisi.',
             'lebar_depan.numeric' => 'Lebar depan harus berupa angka.',
             'lebar_jalan.required' => 'Lebar jalan wajib diisi.',
             'lebar_jalan.numeric' => 'Lebar jalan harus berupa angka.',
-            'tahun_bangun.required' => 'Tahun bangun wajib diisi kecuali untuk objek Tanah.',
+            'tahun_bangun.required' => 'Tahun bangun wajib diisi kecuali untuk objek Tanah, Sawah, atau Tanah Kebun.',
             'tahun_bangun.integer' => 'Tahun bangun harus berupa angka.',
             'tahun_bangun.digits' => 'Tahun bangun harus terdiri dari 4 digit.',
             'tahun_bangun.min' => 'Tahun bangun minimal 1900.',
@@ -161,5 +172,50 @@ class PembandingUpdateRequest extends FormRequest
         $sewaId = JenisListing::query()->where('slug', 'sewa')->value('id');
 
         return $sewaId && (int) $this->input('jenis_listing_id') === (int) $sewaId;
+    }
+
+    private function requiresBuildingFields(): bool
+    {
+        return $this->filled('jenis_objek_id') && ! $this->isObjectWithoutBuildingFields();
+    }
+
+    private function isObjectWithoutBuildingFields(): bool
+    {
+        $ids = JenisObjek::query()
+            ->whereIn('slug', ['tanah', 'sawah', 'tanah_kebun'])
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        return in_array((int) $this->input('jenis_objek_id'), $ids, true);
+    }
+
+    private function normalizePhoneNumberId(mixed $value): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $value);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        if (str_starts_with($digits, '0')) {
+            $digits = substr($digits, 1, 15);
+        } elseif (str_starts_with($digits, '62')) {
+            $digits = substr($digits, 2, 15);
+        } else {
+            $digits = substr($digits, 0, 15);
+        }
+
+        if ($digits === '') {
+            return null;
+        }
+
+        $groups = [substr($digits, 0, 3)];
+
+        for ($index = 3; $index < strlen($digits); $index += 4) {
+            $groups[] = substr($digits, $index, 4);
+        }
+
+        return trim(implode(' ', array_filter($groups)));
     }
 }

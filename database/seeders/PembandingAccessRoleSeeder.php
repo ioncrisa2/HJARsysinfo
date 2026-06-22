@@ -51,6 +51,8 @@ class PembandingAccessRoleSeeder extends Seeder
             'view_data::pembanding',
             'create_data::pembanding',
             'update_data::pembanding',
+            'widget_Map',
+            'widget_StatsOverview',
         ])->values()->all());
 
         $contributor = Role::query()->firstOrCreate([
@@ -64,6 +66,8 @@ class PembandingAccessRoleSeeder extends Seeder
             'view_data::pembanding',
             'create_data::pembanding',
             'update_own_data::pembanding',
+            'widget_Map',
+            'widget_StatsOverview',
         ])->values()->all());
 
         $surveyor = Role::query()->firstOrCreate([
@@ -77,6 +81,8 @@ class PembandingAccessRoleSeeder extends Seeder
             'view_data::pembanding',
             'create_data::pembanding',
             'update_own_data::pembanding',
+            'widget_Map',
+            'widget_StatsOverview',
         ])->values()->all());
 
         $superAdmin = Role::query()->firstOrCreate([

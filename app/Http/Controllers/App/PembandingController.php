@@ -496,8 +496,9 @@ class PembandingController extends Controller
             'topografis' => $this->mapSelectOptions(Topografi::query()->orderBy('name')->get()),
             'dokumenTanahs' => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
             'peruntukans' => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
-            // FIX #5: Single source of truth untuk tanahId
             'tanahId' => $this->tanahId(),
+            'sawahId' => $this->sawahId(),
+            'tanahKebunId' => $this->tanahKebunId(),
         ];
     }
 
@@ -507,6 +508,16 @@ class PembandingController extends Controller
     private function tanahId(): ?int
     {
         return once(fn () => JenisObjek::query()->where('slug', 'tanah')->value('id'));
+    }
+
+    private function sawahId(): ?int
+    {
+        return once(fn () => JenisObjek::query()->where('slug', 'sawah')->value('id'));
+    }
+
+    private function tanahKebunId(): ?int
+    {
+        return once(fn () => JenisObjek::query()->where('slug', 'tanah_kebun')->value('id'));
     }
 
     /**

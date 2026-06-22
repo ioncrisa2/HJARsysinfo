@@ -5,6 +5,7 @@ import AdminLayout from "../../../Layouts/AdminLayout.vue";
 import Select from "primevue/select";
 import DatePicker from "primevue/datepicker";
 import Tag from "primevue/tag";
+import PembandingImage from "../../../components/pembanding/PembandingImage.vue";
 
 const props = defineProps({
     records: Object,
@@ -265,10 +266,11 @@ const formatDate = (val) => {
                             <td class="px-6 py-4">
                                 <div class="flex items-start gap-4">
                                     <div class="h-16 w-20 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 flex-shrink-0">
-                                        <img v-if="row.image_url" :src="row.image_url" class="w-full h-full object-cover" />
-                                        <div v-else class="w-full h-full flex items-center justify-center text-slate-300">
-                                            <i class="pi pi-image" />
-                                        </div>
+                                        <PembandingImage
+                                            :src="row.image_url"
+                                            :alt="`Foto ${row.alamat_data || 'properti'}`"
+                                            placeholder-label="Tidak ada foto"
+                                        />
                                     </div>
                                     <div>
                                         <p class="font-bold text-slate-900 leading-tight mb-1 truncate max-w-md" :title="row.alamat_data">

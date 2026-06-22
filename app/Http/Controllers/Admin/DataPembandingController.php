@@ -356,6 +356,8 @@ class DataPembandingController extends Controller
             'dokumenTanahs' => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
             'peruntukans' => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
             'tanahId' => once(fn () => JenisObjek::query()->where('slug', 'tanah')->value('id')),
+            'sawahId' => once(fn () => JenisObjek::query()->where('slug', 'sawah')->value('id')),
+            'tanahKebunId' => once(fn () => JenisObjek::query()->where('slug', 'tanah_kebun')->value('id')),
         ];
     }
 

@@ -162,6 +162,8 @@ class AccessControlController extends Controller
                 Rule::unique('permissions', 'name')
                     ->where(fn ($query) => $query->where('guard_name', self::GUARD)),
             ],
+        ], [
+            'name.regex' => 'Permission hanya boleh memakai huruf kecil, angka, underscore, titik dua, atau strip.',
         ]);
 
         Permission::query()->create([
@@ -206,13 +208,16 @@ class AccessControlController extends Controller
     private function validateRole(Request $request, ?Role $role = null): array
     {
         $ignoreId = $role?->id;
+        $request->merge([
+            'name' => str((string) $request->input('name'))->squish()->toString(),
+        ]);
 
         return $request->validate([
             'name' => [
                 'required',
                 'string',
                 'max:255',
-                'regex:/^[a-z0-9_:\-]+$/',
+                'regex:/^[a-z0-9_:\- ]+$/',
                 Rule::unique('roles', 'name')
                     ->where(fn ($query) => $query->where('guard_name', self::GUARD))
                     ->ignore($ignoreId),
@@ -223,6 +228,8 @@ class AccessControlController extends Controller
                 Rule::exists('permissions', 'name')
                     ->where(fn ($query) => $query->where('guard_name', self::GUARD)),
             ],
+        ], [
+            'name.regex' => 'Role hanya boleh memakai huruf kecil, angka, spasi, underscore, titik dua, atau strip.',
         ]);
     }
 

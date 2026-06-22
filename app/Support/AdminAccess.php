@@ -75,6 +75,30 @@ class AdminAccess
             'view_settings',
             'update_settings',
             'clear_cache',
+
+            ...self::widgetPermissions(),
+        ];
+    }
+
+    public static function widgetPermissions(): array
+    {
+        return array_values(self::widgetPermissionMap());
+    }
+
+    public static function widgetPermissionMap(): array
+    {
+        return [
+            'customLeafletMap' => 'widget_CustomLeafletMap',
+            'dataEntryTrendChart' => 'widget_DataEntryTrendChart',
+            'latestPembandingTable' => 'widget_LatestPembandingTable',
+            'listingCompositionChart' => 'widget_ListingCompositionChart',
+            'listingTableWidget' => 'widget_ListingTableWidget',
+            'map' => 'widget_Map',
+            'statsOverview' => 'widget_StatsOverview',
+            'topContributorTable' => 'widget_TopContributorTable',
+            'dataFreshnessWidget' => 'widget_DataFreshnessWidget',
+            'topAreaActivityTable' => 'widget_TopAreaActivityTable',
+            'objectTypeCountTable' => 'widget_ObjectTypeCountTable',
         ];
     }
 

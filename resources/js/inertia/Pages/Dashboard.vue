@@ -19,6 +19,7 @@ const page = usePage();
 
 const dashboardVariant = computed(() => page.props.dashboardVariant ?? "default");
 const isDataContributorDashboard = computed(() => dashboardVariant.value === "data_contributor");
+const canWidgets = computed(() => page.props.canWidgets ?? {});
 const mapPoints = computed(() => page.props.mapPoints ?? []);
 const recentData = computed(() => page.props.recentData ?? []);
 const monthlyData = computed(() => page.props.monthlyData ?? []);
@@ -29,6 +30,7 @@ const topAreaActivity = computed(() => page.props.topAreaActivity ?? { period_la
 const objectTypeCounts = computed(() => page.props.objectTypeCounts ?? { total_records: 0, rows: [] });
 const stats = computed(() => page.props.stats ?? { total: 0, this_month: 0, last_month: 0, province_count: 0 });
 const listingOptions = computed(() => [{ label: "Semua Listing", value: null }, ...(page.props.jenisListingOptions ?? [])]);
+const hasAnyVisibleWidget = computed(() => Object.values(canWidgets.value).some(Boolean));
 
 // ── Chart ──────────────────────────────────────────────────────────────────
 const chartContainer = ref(null);
@@ -137,14 +139,14 @@ watch(monthlyData, () => renderNextTick(), { deep: true });
         </div>
 
         <!-- Map Widget -->
-        <MapWidget :points="mapPoints" :listing-options="listingOptions" height="460px" />
+        <MapWidget v-if="canWidgets.map" :points="mapPoints" :listing-options="listingOptions" height="460px" />
 
         <!-- Stat Cards -->
-        <StatCards :stats="stats" />
+        <StatCards v-if="canWidgets.statsOverview" :stats="stats" />
 
         <template v-if="!isDataContributorDashboard">
             <!-- Monthly Chart -->
-            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div v-if="canWidgets.dataEntryTrendChart" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
                     <div class="flex items-center gap-2 text-sm font-semibold text-slate-800">
                         <i class="pi pi-chart-line text-amber-500 text-xs" />
@@ -157,21 +159,34 @@ watch(monthlyData, () => renderNextTick(), { deep: true });
                 </div>
             </div>
 
-            <div class="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <ListingRatioChart :data="listingRatioMonthly" />
-                <TopContributorTable :data="topContributors" />
+            <div
+                v-if="canWidgets.listingCompositionChart || canWidgets.topContributorTable"
+                class="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+            >
+                <ListingRatioChart v-if="canWidgets.listingCompositionChart" :data="listingRatioMonthly" />
+                <TopContributorTable v-if="canWidgets.topContributorTable" :data="topContributors" />
             </div>
 
-            <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
-                <DataFreshnessWidget :data="dataFreshness" />
-                <TopAreaActivityTable :data="topAreaActivity" />
+            <div
+                v-if="canWidgets.dataFreshnessWidget || canWidgets.topAreaActivityTable"
+                class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]"
+            >
+                <DataFreshnessWidget v-if="canWidgets.dataFreshnessWidget" :data="dataFreshness" />
+                <TopAreaActivityTable v-if="canWidgets.topAreaActivityTable" :data="topAreaActivity" />
             </div>
 
-            <ObjectTypeCountTable :data="objectTypeCounts" />
+            <ObjectTypeCountTable v-if="canWidgets.objectTypeCountTable" :data="objectTypeCounts" />
 
             <!-- Recent Data -->
-            <RecentDataTable :data="recentData" />
+            <RecentDataTable v-if="canWidgets.latestPembandingTable" :data="recentData" />
         </template>
+
+        <div
+            v-if="!hasAnyVisibleWidget"
+            class="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500 shadow-sm"
+        >
+            Tidak ada widget dashboard yang diizinkan untuk role Anda.
+        </div>
 
     </div>
 </template>
