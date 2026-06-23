@@ -158,12 +158,12 @@ class AccessControlController extends Controller
                 'required',
                 'string',
                 'max:255',
-                'regex:/^[a-z0-9_:\-]+$/',
+                'regex:/^[A-Za-z0-9_:\-]+$/',
                 Rule::unique('permissions', 'name')
                     ->where(fn ($query) => $query->where('guard_name', self::GUARD)),
             ],
         ], [
-            'name.regex' => 'Permission hanya boleh memakai huruf kecil, angka, underscore, titik dua, atau strip.',
+            'name.regex' => 'Permission hanya boleh memakai huruf, angka, underscore, titik dua, atau strip.',
         ]);
 
         Permission::query()->create([
