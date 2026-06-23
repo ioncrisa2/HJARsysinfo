@@ -3,6 +3,7 @@ import { computed } from "vue";
 import InputNumber from "primevue/inputnumber";
 import Select from "primevue/select";
 import UiField from "../../../ui/UiField.vue";
+import { isSewaListing } from "../../../../config/pembandingFormRequiredFields";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -11,12 +12,7 @@ const props = defineProps({
     numConfig: { type: Object, default: () => ({}) },
 });
 
-const isSewa = computed(() => {
-    const listingId = props.form.jenis_listing_id;
-    if (!listingId || !props.options?.jenisListings) return false;
-    const listing = props.options.jenisListings.find((item) => item.value == listingId);
-    return listing?.label?.toLowerCase() === "sewa";
-});
+const isSewa = computed(() => isSewaListing(props.form, props.options));
 
 const rentPeriodLabel = computed(() => {
     if (!isSewa.value || !props.form.jangka_waktu_sewa || !props.form.satuan_waktu_sewa) {

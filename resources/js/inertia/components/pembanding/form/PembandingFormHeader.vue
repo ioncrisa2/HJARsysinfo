@@ -1,10 +1,13 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
+import { computed } from "vue";
 import Button from "primevue/button";
 import UiSurface from "../../ui/UiSurface.vue";
+import { TAB_ORDER } from "../../../config/pembandingFormRequiredFields";
 
 const props = defineProps({
     mode: { type: String, default: "create" },
+    basePath: { type: String, required: true },
     recordId: { type: [String, Number], default: null },
     address: { type: String, default: "" },
     processing: { type: Boolean, default: false },
@@ -15,8 +18,14 @@ const props = defineProps({
 
 const emit = defineEmits(["submit", "submit-and-create-another"]);
 
-const isCreate = props.mode === "create";
-const basePath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin') ? '/admin/pembanding' : '/home/pembanding';
+const isCreate = computed(() => props.mode === "create");
+const detailPath = computed(() => !isCreate.value && props.recordId ? `${props.basePath}/${props.recordId}` : props.basePath);
+const progressWidth = computed(() => {
+    const index = TAB_ORDER.indexOf(props.activeTab);
+    const safeIndex = index === -1 ? 0 : index;
+
+    return `${((safeIndex + 1) / TAB_ORDER.length) * 100}%`;
+});
 </script>
 
 <template>
@@ -26,7 +35,13 @@ const basePath = typeof window !== 'undefined' && window.location.pathname.start
             <nav class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-400">
                 <Link :href="basePath" class="hover:text-slate-900 transition-colors">Bank Data</Link>
                 <i class="pi pi-chevron-right text-[8px]" />
-                <span v-if="!isCreate" class="text-slate-400">#{{ recordId }}</span>
+                <Link
+                    v-if="!isCreate"
+                    :href="detailPath"
+                    class="text-slate-400 transition-colors hover:text-slate-900"
+                >
+                    #{{ recordId }}
+                </Link>
                 <i v-if="!isCreate" class="pi pi-chevron-right text-[8px]" />
                 <span class="text-amber-600">{{ isCreate ? "Tambah Data" : "Edit Data" }}</span>
             </nav>
@@ -105,7 +120,7 @@ const basePath = typeof window !== 'undefined' && window.location.pathname.start
             <div class="h-1 bg-slate-100 w-full">
                 <div 
                     class="h-full bg-amber-500 transition-all duration-500" 
-                    :style="{ width: activeTab === 'umum' ? '25%' : activeTab === 'lokasi' ? '50%' : activeTab === 'properti' ? '75%' : '100%' }"
+                    :style="{ width: progressWidth }"
                 />
             </div>
         </UiSurface>

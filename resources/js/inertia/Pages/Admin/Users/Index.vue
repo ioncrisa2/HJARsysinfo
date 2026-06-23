@@ -4,6 +4,8 @@ import { Head, Link, useForm, router } from "@inertiajs/vue3";
 import AdminLayout from "../../../Layouts/AdminLayout.vue";
 import Select from "primevue/select";
 import { useConfirm } from "primevue/useconfirm";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
+import { useVisibleSelection } from "../../../composables/useVisibleSelection";
 
 const props = defineProps({
     users: Object,
@@ -16,7 +18,8 @@ const confirm = useConfirm();
 const search = ref(props.filters.search || "");
 const role = ref(props.filters.role || null);
 const status = ref(props.filters.status || null);
-const selectedUsers = ref([]);
+const visibleUserIds = computed(() => (props.users?.data ?? []).map((user) => user.id));
+const { selectedIds: selectedUsers, allVisibleSelected: isAllSelected, toggleAllVisible } = useVisibleSelection(visibleUserIds);
 
 const statusOptions = [
     { label: "All Status", value: null },
@@ -36,11 +39,7 @@ const updateFilters = () => {
     );
 };
 
-let searchTimeout = null;
-watch(search, (value) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(updateFilters, 300);
-});
+useDebouncedWatch(search, updateFilters, { delay: 300 });
 
 watch([role, status], updateFilters);
 
@@ -69,18 +68,6 @@ const bulkDelete = () => {
         }
     });
 };
-
-const toggleAll = (event) => {
-    if (event.target.checked) {
-        selectedUsers.value = props.users.data.map(u => u.id);
-    } else {
-        selectedUsers.value = [];
-    }
-};
-
-const isAllSelected = computed(() => {
-    return props.users.data.length > 0 && selectedUsers.value.length === props.users.data.length;
-});
 
 const toggleStatus = (id) => {
     router.patch(`/admin/users/${id}/toggle-status`, {}, { preserveScroll: true });
@@ -165,7 +152,7 @@ const toggleStatus = (id) => {
                                 <input 
                                     type="checkbox" 
                                     :checked="isAllSelected"
-                                    @change="toggleAll"
+                                    @change="toggleAllVisible"
                                     class="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                                 />
                             </th>

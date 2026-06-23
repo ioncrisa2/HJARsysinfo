@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed } from "vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
@@ -7,10 +7,7 @@ import Textarea from "primevue/textarea";
 import UiSectionHeader from "../../../ui/UiSectionHeader.vue";
 import UiField from "../../../ui/UiField.vue";
 import UiSurface from "../../../ui/UiSurface.vue";
-import L from "leaflet";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { useSingleMarkerLeafletMap } from "../../../../composables/useSingleMarkerLeafletMap";
 import "leaflet/dist/leaflet.css";
 
 const props = defineProps({
@@ -23,10 +20,6 @@ const props = defineProps({
 
 const emit = defineEmits(["prev", "next"]);
 
-const mapContainer = ref(null);
-const mapInstance = ref(null);
-const markerInstance = ref(null);
-
 const parsedLat = computed(() => {
     const v = Number(props.form.latitude);
     return Number.isFinite(v) && v !== 0 ? v : null;
@@ -38,59 +31,16 @@ const parsedLng = computed(() => {
 });
 
 const hasCoords = computed(() => parsedLat.value !== null && parsedLng.value !== null);
-
-const defaultIcon = L.icon({
-    iconRetinaUrl: markerIcon2x,
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-});
-
-const initMap = () => {
-    if (!mapContainer.value || mapInstance.value || !hasCoords.value) return;
-    mapInstance.value = L.map(mapContainer.value, { zoomControl: true, attributionControl: false }).setView(
-        [parsedLat.value, parsedLng.value],
-        15,
-    );
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapInstance.value);
-    markerInstance.value = L.marker([parsedLat.value, parsedLng.value], { icon: defaultIcon })
-        .addTo(mapInstance.value)
-        .bindPopup(props.form.alamat_data || "Lokasi");
-};
-
-const updateMarker = () => {
-    if (!mapInstance.value || !hasCoords.value) return;
-    const latlng = [parsedLat.value, parsedLng.value];
-    if (markerInstance.value) markerInstance.value.setLatLng(latlng);
-    else {
-        markerInstance.value = L.marker(latlng, { icon: defaultIcon }).addTo(mapInstance.value);
-    }
-    mapInstance.value.setView(latlng, mapInstance.value.getZoom());
-};
-
-watch(hasCoords, (val) => {
-    if (val) {
-        if (!mapInstance.value) setTimeout(initMap, 50);
-        else updateMarker();
-    }
-});
-
-watch([parsedLat, parsedLng], () => {
-    if (hasCoords.value && mapInstance.value) updateMarker();
-});
-
-onMounted(() => {
-    if (hasCoords.value) setTimeout(initMap, 50);
-});
-
-onBeforeUnmount(() => {
-    if (mapInstance.value) {
-        mapInstance.value.remove();
-        mapInstance.value = null;
-    }
+const address = computed(() => props.form.alamat_data || "");
+const { mapContainer } = useSingleMarkerLeafletMap({
+    lat: parsedLat,
+    lng: parsedLng,
+    hasCoordinates: hasCoords,
+    popupText: address,
+    zoom: 15,
+    attributionControl: false,
+    invalidateDelay: 80,
+    initDelay: 50,
 });
 
 const mapsUrl = computed(() =>

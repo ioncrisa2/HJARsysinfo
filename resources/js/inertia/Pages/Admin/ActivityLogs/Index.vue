@@ -1,12 +1,12 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import { Head, router } from "@inertiajs/vue3";
 import AdminLayout from "../../../Layouts/AdminLayout.vue";
 import UiSurface from "../../../components/ui/UiSurface.vue";
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
 import Tag from "primevue/tag";
-import debounce from "lodash/debounce";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
 
 const props = defineProps({
     logs: { type: Object, default: () => ({ data: [] }) },
@@ -15,16 +15,13 @@ const props = defineProps({
 
 const search = ref(props.filters.search);
 
-watch(
-    search,
-    debounce((value) => {
-        router.get(
-            "/admin/activity-logs",
-            { search: value },
-            { preserveState: true, preserveScroll: true, replace: true }
-        );
-    }, 300)
-);
+useDebouncedWatch(search, (value) => {
+    router.get(
+        "/admin/activity-logs",
+        { search: value },
+        { preserveState: true, preserveScroll: true, replace: true }
+    );
+}, { delay: 300 });
 
 const formatDate = (dateString) => {
     if (!dateString) return "-";

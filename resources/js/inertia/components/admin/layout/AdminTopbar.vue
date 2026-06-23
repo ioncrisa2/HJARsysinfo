@@ -1,6 +1,7 @@
 <script setup>
-import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch } from "vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
+import { useClickOutside } from "../../../composables/useClickOutside";
 
 const props = defineProps({
     breadcrumbs: { type: Array, required: true },
@@ -34,14 +35,9 @@ watch(
 const profileOpen = ref(false);
 const toggleProfile = () => (profileOpen.value = !profileOpen.value);
 
-// Close profile dropdown when clicking outside
-const closeProfile = (e) => {
-    if (profileOpen.value && !e.target.closest("[data-profile-dropdown]")) {
-        profileOpen.value = false;
-    }
-};
-onMounted(() => document.addEventListener("click", closeProfile));
-onUnmounted(() => document.removeEventListener("click", closeProfile));
+useClickOutside("[data-profile-dropdown]", () => {
+    profileOpen.value = false;
+}, { enabled: () => profileOpen.value });
 
 const logout = () => router.post("/logout");
 

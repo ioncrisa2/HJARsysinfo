@@ -9,6 +9,8 @@ import ExportFilter from "../../../components/admin/export/ExportFilter.vue";
 import ExportTable from "../../../components/admin/export/ExportTable.vue";
 import ExportSidebar from "../../../components/admin/export/ExportSidebar.vue";
 import ExportDialog from "../../../components/admin/export/ExportDialog.vue";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
+import { useVisibleSelection } from "../../../composables/useVisibleSelection";
 
 const props = defineProps({
     records: { type: Object, default: () => ({ data: [], links: [] }) },
@@ -31,13 +33,12 @@ const filterState = reactive({
     per_page: props.filters?.per_page ?? 25,
 });
 
-const selectedIds = ref([]);
 const exportDialog = ref(false);
 const pendingFormat = ref("excel");
 const pendingScope = ref("selected");
 
 const visibleIds = computed(() => (props.records?.data ?? []).map((record) => record.id));
-const allVisibleSelected = computed(() => visibleIds.value.length > 0 && visibleIds.value.every((id) => selectedIds.value.includes(id)));
+const { selectedIds, allVisibleSelected, toggleSelected, toggleAllVisible, clearSelection } = useVisibleSelection(visibleIds);
 const hasFilters = computed(() => {
     return [
         filterState.q,
@@ -58,14 +59,6 @@ const exportCount = computed(() => {
 });
 
 watch(
-    () => props.records?.data,
-    () => {
-        selectedIds.value = selectedIds.value.filter((id) => visibleIds.value.includes(id));
-    },
-    { deep: true },
-);
-
-watch(
     () => props.filters,
     (filters) => {
         filterState.q = filters?.q ?? "";
@@ -82,14 +75,7 @@ watch(
     { deep: true },
 );
 
-let searchTimeout = null;
-watch(
-    () => filterState.q,
-    () => {
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(applyFilters, 400);
-    },
-);
+useDebouncedWatch(() => filterState.q, applyFilters, { delay: 400 });
 
 const normalizeDate = (value) => {
     if (!value) return null;
@@ -159,20 +145,8 @@ const resetFilters = () => {
     filterState.dari_tanggal = null;
     filterState.sampai_tanggal = null;
     filterState.per_page = 25;
-    selectedIds.value = [];
+    clearSelection();
     applyFilters();
-};
-
-const toggleAllVisible = () => {
-    selectedIds.value = allVisibleSelected.value
-        ? selectedIds.value.filter((id) => !visibleIds.value.includes(id))
-        : [...new Set([...selectedIds.value, ...visibleIds.value])];
-};
-
-const toggleSelected = (id) => {
-    selectedIds.value = selectedIds.value.includes(id)
-        ? selectedIds.value.filter((selectedId) => selectedId !== id)
-        : [...selectedIds.value, id];
 };
 
 const openExport = (format, scope) => {

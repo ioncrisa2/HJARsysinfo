@@ -1,9 +1,6 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
-import L from "leaflet";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { computed } from "vue";
+import { useSingleMarkerLeafletMap } from "../../../composables/useSingleMarkerLeafletMap";
 import "leaflet/dist/leaflet.css";
 
 const props = defineProps({
@@ -11,9 +8,6 @@ const props = defineProps({
     longitude: { type: [String, Number], default: null },
     popupText: { type: String, default: "Lokasi" },
 });
-
-const mapContainer = ref(null);
-const mapInstance = ref(null);
 
 const lat = computed(() => {
     const value = Number(props.latitude);
@@ -26,50 +20,20 @@ const lng = computed(() => {
 });
 
 const hasCoordinates = computed(() => lat.value !== null && lng.value !== null);
-
-const defaultMarkerIcon = L.icon({
-    iconRetinaUrl: markerIcon2x,
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-});
-
-const initMap = async () => {
-    if (!hasCoordinates.value || !mapContainer.value || mapInstance.value) {
-        return;
-    }
-
-    await nextTick();
-
-    mapInstance.value = L.map(mapContainer.value, {
-        zoomControl: true,
-        attributionControl: true,
-    }).setView([lat.value, lng.value], 16);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+const popupText = computed(() => props.popupText || "Lokasi");
+const { mapContainer } = useSingleMarkerLeafletMap({
+    lat,
+    lng,
+    hasCoordinates,
+    popupText,
+    zoom: 16,
+    attributionControl: true,
+    tileOptions: {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(mapInstance.value);
-
-    L.marker([lat.value, lng.value], { icon: defaultMarkerIcon })
-        .addTo(mapInstance.value)
-        .bindPopup(props.popupText || "Lokasi");
-
-    window.setTimeout(() => {
-        mapInstance.value?.invalidateSize();
-    }, 100);
-};
-
-onMounted(initMap);
-
-onBeforeUnmount(() => {
-    if (mapInstance.value) {
-        mapInstance.value.remove();
-        mapInstance.value = null;
-    }
+    },
+    invalidateDelay: 100,
+    initDelay: 0,
 });
 </script>
 

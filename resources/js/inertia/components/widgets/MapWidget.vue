@@ -1,15 +1,15 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import Select from "primevue/select";
 import InputText from "primevue/inputtext";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import L from "leaflet";
-import "leaflet.markercluster";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import { useClusteredLeafletMap } from "../../composables/useClusteredLeafletMap";
 
 const props = defineProps({
     points: {
@@ -26,9 +26,6 @@ const props = defineProps({
     },
 });
 
-const mapContainer = ref(null);
-const mapInstance = ref(null);
-const markerLayer = ref(null);
 const searchLayer = ref(null);
 const listingFilter = ref(null);
 const searchLat = ref("");
@@ -100,44 +97,6 @@ const escapeHtml = (value) =>
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
 
-const ensureMap = () => {
-    if (mapInstance.value || !mapContainer.value) return;
-
-    mapInstance.value = L.map(mapContainer.value, { zoomControl: true });
-
-    const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-    });
-    const satellite = L.tileLayer("https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", {
-        subdomains: ["mt0", "mt1", "mt2", "mt3"],
-        attribution: "(c) Google Satellite",
-    });
-
-    satellite.addTo(mapInstance.value);
-    L.control.layers({ "OSM Basic": osm, Satellite: satellite }).addTo(mapInstance.value);
-
-    // Marker cluster group instead of plain layerGroup
-    markerLayer.value = L.markerClusterGroup({
-        chunkedLoading: true,
-        maxClusterRadius: 60,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-    }).addTo(mapInstance.value);
-
-    searchLayer.value = L.layerGroup().addTo(mapInstance.value);
-    mapInstance.value.setView([-2.5489, 118.0149], 5);
-
-    mapInstance.value.on("mousemove", (event) => {
-        cursorLat.value = event.latlng.lat;
-        cursorLng.value = event.latlng.lng;
-    });
-
-    mapInstance.value.on("mouseout", () => {
-        cursorLat.value = null;
-        cursorLng.value = null;
-    });
-};
-
 const resetMapZoom = () => {
     ensureMap();
     if (!mapInstance.value) return;
@@ -152,68 +111,80 @@ const resetMapZoom = () => {
     }
 };
 
-const renderMap = () => {
-    ensureMap();
-    if (!mapInstance.value || !markerLayer.value) return;
+const buildPointMarker = (point) => {
+    if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) return null;
 
-    markerLayer.value.clearLayers();
+    const imageUrl = point.image_url || "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=640&q=60";
 
-    if (filteredPoints.value.length === 0) {
+    return L.marker([point.latitude, point.longitude], { icon: defaultMarkerIcon }).bindPopup(`
+        <div style="min-width:240px;max-width:260px;font-family:ui-sans-serif,system-ui">
+            <div style="height:130px;border-radius:10px;overflow:hidden;background:#f8fafc;margin-bottom:10px;position:relative">
+                <span style="position:absolute;right:8px;top:8px;background:#d97706;color:white;font-weight:700;font-size:10px;padding:3px 8px;border-radius:999px;z-index:1">
+                    ${escapeHtml(point.jenis_listing ?? "")}
+                </span>
+                <img src="${escapeHtml(imageUrl)}" style="width:100%;height:100%;object-fit:cover" loading="lazy" />
+            </div>
+            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:3px;line-height:1.3">
+                ${escapeHtml(point.alamat ?? "Tanpa alamat")}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-bottom:10px">
+                ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+                <span style="color:#d97706;font-weight:700;font-size:13px">${formatCurrency(point.harga)}</span>
+                <a href="${escapeHtml(point.detail_url ?? '#')}" style="background:#0f172a;color:white;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;text-decoration:none">
+                    Detail ->
+                </a>
+            </div>
+        </div>
+    `.trim());
+};
+
+const updateHomeView = ({ bounds, empty, map }) => {
+    if (empty) {
         homeBounds.value = null;
         homeCenter.value = [-2.5489, 118.0149];
         homeZoom.value = 5;
-        mapInstance.value.setView(homeCenter.value, homeZoom.value);
         return;
     }
-
-    const bounds = [];
-
-    filteredPoints.value.forEach((point) => {
-        if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)) return;
-
-        const marker = L.marker([point.latitude, point.longitude], { icon: defaultMarkerIcon });
-        const imageUrl = point.image_url || "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=640&q=60";
-
-        marker.bindPopup(`
-            <div style="min-width:240px;max-width:260px;font-family:ui-sans-serif,system-ui">
-                <div style="height:130px;border-radius:10px;overflow:hidden;background:#f8fafc;margin-bottom:10px;position:relative">
-                    <span style="position:absolute;right:8px;top:8px;background:#d97706;color:white;font-weight:700;font-size:10px;padding:3px 8px;border-radius:999px;z-index:1">
-                        ${escapeHtml(point.jenis_listing ?? "")}
-                    </span>
-                    <img src="${escapeHtml(imageUrl)}" style="width:100%;height:100%;object-fit:cover" loading="lazy" />
-                </div>
-                <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:3px;line-height:1.3">
-                    ${escapeHtml(point.alamat ?? "Tanpa alamat")}
-                </div>
-                <div style="font-size:11px;color:#94a3b8;margin-bottom:10px">
-                    ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}
-                </div>
-                <div style="display:flex;align-items:center;justify-content:space-between">
-                    <span style="color:#d97706;font-weight:700;font-size:13px">${formatCurrency(point.harga)}</span>
-                    <a href="${escapeHtml(point.detail_url ?? '#')}" style="background:#0f172a;color:white;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;text-decoration:none">
-                        Detail ->
-                    </a>
-                </div>
-            </div>
-        `.trim());
-
-        markerLayer.value.addLayer(marker);
-        bounds.push([point.latitude, point.longitude]);
-    });
 
     if (bounds.length === 1) {
         homeBounds.value = null;
         homeCenter.value = bounds[0];
         homeZoom.value = 14;
-        mapInstance.value.setView(homeCenter.value, homeZoom.value);
+        map.setView(homeCenter.value, homeZoom.value);
         return;
     }
 
     homeBounds.value = L.latLngBounds(bounds);
     homeCenter.value = null;
     homeZoom.value = null;
-    mapInstance.value.fitBounds(homeBounds.value, { padding: [30, 30], maxZoom: 14 });
 };
+
+const {
+    mapContainer,
+    mapInstance,
+    ensureMap,
+} = useClusteredLeafletMap({
+    markers: () => filteredPoints.value,
+    buildMarker: buildPointMarker,
+    defaultCenter: [-2.5489, 118.0149],
+    defaultZoom: 5,
+    fitBoundsOptions: { padding: [30, 30], maxZoom: 14 },
+    osmFirst: true,
+    onMapReady: ({ map }) => {
+        searchLayer.value = L.layerGroup().addTo(map);
+        map.on("mousemove", (event) => {
+            cursorLat.value = event.latlng.lat;
+            cursorLng.value = event.latlng.lng;
+        });
+        map.on("mouseout", () => {
+            cursorLat.value = null;
+            cursorLng.value = null;
+        });
+    },
+    afterRender: updateHomeView,
+});
 
 const goToSearch = () => {
     if (!hasSearchPoint.value) return;
@@ -239,19 +210,6 @@ watch([searchLat, searchLng], () => {
     if (!hasSearchPoint.value && searchLayer.value) searchLayer.value.clearLayers();
 });
 
-watch(() => props.points, () => renderMap(), { deep: true });
-watch(filteredPoints, () => renderMap());
-
-onMounted(() => renderMap());
-
-onBeforeUnmount(() => {
-    if (mapInstance.value) {
-        mapInstance.value.remove();
-        mapInstance.value = null;
-        markerLayer.value = null;
-        searchLayer.value = null;
-    }
-});
 </script>
 
 <template>

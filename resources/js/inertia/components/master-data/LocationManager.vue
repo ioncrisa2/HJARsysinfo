@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import Message from "primevue/message";
 import { apiRequest } from "../../utils/apiRequest";
+import { useDebouncedWatch } from "../../composables/useDebouncedWatch";
 
 import LocationBreadcrumb from "./location/LocationBreadcrumb.vue";
 import LocationDataTable from "./location/LocationDataTable.vue";
@@ -77,12 +78,9 @@ const loadData = async () => {
     }
 };
 
-watch(searchQuery, () => {
-    clearTimeout(window.searchTimeout);
-    window.searchTimeout = setTimeout(() => {
-        loadData();
-    }, 300);
-});
+useDebouncedWatch(searchQuery, () => {
+    loadData();
+}, { delay: 300 });
 
 onMounted(() => {
     loadData();

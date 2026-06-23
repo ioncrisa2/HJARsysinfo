@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import Toast from "primevue/toast";
 import ScrollTop from "primevue/scrolltop";
+import { useClickOutside } from "../composables/useClickOutside";
 
 const page = usePage();
 
@@ -65,19 +66,15 @@ const handleEscape = async (event) => {
     }
 };
 
-const handleClickOutside = (event) => {
-    if (!event.target.closest(".profile-menu")) closeProfile();
-    if (!event.target.closest(".mobile-menu-wrapper")) closeMobileMenu();
-};
+useClickOutside(".profile-menu", closeProfile);
+useClickOutside(".mobile-menu-wrapper", closeMobileMenu);
 
 onMounted(() => {
     window.addEventListener("keydown", handleEscape);
-    window.addEventListener("click", handleClickOutside);
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleEscape);
-    window.removeEventListener("click", handleClickOutside);
 });
 </script>
 

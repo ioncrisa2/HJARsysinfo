@@ -1,104 +1,32 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue";
 import UiSurface from "../../../ui/UiSurface.vue";
 import ImageCropperDialog from "../ImageCropperDialog.vue";
+import { useImageUploadCropper } from "../../../../composables/useImageUploadCropper";
 
 const props = defineProps({
     form: { type: Object, required: true },
     mode: { type: String, default: "create" },
     imagePreview: { type: String, default: null },
-    handleImageUpload: { type: Function, default: null },
-    clearImage: { type: Function, default: null },
 });
+
+const emit = defineEmits(["upload", "clear"]);
 
 const isCreate = props.mode === "create";
-const isDragging = ref(false);
-const cropperVisible = ref(false);
-const cropperImageSrc = ref(null);
 
-const onClearImage = () => props.clearImage?.();
-
-const processImageForCrop = (file) => {
-    if (!file) return;
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-        const ratio = img.width / img.height;
-        if (ratio < 1.3) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            const targetWidth = Math.max(img.width, img.height * (16 / 9));
-            const targetHeight = targetWidth * (9 / 16);
-            canvas.width = targetWidth;
-            canvas.height = targetHeight;
-            
-            ctx.filter = 'blur(40px)';
-            ctx.drawImage(img, -targetWidth * 0.2, -targetHeight * 0.2, targetWidth * 1.4, targetHeight * 1.4);
-            ctx.filter = 'none';
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(0, 0, targetWidth, targetHeight);
-            
-            const x = (targetWidth - img.width) / 2;
-            const y = (targetHeight - img.height) / 2;
-            ctx.drawImage(img, x, y, img.width, img.height);
-            
-            cropperImageSrc.value = canvas.toDataURL('image/jpeg', 0.9);
-        } else {
-            cropperImageSrc.value = objectUrl;
-        }
-        cropperVisible.value = true;
-    };
-    img.src = objectUrl;
-};
-
-const onCropDone = ({ blob }) => {
-    const file = new File([blob], "cropped_image.jpg", { type: "image/jpeg" });
-    props.handleImageUpload?.({ files: [file] });
-};
-
-const onFileChange = (e) => {
-    const file = e.target?.files?.[0];
-    if (!file) return;
-    processImageForCrop(file);
-    e.target.value = '';
-};
-
-const onDragEnter = () => {
-    isDragging.value = true;
-};
-
-const onDragLeave = () => {
-    isDragging.value = false;
-};
-
-const onDrop = (e) => {
-    isDragging.value = false;
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
-    processImageForCrop(file);
-};
-
-const handlePaste = (e) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
-    
-    for (const item of items) {
-        if (!item.type.startsWith("image/")) continue;
-        const file = item.getAsFile();
-        if (!file) continue;
-        
-        processImageForCrop(file);
-        break;
-    }
-};
-
-onMounted(() => {
-    window.addEventListener("paste", handlePaste);
+const {
+    isDragging,
+    cropperVisible,
+    cropperImageSrc,
+    onFileChange,
+    onDragEnter,
+    onDragLeave,
+    onDrop,
+    onCropDone,
+} = useImageUploadCropper({
+    onUploadReady: (file) => emit("upload", { files: [file] }),
 });
 
-onBeforeUnmount(() => {
-    window.removeEventListener("paste", handlePaste);
-});
+const onClearImage = () => emit("clear");
 </script>
 
 <template>

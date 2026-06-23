@@ -51,6 +51,8 @@ class AdminAccess
             'delete_permission',
             'delete_any_permission',
 
+            'manage_data_contributor_invitations',
+
             'view_moderation',
             'approve_delete_request',
             'reject_delete_request',
@@ -160,6 +162,7 @@ class AdminAccess
                 'label' => 'User Management',
                 'items' => [
                     ['label' => 'Users', 'href' => '/admin/users', 'icon' => 'pi-users', 'permissions' => ['view_any_user']],
+                    ['label' => 'Data Contributor Invitations', 'href' => '/admin/data-contributor-invitations', 'icon' => 'pi-send', 'permissions' => ['manage_data_contributor_invitations']],
                     ['label' => 'Access Control', 'href' => '/admin/access-control', 'icon' => 'pi-key', 'permissions' => ['view_access_control']],
                 ],
             ],

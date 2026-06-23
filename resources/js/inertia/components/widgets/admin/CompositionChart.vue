@@ -1,6 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
-import Chart from "chart.js/auto";
+import { useChartJs } from "../../../composables/useChartJs";
 
 const props = defineProps({
     chartData: {
@@ -9,25 +8,13 @@ const props = defineProps({
     }
 });
 
-const canvasRef = ref(null);
-let chartInstance = null;
-
-const initChart = () => {
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
-
-    if (!canvasRef.value) return;
-
-    const ctx = canvasRef.value.getContext("2d");
-
-    chartInstance = new Chart(ctx, {
+const { canvasRef } = useChartJs(() => props.chartData, ({ chartData }) => ({
         type: "doughnut",
         data: {
-            labels: props.chartData.labels,
+            labels: chartData.labels,
             datasets: [
                 {
-                    ...props.chartData.datasets[0],
+                    ...chartData.datasets[0],
                     borderWidth: 0,
                     hoverOffset: 15,
                 }
@@ -54,16 +41,7 @@ const initChart = () => {
                 },
             },
         },
-    });
-};
-
-onMounted(() => {
-    initChart();
-});
-
-watch(() => props.chartData, () => {
-    initChart();
-}, { deep: true });
+    }));
 </script>
 
 <template>

@@ -6,7 +6,6 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\SystemSetting;
-use Illuminate\Support\Facades\Auth;
 
 class CheckSystemMode
 {
@@ -17,33 +16,38 @@ class CheckSystemMode
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $mode = SystemSetting::get('system_mode', 'live');
+        $mode = SystemSetting::getFresh('system_mode', 'live');
 
         if ($mode !== 'live') {
-            // Check if user is logged in and is a super admin
-            // We assume 'super_admin' role exists based on previous plans.
-            // Spatie permission check
-            if (Auth::check() && Auth::user()->hasRole('super_admin')) {
+            if ($this->isAllowedDuringRestrictedMode($request)) {
                 return $next($request);
             }
 
-            // Exclude the login route so admins can still login!
-            if ($request->is('login') || $request->is('logout') || $request->is('api/auth/*')) {
-                return $next($request);
-            }
-
-            // Return 503 maintenance mode response
             if ($request->wantsJson() || $request->is('api/*')) {
                 return response()->json([
                     'message' => 'Sistem sedang dalam pemeliharaan.',
-                    'status' => 'maintenance'
+                    'status' => 'maintenance',
                 ], 503);
             }
 
-            // Return a view or abort
             abort(503, 'Sistem sedang dalam pemeliharaan.');
         }
 
         return $next($request);
+    }
+
+    private function isAllowedDuringRestrictedMode(Request $request): bool
+    {
+        if ($request->is('login') || $request->is('logout') || $request->is('api/auth/*')) {
+            return true;
+        }
+
+        // Let unauthenticated admin requests reach the auth middleware so super admins
+        // can still be redirected to login instead of being trapped behind 503.
+        if ($request->is('admin') || $request->is('admin/*')) {
+            return ! $request->user() || $request->user()->hasRole('super_admin');
+        }
+
+        return $request->user()?->hasRole('super_admin') === true;
     }
 }

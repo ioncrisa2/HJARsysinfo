@@ -107,6 +107,7 @@ const currencyConfig = {
     <div class="space-y-4 py-4">
         <PembandingFormHeader
             mode="create"
+            base-path="/home/pembanding"
             :processing="form.processing"
             :flash-success="page.props.flash?.success"
             :active-tab="activeTab"
@@ -127,8 +128,8 @@ const currencyConfig = {
             :bangunan-required="bangunanRequired"
             :num-config="numConfig"
             :currency-config="currencyConfig"
-            :handle-image-upload="handleImageUpload"
-            :clear-image="clearImage"
+            @upload-image="handleImageUpload"
+            @clear-image="clearImage"
             @submit="submit"
             @submit-and-create-another="submitAndCreateAnother"
         />

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import { Head, Link, useForm, router } from "@inertiajs/vue3";
 import AdminLayout from "../../../Layouts/AdminLayout.vue";
 import UiSurface from "../../../components/ui/UiSurface.vue";
@@ -8,6 +8,7 @@ import Button from "primevue/button";
 import Textarea from "primevue/textarea";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
 
 const props = defineProps({
     tab: String,
@@ -23,13 +24,9 @@ const rejectForm = useForm({ review_note: "" });
 const showRejectModal = ref(false);
 const activeRequestId = ref(null);
 
-let searchTimeout = null;
-watch(search, (value) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        router.get("/admin/moderation", { search: value, tab: props.tab }, { preserveState: true, replace: true });
-    }, 300);
-});
+useDebouncedWatch(search, (value) => {
+    router.get("/admin/moderation", { search: value, tab: props.tab }, { preserveState: true, replace: true });
+}, { delay: 300 });
 
 const switchTab = (t) => {
     search.value = "";

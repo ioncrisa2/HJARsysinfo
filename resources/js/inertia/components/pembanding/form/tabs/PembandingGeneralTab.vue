@@ -30,7 +30,7 @@ const emit = defineEmits(["next"]);
                     option-label="label"
                     option-value="value"
                     placeholder="Pilih jenis listing"
-                    class="w-full"
+                    class="w-full rounded-xl bg-slate-50/50"
                     inputId="jenis_listing_id"
                 />
             </UiField>

@@ -7,6 +7,7 @@ import UiSurface from "../../../components/ui/UiSurface.vue";
 import Button from "primevue/button";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
 
 const props = defineProps({
     query: { type: String, default: "" },
@@ -49,11 +50,7 @@ watch(
     },
 );
 
-let searchTimeout = null;
-watch(search, () => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(applySearch, 350);
-});
+useDebouncedWatch(search, applySearch, { delay: 350 });
 
 const buildParams = () => {
     const params = {};

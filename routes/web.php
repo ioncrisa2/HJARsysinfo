@@ -9,6 +9,7 @@ use App\Http\Controllers\App\PembandingExportController;
 use App\Http\Controllers\App\PembandingController;
 use App\Http\Controllers\App\ProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\DataContributorRegistrationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -19,6 +20,14 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
 });
+
+Route::get('/register-data-contributor/submitted', [DataContributorRegistrationController::class, 'submitted'])
+    ->name('data-contributor-registration.submitted');
+Route::get('/register-data-contributor/{token}', [DataContributorRegistrationController::class, 'show'])
+    ->name('data-contributor-registration.show');
+Route::post('/register-data-contributor/{token}', [DataContributorRegistrationController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('data-contributor-registration.store');
 
 Route::middleware('auth')->group(function () {
     Route::get('/home', DashboardController::class)
@@ -149,6 +158,22 @@ Route::middleware('auth')->group(function () {
                 ->middlewareFor(['create', 'store'], 'permission:create_user')
                 ->middlewareFor(['edit', 'update'], 'permission:update_user')
                 ->middlewareFor('destroy', 'permission:delete_user');
+
+            Route::get('data-contributor-invitations', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'index'])
+                ->middleware('permission:manage_data_contributor_invitations')
+                ->name('data-contributor-invitations.index');
+            Route::post('data-contributor-invitations', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'store'])
+                ->middleware('permission:manage_data_contributor_invitations')
+                ->name('data-contributor-invitations.store');
+            Route::delete('data-contributor-invitations/{invite}', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'destroy'])
+                ->middleware('permission:manage_data_contributor_invitations')
+                ->name('data-contributor-invitations.destroy');
+            Route::post('data-contributor-registration-requests/{registrationRequest}/accept', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'accept'])
+                ->middleware('permission:manage_data_contributor_invitations')
+                ->name('data-contributor-registration-requests.accept');
+            Route::post('data-contributor-registration-requests/{registrationRequest}/reject', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'reject'])
+                ->middleware('permission:manage_data_contributor_invitations')
+                ->name('data-contributor-registration-requests.reject');
 
             Route::get('moderation', [\App\Http\Controllers\Admin\ModerationController::class, 'index'])
                 ->middleware('permission:view_moderation')

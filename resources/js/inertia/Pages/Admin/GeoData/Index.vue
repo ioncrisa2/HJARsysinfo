@@ -12,6 +12,7 @@ import Dropdown from "primevue/dropdown";
 import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
 
 const props = defineProps({
     title: { type: String, default: "Data Lokasi" },
@@ -92,15 +93,10 @@ const applyFilters = () => {
     });
 };
 
-let searchTimeout = null;
-watch(
-    () => filterState.search,
-    () => {
-        if (!props.currentResource) return;
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(applyFilters, 300);
-    },
-);
+useDebouncedWatch(() => filterState.search, () => {
+    if (!props.currentResource) return;
+    applyFilters();
+}, { delay: 300 });
 
 watch(
     () => props.filters,

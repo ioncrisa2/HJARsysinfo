@@ -10,6 +10,7 @@ import PembandingGeneralTab from "./tabs/PembandingGeneralTab.vue";
 import PembandingLocationTab from "./tabs/PembandingLocationTab.vue";
 import PembandingPropertyTab from "./tabs/PembandingPropertyTab.vue";
 import PembandingNotesTab from "./tabs/PembandingNotesTab.vue";
+import { getErrorCountByTab, getTabContext, isSewaListing, TAB_META, TAB_ORDER } from "../../../config/pembandingFormRequiredFields";
 
 const props = defineProps({
     form: { type: Object, required: true },
@@ -24,63 +25,27 @@ const props = defineProps({
     bangunanRequired: { type: Boolean, default: true },
     numConfig: { type: Object, default: () => ({}) },
     currencyConfig: { type: Object, default: () => ({}) },
-    handleImageUpload: { type: Function, default: null },
-    clearImage: { type: Function, default: null },
 });
 
-const emit = defineEmits(["update:activeTab", "submit", "submit-and-create-another"]);
+const emit = defineEmits(["update:activeTab", "submit", "submit-and-create-another", "upload-image", "clear-image"]);
 
 const activeTabModel = computed({
     get: () => props.activeTab,
     set: (value) => emit("update:activeTab", value),
 });
 
-const tabErrorKeys = {
-    umum: [
-        "jenis_listing_id",
-        "jenis_objek_id",
-        "nama_pemberi_informasi",
-        "nomer_telepon_pemberi_informasi",
-        "status_pemberi_informasi_id",
-        "tanggal_data",
-    ],
-    lokasi: ["alamat_data", "province_id", "regency_id", "district_id", "village_id", "latitude", "longitude"],
-    properti: [
-        "image",
-        "luas_tanah",
-        "luas_bangunan",
-        "lebar_depan",
-        "lebar_jalan",
-        "tahun_bangun",
-        "rasio_tapak",
-        "bentuk_tanah_id",
-        "posisi_tanah_id",
-        "kondisi_tanah_id",
-        "topografi_id",
-        "dokumen_tanah_id",
-        "peruntukan_id",
-        "harga",
-        "jangka_waktu_sewa",
-        "satuan_waktu_sewa",
-    ],
-    catatan: ["catatan"],
-};
+const isSewa = computed(() => isSewaListing(props.form, props.options));
+const requiredContext = computed(() => getTabContext(props.form, props.options, {
+    mode: props.mode,
+    isTanah: props.isTanah,
+    isSewa: isSewa.value,
+}));
 
 const tabErrorCount = computed(() => {
-    const errors = props.form.errors ?? {};
-    const result = {};
-    for (const [tab, keys] of Object.entries(tabErrorKeys)) {
-        result[tab] = keys.filter((k) => errors[k]).length;
-    }
-    return result;
+    return getErrorCountByTab(props.form.errors ?? {}, requiredContext.value);
 });
 
-const tabs = [
-    { value: "umum", label: "Umum", icon: "pi-info-circle" },
-    { value: "lokasi", label: "Lokasi", icon: "pi-map-marker" },
-    { value: "properti", label: "Properti", icon: "pi-building" },
-    { value: "catatan", label: "Catatan", icon: "pi-file-edit" },
-];
+const tabs = computed(() => TAB_ORDER.map((tab) => TAB_META[tab]));
 </script>
 
 <template>
@@ -127,16 +92,19 @@ const tabs = [
                         :bangunan-required="bangunanRequired"
                         :num-config="numConfig"
                         :currency-config="currencyConfig"
-                        :handle-image-upload="handleImageUpload"
-                        :clear-image="clearImage"
                         @prev="activeTabModel = 'lokasi'"
                         @next="activeTabModel = 'catatan'"
+                        @upload-image="emit('upload-image', $event)"
+                        @clear-image="emit('clear-image')"
                     />
                 </TabPanel>
                 <TabPanel value="catatan">
                     <PembandingNotesTab
                         :form="form"
                         :mode="mode"
+                        :options="options"
+                        :is-tanah="isTanah"
+                        :is-sewa="isSewa"
                         @prev="activeTabModel = 'properti'"
                         @submit="emit('submit')"
                         @submit-and-create-another="emit('submit-and-create-another')"
@@ -146,4 +114,3 @@ const tabs = [
         </Tabs>
     </UiSurface>
 </template>
-

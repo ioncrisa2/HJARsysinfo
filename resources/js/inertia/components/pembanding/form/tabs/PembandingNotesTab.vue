@@ -4,11 +4,14 @@ import Button from "primevue/button";
 import Textarea from "primevue/textarea";
 import UiSectionHeader from "../../../ui/UiSectionHeader.vue";
 import UiField from "../../../ui/UiField.vue";
-import UiSurface from "../../../ui/UiSurface.vue";
+import { getMissingFields, getTabContext, TAB_META, TAB_ORDER } from "../../../../config/pembandingFormRequiredFields";
 
 const props = defineProps({
     form: { type: Object, required: true },
     mode: { type: String, default: "create" },
+    options: { type: Object, default: () => ({}) },
+    isTanah: { type: Boolean, default: false },
+    isSewa: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["prev", "submit", "submit-and-create-another"]);
@@ -19,45 +22,22 @@ const charLimit = 1000;
 const charCount = computed(() => (props.form.catatan ?? "").length);
 const charRemaining = computed(() => charLimit - charCount.value);
 
-const checks = computed(() => [
-    {
-        label: "Jenis listing & objek",
-        ok: Boolean(props.form.jenis_listing_id) && Boolean(props.form.jenis_objek_id),
-    },
-    {
-        label: "Nama pemberi informasi",
-        ok: Boolean(props.form.nama_pemberi_informasi?.trim()),
-    },
-    {
-        label: "Tanggal data",
-        ok: Boolean(props.form.tanggal_data),
-    },
-    {
-        label: "Alamat & wilayah administratif",
-        ok:
-            Boolean(props.form.alamat_data?.trim()) &&
-            Boolean(props.form.province_id) &&
-            Boolean(props.form.regency_id) &&
-            Boolean(props.form.district_id) &&
-            Boolean(props.form.village_id),
-    },
-    {
-        label: "Koordinat GPS",
-        ok: Boolean(props.form.latitude) && Boolean(props.form.longitude),
-    },
-    {
-        label: "Luas tanah",
-        ok: props.form.luas_tanah !== null && props.form.luas_tanah !== "",
-    },
-    {
-        label: "Harga",
-        ok: props.form.harga !== null && props.form.harga !== "",
-    },
-]);
+const requiredContext = computed(() => getTabContext(props.form, props.options, {
+    mode: props.mode,
+    isTanah: props.isTanah,
+    isSewa: props.isSewa,
+}));
 
-const checkedCount = computed(() => checks.value.filter((c) => c.ok).length);
-const allChecked = computed(() => checkedCount.value === checks.value.length);
-const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) => c.label));
+const missingFieldsByTab = computed(() => getMissingFields(props.form, requiredContext.value));
+const missingTabs = computed(() => TAB_ORDER
+    .map((tab) => ({
+        tab,
+        meta: TAB_META[tab],
+        fields: missingFieldsByTab.value[tab] ?? [],
+    }))
+    .filter((item) => item.fields.length > 0));
+const missingCount = computed(() => missingTabs.value.reduce((total, item) => total + item.fields.length, 0));
+const allChecked = computed(() => missingCount.value === 0);
 </script>
 
 <template>
@@ -100,9 +80,14 @@ const missingChecks = computed(() => checks.value.filter((c) => !c.ok).map((c) =
             <div>
                 <p class="text-sm font-bold text-amber-900">Data Belum Lengkap</p>
                 <p class="text-xs text-amber-700 mt-1 leading-relaxed">
-                    Mohon kembali ke tab sebelumnya dan lengkapi isian wajib berikut: 
-                    <span class="font-bold block mt-1">{{ missingChecks.join(", ") }}</span>
+                    Mohon kembali ke tab sebelumnya dan lengkapi {{ missingCount }} isian wajib berikut:
                 </p>
+                <div class="mt-2 space-y-1">
+                    <p v-for="item in missingTabs" :key="item.tab" class="text-xs leading-relaxed text-amber-800">
+                        <span class="font-bold">{{ item.meta.label }}:</span>
+                        {{ item.fields.map((field) => field.label).join(", ") }}
+                    </p>
+                </div>
             </div>
         </div>
         <div v-else class="rounded-2xl border border-green-200 bg-green-50 p-5 flex items-start gap-4">

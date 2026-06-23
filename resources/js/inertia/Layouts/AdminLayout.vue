@@ -88,6 +88,8 @@ const breadcrumbs = computed(() => {
     const labelMap = {
         users: "Users",
         "access-control": "Access Control",
+        "data-contributor-invitations": "Data Contributor Invitations",
+        "data-contributor-registration-requests": "Data Contributor Requests",
         create: "Create",
         edit: "Edit",
         moderation: "Moderation",

@@ -1,6 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
-import Chart from "chart.js/auto";
+import { useChartJs } from "../../../composables/useChartJs";
 
 const props = defineProps({
     chartData: {
@@ -9,30 +8,19 @@ const props = defineProps({
     }
 });
 
-const canvasRef = ref(null);
-let chartInstance = null;
-
-const initChart = () => {
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
-
-    if (!canvasRef.value) return;
-
-    const ctx = canvasRef.value.getContext("2d");
-    
+const { canvasRef } = useChartJs(() => props.chartData, ({ ctx, chartData }) => {
     // Create gradient
     const gradient = ctx.createLinearGradient(0, 0, 0, 400);
     gradient.addColorStop(0, "rgba(59, 130, 246, 0.2)");
     gradient.addColorStop(1, "rgba(59, 130, 246, 0.0)");
 
-    chartInstance = new Chart(ctx, {
+    return {
         type: "line",
         data: {
-            labels: props.chartData.labels,
+            labels: chartData.labels,
             datasets: [
                 {
-                    ...props.chartData.datasets[0],
+                    ...chartData.datasets[0],
                     borderColor: "#3b82f6",
                     backgroundColor: gradient,
                     fill: true,
@@ -89,16 +77,8 @@ const initChart = () => {
                 intersect: false,
             },
         },
-    });
-};
-
-onMounted(() => {
-    initChart();
+    };
 });
-
-watch(() => props.chartData, () => {
-    initChart();
-}, { deep: true });
 </script>
 
 <template>

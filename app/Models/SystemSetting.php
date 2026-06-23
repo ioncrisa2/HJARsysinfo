@@ -29,6 +29,16 @@ class SystemSetting extends Model
     }
 
     /**
+     * Get a setting directly from the database, bypassing cache.
+     */
+    public static function getFresh($key, $default = null)
+    {
+        return self::query()
+            ->where('key', $key)
+            ->value('value') ?? $default;
+    }
+
+    /**
      * Set a specific setting by key.
      */
     public static function set($key, $value)

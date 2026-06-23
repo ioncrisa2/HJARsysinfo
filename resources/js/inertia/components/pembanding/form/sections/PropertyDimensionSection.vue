@@ -20,7 +20,10 @@ const normalizeYearInput = (event) => {
 </script>
 
 <template>
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div>
+        <h3 class="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">Spesifikasi Teknis</h3>
+
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <UiField id="luas_tanah" label="Luas Tanah" :required="true" :error="form.errors.luas_tanah">
             <InputNumber
                 v-model="form.luas_tanah"
@@ -102,5 +105,6 @@ const normalizeYearInput = (event) => {
                 class="w-full rounded-xl bg-slate-50/50 border-slate-200"
             />
         </UiField>
+        </div>
     </div>
 </template>

@@ -16,11 +16,9 @@ const props = defineProps({
     bangunanRequired: { type: Boolean, default: true },
     numConfig: { type: Object, default: () => ({}) },
     currencyConfig: { type: Object, default: () => ({}) },
-    handleImageUpload: { type: Function, default: null },
-    clearImage: { type: Function, default: null },
 });
 
-const emit = defineEmits(["prev", "next"]);
+const emit = defineEmits(["prev", "next", "upload-image", "clear-image"]);
 </script>
 
 <template>
@@ -35,17 +33,17 @@ const emit = defineEmits(["prev", "next"]);
         <PropertyImageSection 
             :form="form" 
             :mode="mode" 
-            :imagePreview="imagePreview" 
-            :handleImageUpload="handleImageUpload" 
-            :clearImage="clearImage" 
+            :image-preview="imagePreview"
+            @upload="emit('upload-image', $event)"
+            @clear="emit('clear-image')"
         />
 
         <!-- Technical Specs -->
         <PropertyDimensionSection 
             :form="form" 
-            :isTanah="isTanah" 
-            :bangunanRequired="bangunanRequired" 
-            :numConfig="numConfig" 
+            :is-tanah="isTanah"
+            :bangunan-required="bangunanRequired"
+            :num-config="numConfig"
         />
 
         <!-- Characteristics & Legality -->
@@ -58,8 +56,8 @@ const emit = defineEmits(["prev", "next"]);
         <PropertyPricingSection 
             :form="form" 
             :options="options" 
-            :currencyConfig="currencyConfig" 
-            :numConfig="numConfig" 
+            :currency-config="currencyConfig"
+            :num-config="numConfig"
         />
 
         <div class="flex justify-between border-t border-slate-100 pt-5">

@@ -10,6 +10,8 @@ import MasterDataSidebar from "../../../components/admin/master-data/MasterDataS
 import MasterDataFilter from "../../../components/admin/master-data/MasterDataFilter.vue";
 import MasterDataTable from "../../../components/admin/master-data/MasterDataTable.vue";
 import MasterDataForm from "../../../components/admin/master-data/MasterDataForm.vue";
+import { useDebouncedWatch } from "../../../composables/useDebouncedWatch";
+import { useVisibleSelection } from "../../../composables/useVisibleSelection";
 
 const props = defineProps({
     currentResource: { type: String, default: null },
@@ -33,7 +35,14 @@ const filterState = reactive({
 });
 
 const rows = ref([...(props.records?.data ?? [])]);
-const selectedIds = ref([]);
+const visibleIds = computed(() => rows.value.map((row) => row.id));
+const {
+    selectedIds,
+    allVisibleSelected,
+    toggleSelected: toggleVisibleSelected,
+    toggleAllVisible: toggleAllVisibleSelection,
+    clearSelection,
+} = useVisibleSelection(visibleIds);
 const showForm = ref(false);
 const editingRecord = ref(null);
 const draggedId = ref(null);
@@ -45,11 +54,6 @@ const form = useForm({
     sort_order: null,
     is_active: true,
     badge_color: "#64748b",
-});
-
-const allVisibleSelected = computed(() => {
-    const ids = rows.value.map((row) => row.id);
-    return ids.length > 0 && ids.every((id) => selectedIds.value.includes(id));
 });
 
 const hasOrderChanges = computed(() => {
@@ -66,7 +70,6 @@ watch(
     () => props.records?.data,
     (data) => {
         rows.value = [...(data ?? [])];
-        selectedIds.value = selectedIds.value.filter((id) => rows.value.some((row) => row.id === id));
     },
     { deep: true },
 );
@@ -83,15 +86,10 @@ watch(
     { deep: true },
 );
 
-let searchTimeout = null;
-watch(
-    () => filterState.search,
-    () => {
-        if (!props.currentResource) return;
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(applyFilters, 300);
-    },
-);
+useDebouncedWatch(() => filterState.search, () => {
+    if (!props.currentResource) return;
+    applyFilters();
+}, { delay: 300 });
 
 const buildFilterParams = () => {
     const params = {};
@@ -189,19 +187,13 @@ const toggleStatus = (record) => {
 const toggleAllVisible = () => {
     if (!props.can.deleteAny) return;
 
-    const ids = rows.value.map((row) => row.id);
-
-    selectedIds.value = allVisibleSelected.value
-        ? selectedIds.value.filter((id) => !ids.includes(id))
-        : [...new Set([...selectedIds.value, ...ids])];
+    toggleAllVisibleSelection();
 };
 
 const toggleSelected = (id) => {
     if (!props.can.deleteAny) return;
 
-    selectedIds.value = selectedIds.value.includes(id)
-        ? selectedIds.value.filter((selectedId) => selectedId !== id)
-        : [...selectedIds.value, id];
+    toggleVisibleSelected(id);
 };
 
 const bulkDelete = () => {
@@ -222,7 +214,7 @@ const bulkDelete = () => {
                 {
                     preserveScroll: true,
                     onFinish: () => (deletingBulk.value = false),
-                    onSuccess: () => (selectedIds.value = []),
+                    onSuccess: clearSelection,
                 },
             );
         },

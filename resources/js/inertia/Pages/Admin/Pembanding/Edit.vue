@@ -104,6 +104,7 @@ const currencyConfig = { ...numConfig, prefix: "Rp " };
         <div class="space-y-4 py-4">
             <PembandingFormHeader
                 mode="edit"
+                base-path="/admin/pembanding"
                 :record-id="sourceRecord.id"
                 :address="sourceRecord.alamat_data ?? ''"
                 :processing="form.processing"
@@ -126,8 +127,8 @@ const currencyConfig = { ...numConfig, prefix: "Rp " };
                 :bangunan-required="bangunanRequired"
                 :num-config="numConfig"
                 :currency-config="currencyConfig"
-                :handle-image-upload="handleImageUpload"
-                :clear-image="clearImage"
+                @upload-image="handleImageUpload"
+                @clear-image="clearImage"
                 @submit="submit"
             />
         </div>
