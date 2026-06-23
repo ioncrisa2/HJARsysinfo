@@ -83,6 +83,7 @@ class PembandingAccessRoleSeeder extends Seeder
             'update_own_data::pembanding',
             'widget_Map',
             'widget_StatsOverview',
+            'widget_TopContributorTable',
         ])->values()->all());
 
         $superAdmin = Role::query()->firstOrCreate([
