@@ -33,8 +33,8 @@ const submit = () => {
         <div class="relative mx-auto flex min-h-[100svh] w-full max-w-7xl items-center justify-center px-4 py-10">
             <UiSurface class="w-full max-w-md" padding="lg">
                 <header class="mb-7 flex items-center gap-3">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-slate-900 text-white shadow-[var(--shadow-surface)]">
-                        <i class="pi pi-compass text-sm" />
+                    <div class="flex h-10 w-10 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] bg-white shadow-[var(--shadow-surface)] ring-1 ring-slate-200">
+                        <img :src="'/images/h-logo.jpg'" alt="" class="h-full w-full object-cover" aria-hidden="true" />
                     </div>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-bold tracking-tight text-slate-900">
@@ -106,4 +106,3 @@ const submit = () => {
         </div>
     </main>
 </template>
-

@@ -41,8 +41,8 @@ const isActive = (href) => {
                     <div v-if="page.props.appSettings?.app_logo" class="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden bg-white">
                         <img :src="'/storage/' + page.props.appSettings.app_logo" class="h-full w-full object-cover" />
                     </div>
-                    <div v-else class="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500" :style="page.props.appSettings?.primary_color ? { backgroundColor: page.props.appSettings.primary_color } : {}">
-                        <i class="pi pi-compass text-white text-sm" />
+                    <div v-else class="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden bg-white ring-1 ring-slate-700">
+                        <img :src="'/images/h-logo.jpg'" alt="" class="h-full w-full object-cover" aria-hidden="true" />
                     </div>
                     <span
                         v-if="showLabels"

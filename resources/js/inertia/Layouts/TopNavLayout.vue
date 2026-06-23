@@ -95,8 +95,8 @@ onBeforeUnmount(() => {
 
                 <!-- Logo -->
                 <div class="flex items-center gap-2 flex-shrink-0">
-                    <div class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900">
-                        <i class="pi pi-compass text-white text-xs" />
+                    <div class="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-slate-200">
+                        <img :src="'/images/h-logo.jpg'" alt="" class="h-full w-full object-cover" aria-hidden="true" />
                     </div>
                     <span class="text-sm font-bold tracking-tight text-slate-900">
                         Bank Data KJPP HJA'R<span class="text-amber-500">.</span>
@@ -291,8 +291,8 @@ onBeforeUnmount(() => {
         <footer class="mt-auto border-t border-slate-100 bg-white">
             <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4 text-xs text-slate-400">
                 <div class="flex items-center gap-2">
-                    <div class="flex h-5 w-5 items-center justify-center rounded bg-slate-900">
-                        <i class="pi pi-compass text-white" style="font-size: 9px" />
+                    <div class="flex h-5 w-5 items-center justify-center overflow-hidden rounded bg-white ring-1 ring-slate-200">
+                        <img :src="'/images/h-logo.jpg'" alt="" class="h-full w-full object-cover" aria-hidden="true" />
                     </div>
                     <span class="font-medium text-slate-500">
                         Bank Data KJPP HJA'R<span class="text-amber-500">.</span>

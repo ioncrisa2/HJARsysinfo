@@ -23,6 +23,7 @@ const props = defineProps({
 const record = computed(() => props.record ?? {});
 const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
+const deleteRequestSuccessMessage = "Permintaan hapus berhasil dikirim";
 
 const deleteRequestModalVisible = ref(false);
 const deleteRequestProcessing = ref(false);
@@ -94,7 +95,12 @@ const showDeleteRequestAlerts = () => {
 
 watch(flashSuccess, (value, previousValue) => {
     if (!value || value === previousValue) return;
-    showDeleteRequestAlerts();
+    if (String(value).startsWith(deleteRequestSuccessMessage)) {
+        showDeleteRequestAlerts();
+        return;
+    }
+
+    showAutoAlert(value, "success", 2000);
 }, { immediate: true });
 
 watch(flashError, (value, previousValue) => {

@@ -23,8 +23,8 @@
         <header class="border-b border-white/40 bg-white/65 backdrop-blur-md">
             <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
                 <div class="flex min-w-0 items-center gap-3">
-                    <div class="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-slate-900 text-sm font-semibold text-white">
-                        H
+                    <div class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] bg-white ring-1 ring-slate-200">
+                        <img src="{{ asset('images/h-logo.jpg') }}" alt="" class="size-full object-cover" aria-hidden="true">
                     </div>
                     <div class="min-w-0">
                         <p class="truncate text-sm font-semibold text-slate-950">Bank Data KJPP HJA'R</p>

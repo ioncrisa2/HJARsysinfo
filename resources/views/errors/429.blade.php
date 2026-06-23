@@ -70,27 +70,19 @@
         .logo-container {
             width: 44px;
             height: 44px;
-            padding: 6px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #003399;
+            overflow: hidden;
+            background-color: #fff;
+            border: 1px solid rgba(148, 163, 184, 0.35);
         }
 
-        .logo-inner {
+        .logo-container img {
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #990000;
-        }
-
-        .logo-text {
-            color: #fff;
-            font-size: 22px;
-            font-weight: 500;
-            line-height: 1;
+            object-fit: cover;
+            display: block;
         }
 
         .brand-title {
@@ -192,9 +184,7 @@
     <main class="card">
         <div class="brand">
             <div class="logo-container">
-                <div class="logo-inner">
-                    <span class="logo-text">H</span>
-                </div>
+                <img src="{{ asset('images/h-logo.jpg') }}" alt="" aria-hidden="true">
             </div>
             <div>
                 <p class="brand-title">KJPP HJA'R</p>
