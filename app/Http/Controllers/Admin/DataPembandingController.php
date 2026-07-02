@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Pembanding\SavePembandingAction;
 use App\Http\Controllers\Admin\Concerns\AuthorizesAdminPermissions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingBrowseRequest;
@@ -20,15 +21,14 @@ use App\Models\Province;
 use App\Models\Regency;
 use App\Models\StatusPemberiInformasi;
 use App\Models\Topografi;
+use App\Models\User;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
 use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,7 +51,7 @@ class DataPembandingController extends Controller
                 'district:id,name,regency_id',
                 'regency:id,name',
             ])
-            ->orderByDesc('tanggal_data')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($request->perPage())
             ->through(fn (Pembanding $record): array => [
@@ -63,6 +63,7 @@ class DataPembandingController extends Controller
                 'satuan_waktu_sewa' => $record->satuan_waktu_sewa,
                 'sewa_periode_label' => $record->sewa_periode_label,
                 'tanggal_data' => $record->tanggal_data,
+                'created_at' => optional($record->created_at)->toDateTimeString(),
                 'luas_tanah' => $record->luas_tanah,
                 'luas_bangunan' => $record->luas_bangunan,
                 'image_url' => $record->image
@@ -97,6 +98,7 @@ class DataPembandingController extends Controller
                 : [],
             'jenisListings' => $this->mapSelectOptions(JenisListing::where('is_active', true)->orderBy('sort_order')->get()),
             'jenisObjeks' => $this->mapSelectOptions(JenisObjek::where('is_active', true)->orderBy('sort_order')->get()),
+            'creators' => $this->creatorOptions(),
         ];
 
         return Inertia::render('Admin/Pembanding/Index', [
@@ -125,7 +127,7 @@ class DataPembandingController extends Controller
         ]);
     }
 
-    public function store(PembandingStoreRequest $request): RedirectResponse
+    public function store(PembandingStoreRequest $request, SavePembandingAction $savePembanding): RedirectResponse
     {
         $this->authorizeAdmin('create_data::pembanding');
 
@@ -133,11 +135,7 @@ class DataPembandingController extends Controller
         $createAnother = $request->boolean('create_another');
         $data['created_by'] = $request->user()->id;
 
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->storeImage($request->file('image'));
-        }
-
-        Pembanding::create($data);
+        $savePembanding->create($data, $request->file('image'));
 
         return redirect()
             ->route('admin.pembanding.index')
@@ -212,19 +210,16 @@ class DataPembandingController extends Controller
         ]);
     }
 
-    public function update(PembandingUpdateRequest $request, Pembanding $pembanding): RedirectResponse
-    {
+    public function update(
+        PembandingUpdateRequest $request,
+        Pembanding $pembanding,
+        SavePembandingAction $savePembanding
+    ): RedirectResponse {
         $this->authorizeAdmin('update_data::pembanding');
 
         $data = $request->validated();
 
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->storeImage($request->file('image'));
-        } else {
-            unset($data['image']);
-        }
-
-        $pembanding->update($data);
+        $savePembanding->update($pembanding, $data, $request->file('image'));
 
         return redirect()
             ->route('admin.pembanding.index')
@@ -361,19 +356,26 @@ class DataPembandingController extends Controller
         ];
     }
 
-    private function storeImage(UploadedFile $file): string
-    {
-        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
-
-        return $file->storeAs('foto_pembanding', strtolower($filename), 'public');
-    }
-
     private function mapSelectOptions(Collection $items): array
     {
         return $items
             ->map(fn ($item): array => [
                 'label' => (string) $item->name,
                 'value' => $item->id,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function creatorOptions(): array
+    {
+        return User::query()
+            ->whereHas('pembanding')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $user): array => [
+                'label' => $user->name,
+                'value' => $user->id,
             ])
             ->values()
             ->all();

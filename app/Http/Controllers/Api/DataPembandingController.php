@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Pembanding\SavePembandingAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingStoreRequest;
 use App\Http\Requests\App\PembandingUpdateRequest;
@@ -17,10 +18,8 @@ use App\Traits\ApiResponse;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 
 class DataPembandingController extends Controller
 {
@@ -38,7 +37,8 @@ class DataPembandingController extends Controller
 
     public function __construct(
         protected PembandingService $similarityService,
-        protected PembandingFactory $factory
+        protected PembandingFactory $factory,
+        protected SavePembandingAction $savePembanding,
     ) {}
 
     /**
@@ -247,11 +247,7 @@ class DataPembandingController extends Controller
         $data = $request->validated();
         $data['created_by'] = $request->user()->id;
 
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->storeImage($request->file('image'));
-        }
-
-        $pembanding = Pembanding::create($data);
+        $pembanding = $this->savePembanding->create($data, $request->file('image'));
 
         $pembanding->load([
             'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name',
@@ -280,13 +276,7 @@ class DataPembandingController extends Controller
 
         $data = $request->validated();
 
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->storeImage($request->file('image'));
-        } else {
-            unset($data['image']);
-        }
-
-        $pembanding->update($data);
+        $this->savePembanding->update($pembanding, $data, $request->file('image'));
 
         $pembanding->load([
             'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name',
@@ -315,13 +305,6 @@ class DataPembandingController extends Controller
         $pembanding->delete();
 
         return $this->success(null, 'Data pembanding berhasil dihapus.');
-    }
-
-    private function storeImage(UploadedFile $file): string
-    {
-        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
-
-        return $file->storeAs('foto_pembanding', strtolower($filename), 'public');
     }
 
     /**

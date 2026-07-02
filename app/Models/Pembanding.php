@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Exceptions\DuplicatePembandingException;
 use App\Models\Traits\PembandingPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -45,6 +46,9 @@ class Pembanding extends Model
         'satuan_waktu_sewa',
         'tanggal_data',
         'image',
+        'image_checksum',
+        'business_fingerprint',
+        'active_fingerprint',
         'catatan',
         'province_id',
         'regency_id',
@@ -60,6 +64,9 @@ class Pembanding extends Model
 
     protected $hidden = [
         'image',
+        'image_checksum',
+        'business_fingerprint',
+        'active_fingerprint',
     ];
 
     protected $casts = [
@@ -90,6 +97,36 @@ class Pembanding extends Model
         'is_sewa',
         'sewa_periode_label',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Pembanding $pembanding): void {
+            if (! $pembanding->isForceDeleting() && $pembanding->active_fingerprint !== null) {
+                $pembanding->getConnection()
+                    ->table($pembanding->getTable())
+                    ->where($pembanding->getKeyName(), $pembanding->getKey())
+                    ->update(['active_fingerprint' => null]);
+                $pembanding->active_fingerprint = null;
+            }
+        });
+
+        static::restoring(function (Pembanding $pembanding): void {
+            if (! $pembanding->business_fingerprint) {
+                return;
+            }
+
+            $duplicate = static::query()
+                ->where('business_fingerprint', $pembanding->business_fingerprint)
+                ->whereKeyNot($pembanding->getKey())
+                ->first();
+
+            if ($duplicate) {
+                throw new DuplicatePembandingException($duplicate);
+            }
+
+            $pembanding->active_fingerprint = $pembanding->business_fingerprint;
+        });
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

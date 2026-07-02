@@ -468,6 +468,82 @@ it('can store new pembanding', function () {
         ->assertJsonPath('data.alamat_data', 'Jl. Test Create');
 });
 
+it('rejects an exact duplicate pembanding with conflict response', function () {
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $imageContents = file_get_contents($image->getRealPath());
+    $payload = ($this->validPembandingPayload)(['image' => $image]);
+
+    $first = $this->post('/api/v1/pembandings', $payload);
+    $first->assertOk();
+
+    $duplicatePayload = ($this->validPembandingPayload)([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
+    ]);
+
+    $this->post('/api/v1/pembandings', $duplicatePayload)
+        ->assertStatus(409)
+        ->assertJsonPath('status', 'error')
+        ->assertJsonPath('duplicate.status', 'active')
+        ->assertJsonPath('duplicate.id', $first->json('data.id'));
+});
+
+it('accepts the same coordinates when another business field differs', function () {
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $imageContents = file_get_contents($image->getRealPath());
+
+    $this->post('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'image' => $image,
+    ]))->assertOk();
+
+    $this->post('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'harga' => 125000000,
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
+    ]))
+        ->assertOk()
+        ->assertJsonPath('data.harga', 125000000);
+});
+
+it('rejects an update that would duplicate another record', function () {
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $imageContents = file_get_contents($image->getRealPath());
+
+    $first = $this->post('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'image' => $image,
+    ]));
+    $second = $this->post('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'harga' => 125000000,
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
+    ]));
+
+    $first->assertOk();
+    $second->assertOk();
+
+    $this->putJson(
+        '/api/v1/pembandings/'.$second->json('data.id'),
+        ($this->validPembandingPayload)(['image' => null])
+    )
+        ->assertStatus(409)
+        ->assertJsonPath('duplicate.id', $first->json('data.id'));
+});
+
+it('rejects recreation of an exact soft deleted record', function () {
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $imageContents = file_get_contents($image->getRealPath());
+    $first = $this->post('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'image' => $image,
+    ]));
+
+    $first->assertOk();
+    Pembanding::query()->findOrFail($first->json('data.id'))->delete();
+
+    $this->post('/api/v1/pembandings', ($this->validPembandingPayload)([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
+    ]))
+        ->assertStatus(409)
+        ->assertJsonPath('duplicate.status', 'deleted')
+        ->assertJsonPath('duplicate.url', null);
+});
+
 it('validates sewa period through API create', function () {
     $sewaId = JenisListing::query()->create([
         'slug' => 'sewa',

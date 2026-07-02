@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Actions\Pembanding\SavePembandingAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingBrowseRequest;
 use App\Http\Requests\App\PembandingStoreRequest;
@@ -20,14 +21,13 @@ use App\Models\Province;
 use App\Models\Regency;
 use App\Models\StatusPemberiInformasi;
 use App\Models\Topografi;
+use App\Models\User;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,7 +51,7 @@ class PembandingController extends Controller
                 'district:id,name,regency_id',
                 'regency:id,name',
             ])
-            ->orderByDesc('tanggal_data')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($request->perPage())
             ->through(fn (Pembanding $record): array => [
@@ -63,6 +63,7 @@ class PembandingController extends Controller
                 'satuan_waktu_sewa' => $record->satuan_waktu_sewa,
                 'sewa_periode_label' => $record->sewa_periode_label,
                 'tanggal_data' => $record->tanggal_data,
+                'created_at' => optional($record->created_at)->toDateTimeString(),
                 'latitude' => $record->latitude,
                 'longitude' => $record->longitude,
                 'jenis_listing' => $record->jenisListing?->name,
@@ -112,6 +113,7 @@ class PembandingController extends Controller
                         ->orderBy('name')
                         ->get(['id', 'name'])
                 ),
+                'creators' => $this->creatorOptions(),
                 'perPage' => collect([8, 16, 32, 64])->map(fn (int $value): array => [
                     'label' => "{$value} / halaman",
                     'value' => $value,
@@ -133,7 +135,7 @@ class PembandingController extends Controller
 
     // ── Store ─────────────────────────────────────────────────────────────────
 
-    public function store(PembandingStoreRequest $request): RedirectResponse
+    public function store(PembandingStoreRequest $request, SavePembandingAction $savePembanding): RedirectResponse
     {
         Gate::authorize('create', Pembanding::class);
 
@@ -141,11 +143,7 @@ class PembandingController extends Controller
         $createAnother = $request->boolean('create_another');
         $data['created_by'] = $request->user()->id;
 
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->storeImage($request->file('image'));
-        }
-
-        $pembanding = Pembanding::create($data);
+        $pembanding = $savePembanding->create($data, $request->file('image'));
 
         if ($createAnother) {
             return redirect()
@@ -324,19 +322,16 @@ class PembandingController extends Controller
 
     // ── Update ────────────────────────────────────────────────────────────────
 
-    public function update(PembandingUpdateRequest $request, Pembanding $pembanding): RedirectResponse
-    {
+    public function update(
+        PembandingUpdateRequest $request,
+        Pembanding $pembanding,
+        SavePembandingAction $savePembanding
+    ): RedirectResponse {
         Gate::authorize('update', $pembanding);
 
         $data = $request->validated();
 
-        if ($request->hasFile('image')) {
-            $data['image'] = $this->storeImage($request->file('image'));
-        } else {
-            unset($data['image']);
-        }
-
-        $pembanding->update($data);
+        $savePembanding->update($pembanding, $data, $request->file('image'));
 
         return redirect()
             ->route('home.pembanding.show', $pembanding)
@@ -521,17 +516,6 @@ class PembandingController extends Controller
     }
 
     /**
-     * Simpan file gambar dan return path-nya.
-     * Digunakan di store() dan update() agar tidak duplikasi logika.
-     */
-    private function storeImage(UploadedFile $file): string
-    {
-        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
-
-        return $file->storeAs('foto_pembanding', strtolower($filename), 'public');
-    }
-
-    /**
      * FIX #9: Tambahkan type hint parameter dan return type yang eksplisit.
      */
     private function mapSelectOptions(Collection $items): array
@@ -540,6 +524,20 @@ class PembandingController extends Controller
             ->map(fn ($item): array => [
                 'label' => (string) $item->name,
                 'value' => $item->id,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function creatorOptions(): array
+    {
+        return User::query()
+            ->whereHas('pembanding')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $user): array => [
+                'label' => $user->name,
+                'value' => $user->id,
             ])
             ->values()
             ->all();

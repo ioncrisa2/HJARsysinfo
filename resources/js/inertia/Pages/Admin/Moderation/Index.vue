@@ -183,9 +183,9 @@ const listingBadgeStyle = (listing) => ({
                             <td class="px-8 py-5">
                                 <div class="flex items-center gap-2">
                                     <div class="size-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 border border-slate-200">
-                                        {{ (req.requestedBy?.name || '?').slice(0, 1).toUpperCase() }}
+                                        {{ (req.requested_by?.name || '?').slice(0, 1).toUpperCase() }}
                                     </div>
-                                    <span class="font-bold text-slate-700 text-xs">{{ req.requestedBy?.name || 'Unknown User' }}</span>
+                                    <span class="font-bold text-slate-700 text-xs">{{ req.requested_by?.name || 'Unknown User' }}</span>
                                 </div>
                             </td>
                             <td class="px-8 py-5">
@@ -234,7 +234,7 @@ const listingBadgeStyle = (listing) => ({
                                     />
                                 </div>
                                 <div v-else class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                                    Review oleh {{ req.reviewedBy?.name || 'Admin' }}
+                                    Review oleh {{ req.reviewed_by?.name || 'Admin' }}
                                 </div>
                             </td>
                         </tr>

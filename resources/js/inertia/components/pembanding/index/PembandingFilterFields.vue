@@ -37,6 +37,18 @@ const dateRangeModel = computed({
         <InputText v-model="props.filters.q" class="w-full" placeholder="mis. Jl. Merdeka" />
     </div>
 
+    <div>
+        <label class="mb-1.5 block text-xs font-semibold text-slate-600">
+            Diinput Oleh
+        </label>
+        <Select
+            v-model="props.filters.created_by"
+            :options="props.options.creators ?? []"
+            option-label="label" option-value="value"
+            filter show-clear class="w-full" placeholder="Semua user"
+        />
+    </div>
+
     <hr class="border-slate-100" />
 
     <!-- Lokasi -->
@@ -118,7 +130,7 @@ const dateRangeModel = computed({
     <!-- Date range -->
     <div>
         <label class="mb-1.5 block text-xs font-semibold text-slate-600">
-            Rentang Tanggal
+            Rentang Tanggal Data
         </label>
         <Calendar
             v-model="dateRangeModel"

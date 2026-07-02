@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import TopNavLayout from "../../Layouts/TopNavLayout.vue";
 import PembandingFormHeader from "../../components/pembanding/form/PembandingFormHeader.vue";
 import PembandingFormTabs from "../../components/pembanding/form/PembandingFormTabs.vue";
+import DuplicatePembandingAlert from "../../components/pembanding/form/DuplicatePembandingAlert.vue";
 import { useCascadingLocation } from "../../composables/useCascadingLocation";
 import { formatDateValue } from "../../composables/useDateBridge";
 import { useImageUploadPreview } from "../../composables/useImageUploadPreview";
@@ -97,6 +98,11 @@ const currencyConfig = { ...numConfig, prefix: "Rp " };
     <Head :title="`Edit #${sourceRecord.id}`" />
 
     <div class="space-y-4 py-4">
+        <DuplicatePembandingAlert
+            :message="form.errors.duplicate"
+            :duplicate="page.props.flash?.duplicate"
+        />
+
         <PembandingFormHeader
             mode="edit"
             base-path="/home/pembanding"

@@ -23,6 +23,7 @@ const formFilters = ref({
     village_id: props.filters.village_id || null,
     jenis_listing_id: props.filters.jenis_listing_id || null,
     jenis_objek_id: props.filters.jenis_objek_id || null,
+    created_by: props.filters.created_by || null,
     dari_tanggal: props.filters.dari_tanggal || null,
     sampai_tanggal: props.filters.sampai_tanggal || null,
 });
@@ -64,6 +65,7 @@ watch([
     () => formFilters.value.village_id,
     () => formFilters.value.jenis_listing_id,
     () => formFilters.value.jenis_objek_id,
+    () => formFilters.value.created_by,
     () => formFilters.value.dari_tanggal,
     () => formFilters.value.sampai_tanggal,
     itemsPerPage
@@ -88,6 +90,7 @@ const resetFilters = () => {
         village_id: null,
         jenis_listing_id: null,
         jenis_objek_id: null,
+        created_by: null,
         dari_tanggal: null,
         sampai_tanggal: null,
     };
@@ -172,6 +175,18 @@ const formatDate = (val) => {
                     class="w-full text-sm rounded-xl"
                     showClear
                 />
+
+                <!-- Creator -->
+                <Select
+                    v-model="formFilters.created_by"
+                    :options="options.creators"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Diinput Oleh"
+                    class="w-full text-sm rounded-xl"
+                    showClear
+                    filter
+                />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-slate-100 pt-6">
@@ -230,7 +245,7 @@ const formatDate = (val) => {
             <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 pt-6">
                 <div class="flex flex-wrap items-center gap-4">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-500 uppercase tracking-tight">Range:</span>
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-tight">Tanggal Data:</span>
                         <DatePicker v-model="formFilters.dari_tanggal" placeholder="Dari" class="text-sm" dateFormat="yy-mm-dd" showIcon iconDisplay="input" />
                         <span class="text-slate-300 text-xs">-</span>
                         <DatePicker v-model="formFilters.sampai_tanggal" placeholder="Sampai" class="text-sm" dateFormat="yy-mm-dd" showIcon iconDisplay="input" />
@@ -280,7 +295,7 @@ const formatDate = (val) => {
                                         <div class="flex items-center gap-2">
                                             <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">ID: #{{ row.id }}</span>
                                             <span class="text-[10px] font-bold text-slate-400 border border-slate-200 px-2 py-0.5 rounded uppercase tracking-tighter">
-                                                {{ formatDate(row.tanggal_data) }}
+                                                Input: {{ formatDate(row.created_at) }}
                                             </span>
                                         </div>
                                     </div>

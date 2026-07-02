@@ -126,6 +126,44 @@ it('shows pending delete request alert on admin dashboard only with moderation a
     expect($response->viewData('page')['props']['deleteRequestAlert'])->toBeNull();
 });
 
+it('provides requester and reviewer identities to the moderation page', function () {
+    $requester = User::factory()->create(['name' => 'Surveyor Requester']);
+    $reviewer = User::factory()->create(['name' => 'Admin Reviewer']);
+    $pembanding = Pembanding::create([
+        'nama_pemberi_informasi' => 'Pemilik Data',
+        'nomer_telepon_pemberi_informasi' => '081234567890',
+        'alamat_data' => 'Jl. Moderation Contract No. 1',
+        'latitude' => -6.200000,
+        'longitude' => 106.816666,
+        'created_by' => $requester->id,
+    ]);
+
+    PembandingDeleteRequest::create([
+        'pembanding_id' => $pembanding->id,
+        'requested_by_id' => $requester->id,
+        'reason' => 'Data duplikat',
+        'status' => PembandingDeleteRequest::STATUS_APPROVED,
+        'reviewed_by_id' => $reviewer->id,
+        'reviewed_at' => now(),
+    ]);
+
+    $moderator = adminPermissionUser([
+        'can_access_admin',
+        'view_moderation',
+    ]);
+
+    $response = $this->actingAs($moderator)->get('/admin/moderation?tab=requests');
+
+    $response->assertOk();
+
+    $page = $response->viewData('page');
+    $deleteRequest = $page['props']['requestsPaginator']['data'][0];
+
+    expect($page['component'])->toBe('Admin/Moderation/Index')
+        ->and($deleteRequest['requested_by']['name'])->toBe('Surveyor Requester')
+        ->and($deleteRequest['reviewed_by']['name'])->toBe('Admin Reviewer');
+});
+
 it('filters admin dashboard widgets from widget permissions', function () {
     $user = adminPermissionUser([
         'can_access_admin',

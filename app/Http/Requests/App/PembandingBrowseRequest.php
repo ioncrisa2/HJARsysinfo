@@ -27,6 +27,7 @@ class PembandingBrowseRequest extends FormRequest
             'sampai_tanggal' => ['nullable', 'date', 'after_or_equal:dari_tanggal'],
             'jenis_listing_id' => ['nullable', 'integer', 'exists:master_jenis_listing,id'],
             'jenis_objek_id' => ['nullable', 'integer', 'exists:master_jenis_objek,id'],
+            'created_by' => ['nullable', 'integer', 'exists:users,id'],
             'per_page' => ['nullable', 'integer', 'in:8,16,32,64'],
         ];
     }

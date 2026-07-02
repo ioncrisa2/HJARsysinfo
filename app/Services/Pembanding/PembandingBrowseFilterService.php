@@ -2,8 +2,8 @@
 
 namespace App\Services\Pembanding;
 
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class PembandingBrowseFilterService
 {
@@ -22,6 +22,7 @@ class PembandingBrowseFilterService
             'sampai_tanggal',
             'jenis_listing_id',
             'jenis_objek_id',
+            'created_by',
         ];
     }
 
@@ -40,6 +41,7 @@ class PembandingBrowseFilterService
             'sampai_tanggal' => null,
             'jenis_listing_id' => null,
             'jenis_objek_id' => null,
+            'created_by' => null,
         ];
     }
 
@@ -63,9 +65,16 @@ class PembandingBrowseFilterService
             'sampai_tanggal',
             'jenis_listing_id',
             'jenis_objek_id',
+            'created_by',
         ] as $key) {
             if ($normalized[$key] === '') {
                 $normalized[$key] = null;
+            }
+        }
+
+        foreach (['jenis_listing_id', 'jenis_objek_id', 'created_by'] as $key) {
+            if ($normalized[$key] !== null) {
+                $normalized[$key] = (int) $normalized[$key];
             }
         }
 
@@ -111,7 +120,7 @@ class PembandingBrowseFilterService
             ->when($filters['village_id'] ?? null, fn (Builder $builder, $value) => $builder->where('village_id', $value))
             ->when(
                 $filters['q'] ?? null,
-                fn (Builder $builder, string $search) => $builder->where('alamat_data', 'like', '%' . $search . '%')
+                fn (Builder $builder, string $search) => $builder->where('alamat_data', 'like', '%'.$search.'%')
             )
             ->when(
                 $filters['dari_tanggal'] ?? null,
@@ -128,6 +137,10 @@ class PembandingBrowseFilterService
             ->when(
                 $filters['jenis_objek_id'] ?? null,
                 fn (Builder $builder, $value) => $builder->where('jenis_objek_id', $value),
+            )
+            ->when(
+                $filters['created_by'] ?? null,
+                fn (Builder $builder, $value) => $builder->where('created_by', $value),
             );
     }
 }

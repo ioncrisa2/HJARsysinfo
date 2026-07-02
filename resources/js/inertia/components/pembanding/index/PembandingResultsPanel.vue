@@ -121,9 +121,9 @@ const displayLabel = (label) => {
                             <i class="pi pi-expand text-slate-400" style="font-size:10px" />
                             {{ item.luas_tanah }} m2
                         </span>
-                        <span v-if="item.tanggal_data" class="flex items-center gap-1">
+                        <span v-if="item.created_at" class="flex items-center gap-1">
                             <i class="pi pi-calendar text-slate-400" style="font-size:10px" />
-                            {{ formatDateLong(item.tanggal_data) }}
+                            Diinput {{ formatDateLong(item.created_at) }}
                         </span>
                         <span class="flex items-center gap-1">
                             <i class="pi pi-map-marker text-slate-400" style="font-size:10px" />
@@ -181,7 +181,7 @@ const displayLabel = (label) => {
 
                     <div class="hidden md:flex items-center gap-4 text-xs text-slate-400 shrink-0">
                         <span v-if="item.luas_tanah"><i class="pi pi-expand mr-1" />{{ item.luas_tanah }} m2</span>
-                        <span v-if="item.tanggal_data"><i class="pi pi-calendar mr-1" />{{ formatDateLong(item.tanggal_data) }}</span>
+                        <span v-if="item.created_at"><i class="pi pi-calendar mr-1" />Diinput {{ formatDateLong(item.created_at) }}</span>
                         <span v-if="item.latitude && item.longitude" class="text-slate-600"><i class="pi pi-map-marker mr-1" />Koordinat</span>
                     </div>
 

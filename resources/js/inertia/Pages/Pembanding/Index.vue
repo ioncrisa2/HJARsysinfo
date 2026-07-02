@@ -33,6 +33,7 @@ const filters = reactive({
     sampai_tanggal: page.props.filters?.sampai_tanggal ?? null,
     jenis_listing_id: page.props.filters?.jenis_listing_id ?? null,
     jenis_objek_id: page.props.filters?.jenis_objek_id ?? null,
+    created_by: page.props.filters?.created_by ?? null,
     per_page: Number(page.props.perPage ?? DEFAULT_PER_PAGE),
 });
 
@@ -59,6 +60,7 @@ const hasActiveFilters = computed(() =>
     Boolean(filters.sampai_tanggal) ||
     Boolean(filters.jenis_listing_id) ||
     Boolean(filters.jenis_objek_id) ||
+    Boolean(filters.created_by) ||
     Number(filters.per_page) !== DEFAULT_PER_PAGE
 );
 
@@ -89,8 +91,12 @@ const activeFilterChips = computed(() => {
         const found = (options.value.jenisObjeks ?? []).find((j) => j.value === filters.jenis_objek_id);
         if (found) chips.push({ key: "jenis_objek_id", label: `Objek: ${found.label}` });
     }
+    if (filters.created_by) {
+        const found = (options.value.creators ?? []).find((user) => user.value === filters.created_by);
+        if (found) chips.push({ key: "created_by", label: `Input oleh: ${found.label}` });
+    }
     if (filters.dari_tanggal || filters.sampai_tanggal) {
-        chips.push({ key: "date", label: `Tanggal: ${filters.dari_tanggal ?? "?"} - ${filters.sampai_tanggal ?? "?"}` });
+        chips.push({ key: "date", label: `Tanggal data: ${filters.dari_tanggal ?? "?"} - ${filters.sampai_tanggal ?? "?"}` });
     }
     return chips;
 });
@@ -118,6 +124,7 @@ const toQueryPayload = () => {
         sampai_tanggal: filters.sampai_tanggal || null,
         jenis_listing_id: filters.jenis_listing_id,
         jenis_objek_id: filters.jenis_objek_id,
+        created_by: filters.created_by,
         per_page: Number(filters.per_page) || DEFAULT_PER_PAGE,
     };
     return Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== null && value !== ""));
@@ -160,6 +167,7 @@ const resetFilters = () => {
     filters.q = ""; clearDateRange();
     filters.dari_tanggal = null; filters.sampai_tanggal = null;
     filters.jenis_listing_id = null; filters.jenis_objek_id = null;
+    filters.created_by = null;
     filters.per_page = DEFAULT_PER_PAGE;
     submitFilters();
 };

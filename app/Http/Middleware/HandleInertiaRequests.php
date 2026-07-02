@@ -29,6 +29,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'error' => fn (): ?string => $request->session()->get('error'),
                 'success' => fn (): ?string => $request->session()->get('success'),
+                'duplicate' => fn (): ?array => $request->session()->get('duplicate'),
             ],
             'appSettings' => \App\Models\SystemSetting::getAll(),
         ];

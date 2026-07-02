@@ -17,7 +17,9 @@ use App\Models\User;
 use App\Models\Village;
 use Database\Seeders\PembandingAccessRoleSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
     $this->seed(PembandingAccessRoleSeeder::class);
@@ -106,11 +108,11 @@ function createPembandingFor(User $user, array $overrides = []): Pembanding
 }
 
 it('seeds pimpinan and data contributor roles with scoped pembanding permissions', function () {
-    expect(\Spatie\Permission\Models\Role::findByName('pimpinan')->permissions->pluck('name')->all())
+    expect(Role::findByName('pimpinan')->permissions->pluck('name')->all())
         ->toContain('view_map', 'view_any_data::pembanding', 'create_data::pembanding', 'update_data::pembanding')
         ->not->toContain('delete_data::pembanding', 'export_data::pembanding');
 
-    expect(\Spatie\Permission\Models\Role::findByName('data_contributor')->permissions->pluck('name')->all())
+    expect(Role::findByName('data_contributor')->permissions->pluck('name')->all())
         ->toContain('view_map', 'view_any_data::pembanding', 'create_data::pembanding', 'update_own_data::pembanding')
         ->not->toContain('update_data::pembanding', 'delete_data::pembanding', 'export_data::pembanding');
 });
@@ -172,6 +174,29 @@ it('allows data contributor to create and update only their own pembanding', fun
         'id' => $otherRecord->id,
         'alamat_data' => 'Jl. Orang Lain',
     ]);
+});
+
+it('returns an actionable web form error for an exact duplicate', function () {
+    Storage::fake('public');
+    $user = roleUser('data_contributor');
+    $this->actingAs($user);
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $imageContents = file_get_contents($image->getRealPath());
+
+    $this->post('/home/pembanding', pembandingPayload([
+        'image' => $image,
+    ]))->assertRedirect();
+
+    $record = Pembanding::query()->sole();
+
+    $this->from('/home/pembanding/create')
+        ->post('/home/pembanding', pembandingPayload([
+            'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
+        ]))
+        ->assertRedirect('/home/pembanding/create')
+        ->assertSessionHasErrors('duplicate')
+        ->assertSessionHas('duplicate.id', $record->id)
+        ->assertSessionHas('duplicate.url', url("/home/pembanding/{$record->id}"));
 });
 
 it('prevents data contributor from deleting any pembanding', function () {
