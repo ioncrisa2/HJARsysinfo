@@ -7,23 +7,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingBrowseRequest;
 use App\Http\Requests\App\PembandingStoreRequest;
 use App\Http\Requests\App\PembandingUpdateRequest;
-use App\Models\BentukTanah;
 use App\Models\District;
-use App\Models\DokumenTanah;
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
-use App\Models\KondisiTanah;
 use App\Models\Pembanding;
 use App\Models\PembandingDeleteRequest;
-use App\Models\Peruntukan;
-use App\Models\PosisiTanah;
 use App\Models\Province;
 use App\Models\Regency;
-use App\Models\StatusPemberiInformasi;
-use App\Models\Topografi;
 use App\Models\User;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
+use App\Services\Pembanding\PembandingFormOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -33,6 +27,8 @@ use Inertia\Response;
 
 class PembandingController extends Controller
 {
+    public function __construct(private readonly PembandingFormOptionsService $formOptionsService) {}
+
     // ── Index ─────────────────────────────────────────────────────────────────
 
     public function index(PembandingBrowseRequest $request, PembandingBrowseFilterService $filterService): Response
@@ -450,69 +446,11 @@ class PembandingController extends Controller
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * FIX #5: Extract tanahId query ke helper agar tidak duplikat di create & edit.
-     * FIX #6: Null-check pada province/regency/district untuk edit mode.
-     *
      * @param  Pembanding|null  $pembanding  Jika diisi, load regency/district/village sesuai record.
      */
     private function formOptions(?Pembanding $pembanding = null): array
     {
-        return [
-            'provinces' => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
-            'regencies' => $this->mapSelectOptions(
-                $pembanding?->province_id
-                    ? Regency::query()->where('province_id', $pembanding->province_id)->orderBy('name')->get()
-                    : collect()
-            ),
-            'districts' => $this->mapSelectOptions(
-                $pembanding?->regency_id
-                    ? District::query()->where('regency_id', $pembanding->regency_id)->orderBy('name')->get()
-                    : collect()
-            ),
-            'villages' => $this->mapSelectOptions(
-                $pembanding?->district_id
-                    ? Village::query()->where('district_id', $pembanding->district_id)->orderBy('name')->get()
-                    : collect()
-            ),
-            'jenisListings' => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
-            'jenisObjeks' => $this->mapSelectOptions(
-                JenisObjek::query()
-                    ->where('is_active', true)
-                    ->whereNotIn('slug', ['non-properti', 'non_properti', 'nonproperti', 'non_property', 'non-properties', 'non_properties'])
-                    ->whereRaw('LOWER(name) NOT LIKE ?', ['%non properti%'])
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->get()
-            ),
-            'statusPemberiInfos' => $this->mapSelectOptions(StatusPemberiInformasi::query()->orderBy('name')->get()),
-            'bentukTanahs' => $this->mapSelectOptions(BentukTanah::query()->orderBy('name')->get()),
-            'posisiTanahs' => $this->mapSelectOptions(PosisiTanah::query()->orderBy('name')->get()),
-            'kondisiTanahs' => $this->mapSelectOptions(KondisiTanah::query()->orderBy('name')->get()),
-            'topografis' => $this->mapSelectOptions(Topografi::query()->orderBy('name')->get()),
-            'dokumenTanahs' => $this->mapSelectOptions(DokumenTanah::query()->orderBy('name')->get()),
-            'peruntukans' => $this->mapSelectOptions(Peruntukan::query()->orderBy('name')->get()),
-            'tanahId' => $this->tanahId(),
-            'sawahId' => $this->sawahId(),
-            'tanahKebunId' => $this->tanahKebunId(),
-        ];
-    }
-
-    /**
-     * FIX #5: Cache tanahId dalam satu request menggunakan once().
-     */
-    private function tanahId(): ?int
-    {
-        return once(fn () => JenisObjek::query()->where('slug', 'tanah')->value('id'));
-    }
-
-    private function sawahId(): ?int
-    {
-        return once(fn () => JenisObjek::query()->where('slug', 'sawah')->value('id'));
-    }
-
-    private function tanahKebunId(): ?int
-    {
-        return once(fn () => JenisObjek::query()->where('slug', 'tanah_kebun')->value('id'));
+        return $this->formOptionsService->for($pembanding?->getAttributes() ?? []);
     }
 
     /**

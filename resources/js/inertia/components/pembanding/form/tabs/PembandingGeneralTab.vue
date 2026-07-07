@@ -9,6 +9,7 @@ import UiField from "../../../ui/UiField.vue";
 defineProps({
     form: { type: Object, required: true },
     options: { type: Object, default: () => ({}) },
+    mode: { type: String, default: "create" },
 });
 
 const emit = defineEmits(["next"]);
@@ -99,6 +100,7 @@ const emit = defineEmits(["next"]);
                 </UiField>
 
                 <UiField
+                    v-if="mode !== 'draft'"
                     id="tanggal_data"
                     label="Tanggal Data"
                     :required="true"
@@ -114,6 +116,17 @@ const emit = defineEmits(["next"]);
                         class="w-full rounded-xl bg-slate-50/50"
                     />
                 </UiField>
+
+                <div
+                    v-else
+                    class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950 md:col-span-2"
+                    role="note"
+                >
+                    <p class="font-bold">Tanggal data tidak perlu diisi sekarang.</p>
+                    <p class="mt-1 text-xs leading-relaxed text-blue-800">
+                        Sistem akan memakai tanggal saat Anda memasukkan draf yang sudah lengkap ke Data Pembanding.
+                    </p>
+                </div>
             </div>
         </div>
 

@@ -39,6 +39,7 @@ const requiredContext = computed(() => getTabContext(props.form, props.options, 
     mode: props.mode,
     isTanah: props.isTanah,
     isSewa: isSewa.value,
+    hasImage: Boolean(props.imagePreview),
 }));
 
 const tabErrorCount = computed(() => {
@@ -69,7 +70,7 @@ const tabs = computed(() => TAB_ORDER.map((tab) => TAB_META[tab]));
 
             <TabPanels>
                 <TabPanel value="umum">
-                    <PembandingGeneralTab :form="form" :options="options" @next="activeTabModel = 'lokasi'" />
+                    <PembandingGeneralTab :form="form" :options="options" :mode="mode" @next="activeTabModel = 'lokasi'" />
                 </TabPanel>
                 <TabPanel value="lokasi">
                     <PembandingLocationTab
@@ -105,6 +106,7 @@ const tabs = computed(() => TAB_ORDER.map((tab) => TAB_META[tab]));
                         :options="options"
                         :is-tanah="isTanah"
                         :is-sewa="isSewa"
+                        :has-image="Boolean(imagePreview)"
                         @prev="activeTabModel = 'properti'"
                         @submit="emit('submit')"
                         @submit-and-create-another="emit('submit-and-create-another')"

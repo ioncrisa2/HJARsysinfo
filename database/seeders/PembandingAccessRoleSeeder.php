@@ -32,6 +32,7 @@ class PembandingAccessRoleSeeder extends Seeder
             'replicate_data::pembanding',
             'reorder_data::pembanding',
             'export_data::pembanding',
+            'bulk_import_data::pembanding',
             ...AdminAccess::permissions(),
         ];
 
@@ -84,6 +85,15 @@ class PembandingAccessRoleSeeder extends Seeder
             'widget_Map',
             'widget_StatsOverview',
             'widget_TopContributorTable',
+        ])->values()->all());
+
+        $bulkImport = Role::query()->firstOrCreate([
+            'name' => 'bulk_import',
+            'guard_name' => self::GUARD,
+        ]);
+
+        $bulkImport->syncPermissions($permissionModels->only([
+            'bulk_import_data::pembanding',
         ])->values()->all());
 
         $superAdmin = Role::query()->firstOrCreate([

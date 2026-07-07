@@ -12,11 +12,13 @@ const props = defineProps({
     options: { type: Object, default: () => ({}) },
     isTanah: { type: Boolean, default: false },
     isSewa: { type: Boolean, default: false },
+    hasImage: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(["prev", "submit", "submit-and-create-another"]);
 
 const isCreate = props.mode === "create";
+const isDraft = props.mode === "draft";
 
 const charLimit = 1000;
 const charCount = computed(() => (props.form.catatan ?? "").length);
@@ -26,6 +28,7 @@ const requiredContext = computed(() => getTabContext(props.form, props.options, 
     mode: props.mode,
     isTanah: props.isTanah,
     isSewa: props.isSewa,
+    hasImage: props.hasImage,
 }));
 
 const missingFieldsByTab = computed(() => getMissingFields(props.form, requiredContext.value));
@@ -119,7 +122,7 @@ const allChecked = computed(() => missingCount.value === 0);
                     <Button label="Simpan Data" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" :disabled="form.processing" @click="emit('submit')" />
                 </template>
                 <template v-else>
-                    <Button label="Simpan Perubahan" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" :disabled="form.processing" @click="emit('submit')" />
+                    <Button :label="isDraft ? 'Simpan Draf' : 'Simpan Perubahan'" icon="pi pi-save" class="rounded-xl px-10 shadow-lg shadow-slate-200" :loading="form.processing" :disabled="form.processing" @click="emit('submit')" />
                 </template>
             </div>
         </div>

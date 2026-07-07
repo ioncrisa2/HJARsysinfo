@@ -113,8 +113,22 @@ class AdminAccess
         return collect(self::menu())
             ->map(function (array $section) use ($user): array {
                 $section['items'] = collect($section['items'])
-                    ->filter(fn (array $item): bool => self::can($user, $item['permissions']))
-                    ->map(fn (array $item): array => Arr::except($item, ['permissions']))
+                    ->map(function (array $item) use ($user): ?array {
+                        if (isset($item['children'])) {
+                            $item['children'] = collect($item['children'])
+                                ->filter(fn (array $child): bool => self::can($user, $child['permissions']))
+                                ->map(fn (array $child): array => Arr::except($child, ['permissions']))
+                                ->values()
+                                ->all();
+
+                            return $item['children'] === [] ? null : Arr::except($item, ['permissions']);
+                        }
+
+                        return self::can($user, $item['permissions'])
+                            ? Arr::except($item, ['permissions'])
+                            : null;
+                    })
+                    ->filter()
                     ->values()
                     ->all();
 
@@ -170,7 +184,14 @@ class AdminAccess
                 'label' => 'Data Operations',
                 'items' => [
                     ['label' => 'Moderation Desk', 'href' => '/admin/moderation', 'icon' => 'pi-shield', 'permissions' => ['view_moderation']],
-                    ['label' => 'Appraisal Data', 'href' => '/admin/pembanding', 'icon' => 'pi-database', 'permissions' => ['view_any_data::pembanding']],
+                    [
+                        'label' => 'Bank Data',
+                        'icon' => 'pi-folder',
+                        'children' => [
+                            ['label' => 'List Data', 'href' => '/admin/pembanding', 'icon' => 'pi-list', 'permissions' => ['view_any_data::pembanding']],
+                            ['label' => 'Bulk Import', 'href' => '/admin/pembanding-imports', 'icon' => 'pi-file-import', 'permissions' => ['bulk_import_data::pembanding']],
+                        ],
+                    ],
                     ['label' => 'Master Data', 'href' => '/admin/master-data', 'icon' => 'pi-box', 'permissions' => ['view_master_data']],
                     ['label' => 'Geo Data', 'href' => '/admin/geo', 'icon' => 'pi-map', 'permissions' => ['view_geo_data']],
                 ],

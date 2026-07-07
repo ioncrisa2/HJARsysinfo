@@ -1,12 +1,25 @@
 <?php
 
+use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\BackupController;
+use App\Http\Controllers\Admin\DataContributorInvitationController;
+use App\Http\Controllers\Admin\DataPembandingController;
+use App\Http\Controllers\Admin\ExportController;
+use App\Http\Controllers\Admin\GeoDataController;
+use App\Http\Controllers\Admin\MasterDataController;
+use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\SearchController;
+use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\App\DashboardController;
-use App\Http\Controllers\App\GeoLookupController;
-use App\Http\Controllers\App\MasterDataPageController;
 use App\Http\Controllers\App\DictionaryApiController;
+use App\Http\Controllers\App\GeoLookupController;
 use App\Http\Controllers\App\LocationApiController;
-use App\Http\Controllers\App\PembandingExportController;
+use App\Http\Controllers\App\MasterDataPageController;
+use App\Http\Controllers\App\P2pkImportController;
 use App\Http\Controllers\App\PembandingController;
+use App\Http\Controllers\App\PembandingExportController;
 use App\Http\Controllers\App\ProfileController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\DataContributorRegistrationController;
@@ -45,6 +58,36 @@ Route::middleware('auth')->group(function () {
     Route::post('/home/pembanding', [PembandingController::class, 'store'])
         ->middleware(['app.user', 'permission:create_data::pembanding'])
         ->name('home.pembanding.store');
+    Route::get('/home/pembanding-imports', [P2pkImportController::class, 'index'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.index');
+    Route::post('/home/pembanding-imports', [P2pkImportController::class, 'store'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding', 'throttle:10,1'])
+        ->name('home.p2pk-imports.store');
+    Route::get('/home/pembanding-imports/{batch}', [P2pkImportController::class, 'show'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.show');
+    Route::patch('/home/pembanding-imports/{batch}/selection', [P2pkImportController::class, 'selection'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.selection');
+    Route::patch('/home/pembanding-imports/{batch}/bulk-apply', [P2pkImportController::class, 'bulkApply'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.bulk-apply');
+    Route::post('/home/pembanding-imports/{batch}/finalize', [P2pkImportController::class, 'finalize'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding', 'throttle:5,1'])
+        ->name('home.p2pk-imports.finalize');
+    Route::get('/home/pembanding-imports/{batch}/rows/{row}/edit', [P2pkImportController::class, 'edit'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.rows.edit');
+    Route::put('/home/pembanding-imports/{batch}/rows/{row}', [P2pkImportController::class, 'update'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.rows.update');
+    Route::get('/home/pembanding-imports/{batch}/rows/{row}/image', [P2pkImportController::class, 'image'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding'])
+        ->name('home.p2pk-imports.rows.image');
+    Route::post('/home/pembanding-imports/{batch}/rows/{row}/retry', [P2pkImportController::class, 'retry'])
+        ->middleware(['app.user', 'permission:bulk_import_data::pembanding', 'throttle:10,1'])
+        ->name('home.p2pk-imports.rows.retry');
     Route::get('/home/pembanding/{pembanding}/history', [PembandingController::class, 'history'])
         ->middleware(['app.user', 'permission:view_any_data::pembanding'])
         ->name('home.pembanding.history');
@@ -113,136 +156,167 @@ Route::middleware('auth')->group(function () {
 
     // Dependent dropdown lookups for frontend form
     Route::get('/home/lookups/regencies', [GeoLookupController::class, 'regencies'])
-        ->middleware(['app.user', 'permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding']);
+        ->middleware(['app.user', 'permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding|bulk_import_data::pembanding']);
     Route::get('/home/lookups/districts', [GeoLookupController::class, 'districts'])
-        ->middleware(['app.user', 'permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding']);
+        ->middleware(['app.user', 'permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding|bulk_import_data::pembanding']);
     Route::get('/home/lookups/villages', [GeoLookupController::class, 'villages'])
-        ->middleware(['app.user', 'permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding']);
+        ->middleware(['app.user', 'permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding|bulk_import_data::pembanding']);
     // Admin Panel (Inertia/Vue migration)
     Route::prefix('admin')
         ->name('admin.')
         ->middleware(['app.user', 'permission:can_access_admin'])
         ->group(function () {
-            Route::get('/', \App\Http\Controllers\Admin\DashboardController::class)
+            Route::get('/', App\Http\Controllers\Admin\DashboardController::class)
                 ->middleware('permission:view_admin_dashboard')
                 ->name('dashboard');
 
-            Route::get('access-control', [\App\Http\Controllers\Admin\AccessControlController::class, 'index'])
+            Route::get('access-control', [AccessControlController::class, 'index'])
                 ->middleware('permission:view_access_control')
                 ->name('access-control.index');
-            Route::post('access-control/roles', [\App\Http\Controllers\Admin\AccessControlController::class, 'storeRole'])
+            Route::post('access-control/roles', [AccessControlController::class, 'storeRole'])
                 ->middleware('permission:create_role')
                 ->name('access-control.roles.store');
-            Route::put('access-control/roles/{role}', [\App\Http\Controllers\Admin\AccessControlController::class, 'updateRole'])
+            Route::put('access-control/roles/{role}', [AccessControlController::class, 'updateRole'])
                 ->middleware('permission:update_role')
                 ->name('access-control.roles.update');
-            Route::delete('access-control/roles/{role}', [\App\Http\Controllers\Admin\AccessControlController::class, 'destroyRole'])
+            Route::delete('access-control/roles/{role}', [AccessControlController::class, 'destroyRole'])
                 ->middleware('permission:delete_role')
                 ->name('access-control.roles.destroy');
-            Route::post('access-control/permissions', [\App\Http\Controllers\Admin\AccessControlController::class, 'storePermission'])
+            Route::post('access-control/permissions', [AccessControlController::class, 'storePermission'])
                 ->middleware('permission:create_permission')
                 ->name('access-control.permissions.store');
-            Route::delete('access-control/permissions/{permission}', [\App\Http\Controllers\Admin\AccessControlController::class, 'destroyPermission'])
+            Route::delete('access-control/permissions/{permission}', [AccessControlController::class, 'destroyPermission'])
                 ->middleware('permission:delete_permission')
                 ->name('access-control.permissions.destroy');
-            
-            Route::patch('users/{user}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])
+
+            Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
                 ->middleware('permission:update_user')
                 ->name('users.toggle-status');
-            Route::post('users/bulk-delete', [\App\Http\Controllers\Admin\UserController::class, 'bulkDelete'])
+            Route::post('users/bulk-delete', [UserController::class, 'bulkDelete'])
                 ->middleware('permission:delete_any_user')
                 ->name('users.bulk-delete');
-            Route::resource('users', \App\Http\Controllers\Admin\UserController::class)
+            Route::resource('users', UserController::class)
                 ->except(['show'])
                 ->middlewareFor('index', 'permission:view_any_user')
                 ->middlewareFor(['create', 'store'], 'permission:create_user')
                 ->middlewareFor(['edit', 'update'], 'permission:update_user')
                 ->middlewareFor('destroy', 'permission:delete_user');
 
-            Route::get('data-contributor-invitations', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'index'])
+            Route::get('data-contributor-invitations', [DataContributorInvitationController::class, 'index'])
                 ->middleware('permission:manage_data_contributor_invitations')
                 ->name('data-contributor-invitations.index');
-            Route::post('data-contributor-invitations', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'store'])
+            Route::post('data-contributor-invitations', [DataContributorInvitationController::class, 'store'])
                 ->middleware('permission:manage_data_contributor_invitations')
                 ->name('data-contributor-invitations.store');
-            Route::delete('data-contributor-invitations/{invite}', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'destroy'])
+            Route::delete('data-contributor-invitations/{invite}', [DataContributorInvitationController::class, 'destroy'])
                 ->middleware('permission:manage_data_contributor_invitations')
                 ->name('data-contributor-invitations.destroy');
-            Route::post('data-contributor-registration-requests/{registrationRequest}/accept', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'accept'])
+            Route::post('data-contributor-registration-requests/{registrationRequest}/accept', [DataContributorInvitationController::class, 'accept'])
                 ->middleware('permission:manage_data_contributor_invitations')
                 ->name('data-contributor-registration-requests.accept');
-            Route::post('data-contributor-registration-requests/{registrationRequest}/reject', [\App\Http\Controllers\Admin\DataContributorInvitationController::class, 'reject'])
+            Route::post('data-contributor-registration-requests/{registrationRequest}/reject', [DataContributorInvitationController::class, 'reject'])
                 ->middleware('permission:manage_data_contributor_invitations')
                 ->name('data-contributor-registration-requests.reject');
 
-            Route::get('moderation', [\App\Http\Controllers\Admin\ModerationController::class, 'index'])
+            Route::get('moderation', [ModerationController::class, 'index'])
                 ->middleware('permission:view_moderation')
                 ->name('moderation.index');
-            Route::post('moderation/approve/{request}', [\App\Http\Controllers\Admin\ModerationController::class, 'approve'])
+            Route::post('moderation/approve/{request}', [ModerationController::class, 'approve'])
                 ->middleware('permission:approve_delete_request')
                 ->name('moderation.approve');
-            Route::post('moderation/reject/{request}', [\App\Http\Controllers\Admin\ModerationController::class, 'reject'])
+            Route::post('moderation/reject/{request}', [ModerationController::class, 'reject'])
                 ->middleware('permission:reject_delete_request')
                 ->name('moderation.reject');
-            Route::post('moderation/restore/{id}', [\App\Http\Controllers\Admin\ModerationController::class, 'restore'])
+            Route::post('moderation/restore/{id}', [ModerationController::class, 'restore'])
                 ->middleware('permission:restore_data::pembanding')
                 ->name('moderation.restore');
-            Route::delete('moderation/force-delete/{id}', [\App\Http\Controllers\Admin\ModerationController::class, 'forceDelete'])
+            Route::delete('moderation/force-delete/{id}', [ModerationController::class, 'forceDelete'])
                 ->middleware('permission:force_delete_data::pembanding')
                 ->name('moderation.force-delete');
 
-            Route::get('pembanding/{pembanding}/history', [\App\Http\Controllers\Admin\DataPembandingController::class, 'history'])
+            Route::get('pembanding/{pembanding}/history', [DataPembandingController::class, 'history'])
                 ->middleware('permission:view_data::pembanding|view_any_data::pembanding')
                 ->name('pembanding.history');
-            Route::resource('pembanding', \App\Http\Controllers\Admin\DataPembandingController::class)
+            Route::resource('pembanding', DataPembandingController::class)
                 ->middlewareFor('index', 'permission:view_any_data::pembanding')
                 ->middlewareFor(['create', 'store'], 'permission:create_data::pembanding')
                 ->middlewareFor('show', 'permission:view_data::pembanding|view_any_data::pembanding')
                 ->middlewareFor(['edit', 'update'], 'permission:update_data::pembanding')
                 ->middlewareFor('destroy', 'permission:delete_data::pembanding');
 
+            Route::get('pembanding-imports', [P2pkImportController::class, 'index'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.index');
+            Route::post('pembanding-imports', [P2pkImportController::class, 'store'])
+                ->middleware(['permission:bulk_import_data::pembanding', 'throttle:10,1'])
+                ->name('p2pk-imports.store');
+            Route::get('pembanding-imports/{batch}', [P2pkImportController::class, 'show'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.show');
+            Route::patch('pembanding-imports/{batch}/selection', [P2pkImportController::class, 'selection'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.selection');
+            Route::patch('pembanding-imports/{batch}/bulk-apply', [P2pkImportController::class, 'bulkApply'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.bulk-apply');
+            Route::post('pembanding-imports/{batch}/finalize', [P2pkImportController::class, 'finalize'])
+                ->middleware(['permission:bulk_import_data::pembanding', 'throttle:5,1'])
+                ->name('p2pk-imports.finalize');
+            Route::get('pembanding-imports/{batch}/rows/{row}/edit', [P2pkImportController::class, 'edit'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.rows.edit');
+            Route::put('pembanding-imports/{batch}/rows/{row}', [P2pkImportController::class, 'update'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.rows.update');
+            Route::get('pembanding-imports/{batch}/rows/{row}/image', [P2pkImportController::class, 'image'])
+                ->middleware('permission:bulk_import_data::pembanding')
+                ->name('p2pk-imports.rows.image');
+            Route::post('pembanding-imports/{batch}/rows/{row}/retry', [P2pkImportController::class, 'retry'])
+                ->middleware(['permission:bulk_import_data::pembanding', 'throttle:10,1'])
+                ->name('p2pk-imports.rows.retry');
+
             // Geo Data Routes
-            Route::get('geo/lookups/regencies', [\App\Http\Controllers\Admin\GeoDataController::class, 'regencies'])->middleware('permission:view_geo_data')->name('geo.lookups.regencies');
-            Route::get('geo/lookups/districts', [\App\Http\Controllers\Admin\GeoDataController::class, 'districts'])->middleware('permission:view_geo_data')->name('geo.lookups.districts');
-            Route::get('geo/{resource?}', [\App\Http\Controllers\Admin\GeoDataController::class, 'index'])->middleware('permission:view_geo_data')->name('geo.show');
-            Route::post('geo/{resource}', [\App\Http\Controllers\Admin\GeoDataController::class, 'store'])->middleware('permission:create_geo_data')->name('geo.store');
-            Route::put('geo/{resource}/{id}', [\App\Http\Controllers\Admin\GeoDataController::class, 'update'])->middleware('permission:update_geo_data')->name('geo.update');
-            Route::delete('geo/{resource}/{id}', [\App\Http\Controllers\Admin\GeoDataController::class, 'destroy'])->middleware('permission:delete_geo_data')->name('geo.destroy');
+            Route::get('geo/lookups/regencies', [GeoDataController::class, 'regencies'])->middleware('permission:view_geo_data')->name('geo.lookups.regencies');
+            Route::get('geo/lookups/districts', [GeoDataController::class, 'districts'])->middleware('permission:view_geo_data')->name('geo.lookups.districts');
+            Route::get('geo/{resource?}', [GeoDataController::class, 'index'])->middleware('permission:view_geo_data')->name('geo.show');
+            Route::post('geo/{resource}', [GeoDataController::class, 'store'])->middleware('permission:create_geo_data')->name('geo.store');
+            Route::put('geo/{resource}/{id}', [GeoDataController::class, 'update'])->middleware('permission:update_geo_data')->name('geo.update');
+            Route::delete('geo/{resource}/{id}', [GeoDataController::class, 'destroy'])->middleware('permission:delete_geo_data')->name('geo.destroy');
 
             // Export Routes
-            Route::get('export', [\App\Http\Controllers\Admin\ExportController::class, 'index'])->middleware('permission:view_export')->name('export.index');
-            Route::get('export/download', [\App\Http\Controllers\Admin\ExportController::class, 'download'])->middleware('permission:export_data::pembanding')->name('export.download');
+            Route::get('export', [ExportController::class, 'index'])->middleware('permission:view_export')->name('export.index');
+            Route::get('export/download', [ExportController::class, 'download'])->middleware('permission:export_data::pembanding')->name('export.download');
 
             // Backup Routes
-            Route::get('backup', [\App\Http\Controllers\Admin\BackupController::class, 'index'])->middleware('permission:view_backup')->name('backup.index');
-            Route::post('backup/database', [\App\Http\Controllers\Admin\BackupController::class, 'database'])->middleware('permission:create_database_backup')->name('backup.database');
-            Route::post('backup/uploads', [\App\Http\Controllers\Admin\BackupController::class, 'uploads'])->middleware('permission:create_uploads_backup')->name('backup.uploads');
+            Route::get('backup', [BackupController::class, 'index'])->middleware('permission:view_backup')->name('backup.index');
+            Route::post('backup/database', [BackupController::class, 'database'])->middleware('permission:create_database_backup')->name('backup.database');
+            Route::post('backup/uploads', [BackupController::class, 'uploads'])->middleware('permission:create_uploads_backup')->name('backup.uploads');
 
             // Search Route
-            Route::get('search', \App\Http\Controllers\Admin\SearchController::class)->middleware('permission:view_admin_search')->name('search.index');
+            Route::get('search', SearchController::class)->middleware('permission:view_admin_search')->name('search.index');
 
             // Profile Routes
-            Route::get('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'show'])->name('profile.show');
-            Route::put('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'updateProfile'])->name('profile.update');
-            Route::put('profile/password', [\App\Http\Controllers\Admin\ProfileController::class, 'updatePassword'])->name('profile.password');
+            Route::get('profile', [App\Http\Controllers\Admin\ProfileController::class, 'show'])->name('profile.show');
+            Route::put('profile', [App\Http\Controllers\Admin\ProfileController::class, 'updateProfile'])->name('profile.update');
+            Route::put('profile/password', [App\Http\Controllers\Admin\ProfileController::class, 'updatePassword'])->name('profile.password');
 
             // Settings Routes
-            Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->middleware('permission:view_settings')->name('settings.index');
-            Route::post('settings', [\App\Http\Controllers\Admin\SettingController::class, 'update'])->middleware('permission:update_settings')->name('settings.update');
-            Route::post('settings/clear-cache', [\App\Http\Controllers\Admin\SettingController::class, 'clearCache'])->middleware('permission:clear_cache')->name('settings.clear-cache');
+            Route::get('settings', [SettingController::class, 'index'])->middleware('permission:view_settings')->name('settings.index');
+            Route::post('settings', [SettingController::class, 'update'])->middleware('permission:update_settings')->name('settings.update');
+            Route::post('settings/clear-cache', [SettingController::class, 'clearCache'])->middleware('permission:clear_cache')->name('settings.clear-cache');
 
             // Activity Logs Route
-            Route::get('activity-logs', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->middleware('permission:view_activity_log')->name('activity-logs.index');
-            Route::get('activity-logs/{id}', [\App\Http\Controllers\Admin\ActivityLogController::class, 'show'])->middleware('permission:view_activity_log')->name('activity-logs.show');
+            Route::get('activity-logs', [ActivityLogController::class, 'index'])->middleware('permission:view_activity_log')->name('activity-logs.index');
+            Route::get('activity-logs/{id}', [ActivityLogController::class, 'show'])->middleware('permission:view_activity_log')->name('activity-logs.show');
 
             // Master Data Routes
-            Route::post('master-data/{resource}/reorder', [\App\Http\Controllers\Admin\MasterDataController::class, 'reorder'])->middleware('permission:reorder_master_data')->name('master-data.reorder');
-            Route::post('master-data/{resource}/bulk-delete', [\App\Http\Controllers\Admin\MasterDataController::class, 'bulkDestroy'])->middleware('permission:delete_any_master_data')->name('master-data.bulk-delete');
-            Route::patch('master-data/{resource}/{id}/toggle-status', [\App\Http\Controllers\Admin\MasterDataController::class, 'toggleStatus'])->middleware('permission:update_master_data_status')->name('master-data.toggle-status');
-            Route::get('master-data/{resource?}', [\App\Http\Controllers\Admin\MasterDataController::class, 'index'])->middleware('permission:view_master_data')->name('master-data.show');
-            Route::post('master-data/{resource}', [\App\Http\Controllers\Admin\MasterDataController::class, 'store'])->middleware('permission:create_master_data')->name('master-data.store');
-            Route::put('master-data/{resource}/{id}', [\App\Http\Controllers\Admin\MasterDataController::class, 'update'])->middleware('permission:update_master_data')->name('master-data.update');
-            Route::delete('master-data/{resource}/{id}', [\App\Http\Controllers\Admin\MasterDataController::class, 'destroy'])->middleware('permission:delete_master_data')->name('master-data.destroy');
+            Route::post('master-data/{resource}/reorder', [MasterDataController::class, 'reorder'])->middleware('permission:reorder_master_data')->name('master-data.reorder');
+            Route::post('master-data/{resource}/bulk-delete', [MasterDataController::class, 'bulkDestroy'])->middleware('permission:delete_any_master_data')->name('master-data.bulk-delete');
+            Route::patch('master-data/{resource}/{id}/toggle-status', [MasterDataController::class, 'toggleStatus'])->middleware('permission:update_master_data_status')->name('master-data.toggle-status');
+            Route::get('master-data/{resource?}', [MasterDataController::class, 'index'])->middleware('permission:view_master_data')->name('master-data.show');
+            Route::post('master-data/{resource}', [MasterDataController::class, 'store'])->middleware('permission:create_master_data')->name('master-data.store');
+            Route::put('master-data/{resource}/{id}', [MasterDataController::class, 'update'])->middleware('permission:update_master_data')->name('master-data.update');
+            Route::delete('master-data/{resource}/{id}', [MasterDataController::class, 'destroy'])->middleware('permission:delete_master_data')->name('master-data.destroy');
         });
 
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');

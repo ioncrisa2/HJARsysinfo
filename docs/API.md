@@ -199,6 +199,24 @@ Semua endpoint lokasi read-only, memakai wrapper standar, dan menerima `limit` m
   - `satuan_waktu_sewa` wajib, hanya `Bulan` atau `Tahun`.
 - Non-sewa otomatis membersihkan `jangka_waktu_sewa` dan `satuan_waktu_sewa`.
 - Response sukses mengembalikan `PembandingResource`.
+- Exact duplicate prevention membandingkan seluruh field bisnis yang sudah dinormalisasi, termasuk checksum isi gambar.
+- Koordinat yang sama tetap diterima jika ada field bisnis lain yang berbeda.
+- Jika seluruh isi identik dengan record aktif atau soft-deleted, API mengembalikan HTTP `409 Conflict`:
+
+```json
+{
+  "status": "error",
+  "message": "Data identik sudah tersedia pada record #123. Gunakan menu update pada record tersebut.",
+  "errors": null,
+  "duplicate": {
+    "id": 123,
+    "status": "active",
+    "url": "https://example.test/api/v1/pembandings/123"
+  }
+}
+```
+
+- Untuk record soft-deleted, `duplicate.status` bernilai `deleted` dan `duplicate.url` bernilai `null`; record harus dipulihkan oleh pihak berwenang.
 
 Contoh field sewa:
 
@@ -225,6 +243,7 @@ Contoh field sewa:
   - `update_own_data::pembanding` jika `created_by` sama dengan user login.
 - Body mengikuti field create.
 - `image` opsional. Jika tidak dikirim, foto lama tidak dihapus.
+- Update yang membuat seluruh isi identik dengan record lain juga mengembalikan HTTP `409 Conflict`.
 
 ### POST `/api/v1/pembandings/{id}`
 - Fungsi: workaround update multipart untuk mobile client.

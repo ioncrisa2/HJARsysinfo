@@ -78,6 +78,28 @@ it('filters admin menu from backend permissions', function () {
         ->not->toContain('Settings', 'System Backup', 'Access Control');
 });
 
+it('shows bank data children in the admin menu according to permissions', function () {
+    $user = adminPermissionUser([
+        'can_access_admin',
+        'view_admin_dashboard',
+        'view_any_data::pembanding',
+        'bulk_import_data::pembanding',
+    ]);
+
+    $response = $this->actingAs($user)->get('/admin');
+    $response->assertOk();
+
+    $dataOperations = collect($response->viewData('page')['props']['adminMenu'])
+        ->firstWhere('label', 'Data Operations');
+    $bankData = collect($dataOperations['items'])->firstWhere('label', 'Bank Data');
+
+    expect($bankData)->not->toBeNull()
+        ->and(collect($bankData['children'])->pluck('label')->all())
+        ->toBe(['List Data', 'Bulk Import'])
+        ->and(collect($bankData['children'])->pluck('href')->all())
+        ->toBe(['/admin/pembanding', '/admin/pembanding-imports']);
+});
+
 it('shows pending delete request alert on admin dashboard only with moderation access', function () {
     $requester = User::factory()->create();
     $pembanding = Pembanding::create([

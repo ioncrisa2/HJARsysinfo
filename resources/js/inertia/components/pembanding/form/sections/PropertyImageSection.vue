@@ -11,7 +11,7 @@ const props = defineProps({
 
 const emit = defineEmits(["upload", "clear"]);
 
-const isCreate = props.mode === "create";
+const imageRequired = props.mode === "create" || props.mode === "draft";
 
 const {
     isDragging,
@@ -35,11 +35,11 @@ const onClearImage = () => emit("clear");
             <div class="space-y-1">
                 <p class="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <i class="pi pi-image text-slate-400" />
-                    Foto Properti <span v-if="isCreate" class="text-red-500">*</span>
+                    Foto Properti <span v-if="imageRequired" class="text-red-500">*</span>
                 </p>
                 <p class="text-xs text-slate-500">
-                    Format: JPG, PNG. Maks: 5MB.
-                    <span v-if="!isCreate" class="text-amber-600 font-medium">Kosongkan bila tidak ingin mengganti foto.</span>
+                    Format: JPG, PNG. Maks: 15MB.
+                    <span v-if="props.mode === 'edit'" class="text-amber-600 font-medium">Kosongkan bila tidak ingin mengganti foto.</span>
                 </p>
             </div>
 

@@ -12,7 +12,7 @@ export const REQUIRED_FIELDS_BY_TAB = {
         { key: "jenis_listing_id", label: "Jenis listing" },
         { key: "jenis_objek_id", label: "Jenis objek" },
         { key: "nama_pemberi_informasi", label: "Nama pemberi informasi" },
-        { key: "tanggal_data", label: "Tanggal data" },
+        { key: "tanggal_data", label: "Tanggal data", skipIf: ({ mode }) => mode === "draft" },
     ],
     lokasi: [
         { key: "alamat_data", label: "Alamat lengkap" },
@@ -24,7 +24,7 @@ export const REQUIRED_FIELDS_BY_TAB = {
         { key: "longitude", label: "Longitude" },
     ],
     properti: [
-        { key: "image", label: "Foto properti", skipIf: ({ mode }) => mode !== "create" },
+        { key: "image", label: "Foto properti", skipIf: ({ mode, hasImage }) => mode === "edit" || hasImage },
         { key: "luas_tanah", label: "Luas tanah" },
         { key: "luas_bangunan", label: "Luas bangunan", skipIf: ({ isTanah }) => isTanah },
         { key: "lebar_depan", label: "Lebar depan" },
