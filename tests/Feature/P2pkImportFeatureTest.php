@@ -69,7 +69,7 @@ it('seeds the bulk import role and permission', function () {
 
 it('blocks users without bulk import access', function () {
     $this->actingAs(User::factory()->create())
-        ->get('/home/pembanding-imports')
+        ->get('/app/pembanding-imports')
         ->assertForbidden();
 });
 
@@ -77,7 +77,7 @@ it('allows bulk import users to load dependent location choices', function () {
     $user = p2pkRoleUser();
 
     $this->actingAs($user)
-        ->getJson('/home/lookups/regencies?province_id=99')
+        ->getJson('/app/lookups/regencies?province_id=99')
         ->assertOk()
         ->assertJsonFragment(['value' => '9901']);
 });
@@ -89,10 +89,10 @@ it('stores workbook rows as drafts without creating main records', function () {
         p2pkTestRow([0 => 'LP-002', 2 => 'Jalan Contoh 2']),
     ], name: 'Januari.xlsm');
 
-    $response = $this->actingAs($user)->post('/home/pembanding-imports', ['file' => $upload]);
+    $response = $this->actingAs($user)->post('/app/pembanding-imports', ['file' => $upload]);
 
     $batch = P2pkImportBatch::query()->sole();
-    $response->assertRedirect(route('home.p2pk-imports.show', $batch));
+    $response->assertRedirect(route('app.p2pk-imports.show', $batch));
     expect($batch->total_rows)->toBe(2)
         ->and($batch->selected_rows)->toBe(2)
         ->and($batch->rows)->toHaveCount(2)
@@ -101,28 +101,24 @@ it('stores workbook rows as drafts without creating main records', function () {
     Storage::disk('local')->assertExists($batch->source_path);
 });
 
-it('keeps super admin bulk import inside the admin panel', function () {
+it('keeps super admin bulk import inside the shared application', function () {
     $superAdmin = p2pkRoleUser('super_admin');
 
-    $response = $this->actingAs($superAdmin)->get('/admin/pembanding-imports');
+    $response = $this->actingAs($superAdmin)->get('/app/pembanding-imports');
 
     $response->assertOk();
-    expect($response->viewData('page')['component'])->toBe('PembandingImports/Index')
-        ->and($response->viewData('page')['props']['importContext'])->toBe([
-            'is_admin' => true,
-            'base_url' => '/admin/pembanding-imports',
-        ]);
+    expect($response->viewData('page')['component'])->toBe('PembandingImports/Index');
 
-    $this->actingAs($superAdmin)->post('/admin/pembanding-imports', [
+    $this->actingAs($superAdmin)->post('/app/pembanding-imports', [
         'file' => p2pkTestUpload([p2pkTestRow()]),
-    ])->assertRedirect('/admin/pembanding-imports/1');
+    ])->assertRedirect('/app/pembanding-imports/1');
 });
 
 it('marks exact repeated source rows as unselected duplicates', function () {
     $user = p2pkRoleUser();
     $first = p2pkTestRow();
 
-    $this->actingAs($user)->post('/home/pembanding-imports', [
+    $this->actingAs($user)->post('/app/pembanding-imports', [
         'file' => p2pkTestUpload([$first, $first, p2pkTestRow([0 => 'LP-003'])]),
     ])->assertRedirect();
 
@@ -145,7 +141,7 @@ it('parses a 93 row workbook and finds seven repeated source occurrences', funct
         ->all();
     $rows = [...$uniqueRows, ...array_slice($uniqueRows, 0, 7)];
 
-    $this->actingAs($user)->post('/home/pembanding-imports', [
+    $this->actingAs($user)->post('/app/pembanding-imports', [
         'file' => p2pkTestUpload($rows, name: 'Januari.xlsm'),
     ])->assertRedirect();
 
@@ -175,14 +171,14 @@ it('reopens the existing draft when the same user uploads the same file', functi
     $user = p2pkRoleUser();
     $contents = p2pkTestUpload([p2pkTestRow()])->getContent();
 
-    $this->actingAs($user)->post('/home/pembanding-imports', [
+    $this->actingAs($user)->post('/app/pembanding-imports', [
         'file' => UploadedFile::fake()->createWithContent('pertama.xlsx', $contents),
     ])->assertRedirect();
     $batch = P2pkImportBatch::query()->sole();
 
-    $this->actingAs($user)->post('/home/pembanding-imports', [
+    $this->actingAs($user)->post('/app/pembanding-imports', [
         'file' => UploadedFile::fake()->createWithContent('kedua.xlsx', $contents),
-    ])->assertRedirect(route('home.p2pk-imports.show', $batch));
+    ])->assertRedirect(route('app.p2pk-imports.show', $batch));
 
     $this->assertDatabaseCount('p2pk_import_batches', 1);
     $this->assertDatabaseCount('p2pk_import_rows', 1);
@@ -194,9 +190,9 @@ it('rejects workbooks with a different column contract', function () {
     $headers[0] = 'Nomor Berbeda';
 
     $this->actingAs($user)
-        ->from('/home/pembanding-imports')
-        ->post('/home/pembanding-imports', ['file' => p2pkTestUpload([p2pkTestRow()], $headers)])
-        ->assertRedirect('/home/pembanding-imports')
+        ->from('/app/pembanding-imports')
+        ->post('/app/pembanding-imports', ['file' => p2pkTestUpload([p2pkTestRow()], $headers)])
+        ->assertRedirect('/app/pembanding-imports')
         ->assertSessionHasErrors('file');
 
     $this->assertDatabaseCount('p2pk_import_batches', 0);
@@ -206,7 +202,7 @@ it('rejects workbooks with a different column contract', function () {
 it('marks invalid coordinates and unresolved locations for user confirmation', function () {
     $user = p2pkRoleUser();
 
-    $this->actingAs($user)->post('/home/pembanding-imports', [
+    $this->actingAs($user)->post('/app/pembanding-imports', [
         'file' => p2pkTestUpload([p2pkTestRow([4 => 'Desa Tidak Ada', 8 => '112.584118,112.584118'])]),
     ])->assertRedirect();
 
@@ -220,11 +216,11 @@ it('prevents users from viewing another users draft while allowing super admin r
     $other = p2pkRoleUser();
     $superAdmin = p2pkRoleUser('super_admin');
 
-    $this->actingAs($owner)->post('/home/pembanding-imports', [
+    $this->actingAs($owner)->post('/app/pembanding-imports', [
         'file' => p2pkTestUpload([p2pkTestRow()]),
     ]);
     $batch = P2pkImportBatch::query()->sole();
 
-    $this->actingAs($other)->get("/home/pembanding-imports/{$batch->id}")->assertForbidden();
-    $this->actingAs($superAdmin)->get("/home/pembanding-imports/{$batch->id}")->assertOk();
+    $this->actingAs($other)->get("/app/pembanding-imports/{$batch->id}")->assertForbidden();
+    $this->actingAs($superAdmin)->get("/app/pembanding-imports/{$batch->id}")->assertOk();
 });

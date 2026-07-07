@@ -2,12 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Models\Province;
 use App\Models\User;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use Spatie\Permission\Models\Permission;
+use Tests\TestCase;
 
 class MasterDataApiTest extends TestCase
 {
@@ -40,7 +41,7 @@ class MasterDataApiTest extends TestCase
         $this->actingAs($user);
 
         // CSRF not needed for feature tests here
-        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+        $this->withoutMiddleware(VerifyCsrfToken::class);
     }
 
     public function test_can_crud_dictionary_items()
@@ -48,7 +49,7 @@ class MasterDataApiTest extends TestCase
         $this->signIn();
 
         // Create #1 (sort order should auto-append to bottom -> 1)
-        $first = $this->postJson('/home/master-data/dictionaries/jenis-objek', [
+        $first = $this->postJson('/app/master-data/dictionaries/jenis-objek', [
             'name' => 'Gudang Besar',
             'sort_order' => 99, // ignored by backend
             'is_active' => true,
@@ -57,7 +58,7 @@ class MasterDataApiTest extends TestCase
         $firstId = $first->json('id');
 
         // Create #2 (auto-append -> 2)
-        $second = $this->postJson('/home/master-data/dictionaries/jenis-objek', [
+        $second = $this->postJson('/app/master-data/dictionaries/jenis-objek', [
             'name' => 'Rumah Contoh',
             'sort_order' => 0, // ignored by backend
             'is_active' => true,
@@ -69,14 +70,14 @@ class MasterDataApiTest extends TestCase
         $this->assertDatabaseHas('master_jenis_objek', ['id' => $secondId, 'sort_order' => 2]);
 
         // Update item
-        $update = $this->putJson("/home/master-data/dictionaries/jenis-objek/{$firstId}", [
+        $update = $this->putJson("/app/master-data/dictionaries/jenis-objek/{$firstId}", [
             'name' => 'Gudang Pelabuhan',
             'is_active' => false,
         ]);
         $update->assertOk()->assertJsonFragment(['slug' => 'gudang_pelabuhan', 'is_active' => false]);
 
         // Reorder (second becomes first)
-        $this->postJson('/home/master-data/dictionaries/jenis-objek/reorder', [
+        $this->postJson('/app/master-data/dictionaries/jenis-objek/reorder', [
             'ids' => [$secondId, $firstId],
         ])->assertOk()->assertJsonFragment(['success' => true]);
 
@@ -84,15 +85,15 @@ class MasterDataApiTest extends TestCase
         $this->assertDatabaseHas('master_jenis_objek', ['id' => $firstId, 'sort_order' => 2]);
 
         // List contains update
-        $this->getJson('/home/master-data/dictionaries/jenis-objek')
+        $this->getJson('/app/master-data/dictionaries/jenis-objek')
             ->assertOk()
             ->assertJsonFragment(['name' => 'Gudang Pelabuhan']);
 
         // Delete
-        $this->deleteJson("/home/master-data/dictionaries/jenis-objek/{$firstId}")
+        $this->deleteJson("/app/master-data/dictionaries/jenis-objek/{$firstId}")
             ->assertOk();
 
-        $this->getJson('/home/master-data/dictionaries/jenis-objek')
+        $this->getJson('/app/master-data/dictionaries/jenis-objek')
             ->assertOk()
             ->assertJsonMissing(['id' => $firstId]);
     }
@@ -102,7 +103,7 @@ class MasterDataApiTest extends TestCase
         $this->signIn();
 
         // Province manual ID
-        $this->postJson('/home/master-data/locations/provinces', [
+        $this->postJson('/app/master-data/locations/provinces', [
             'id' => '99',
             'name' => 'prov test',
         ])->assertCreated();
@@ -113,7 +114,7 @@ class MasterDataApiTest extends TestCase
         ]);
 
         // Regency generated (should be 9901)
-        $reg = $this->postJson('/home/master-data/locations/regencies', [
+        $reg = $this->postJson('/app/master-data/locations/regencies', [
             'province_id' => '99',
             'name' => 'kota uji',
         ])->assertCreated();
@@ -123,7 +124,7 @@ class MasterDataApiTest extends TestCase
         $this->assertDatabaseHas('regencies', ['id' => '9901', 'name' => 'KOTA UJI']);
 
         // District generated (should be 9901001)
-        $dist = $this->postJson('/home/master-data/locations/districts', [
+        $dist = $this->postJson('/app/master-data/locations/districts', [
             'regency_id' => $regId,
             'name' => 'kecamatan uji',
         ])->assertCreated();
@@ -132,7 +133,7 @@ class MasterDataApiTest extends TestCase
         $this->assertDatabaseHas('districts', ['id' => $distId, 'name' => 'KECAMATAN UJI']);
 
         // Village generated (should be 9901001001)
-        $vill = $this->postJson('/home/master-data/locations/villages', [
+        $vill = $this->postJson('/app/master-data/locations/villages', [
             'district_id' => $distId,
             'name' => 'desa uji',
         ])->assertCreated();
@@ -141,7 +142,7 @@ class MasterDataApiTest extends TestCase
         $this->assertDatabaseHas('villages', ['id' => $villId, 'name' => 'DESA UJI']);
 
         // Filter regency by province
-        $this->getJson('/home/master-data/locations/regencies?province_id=99')
+        $this->getJson('/app/master-data/locations/regencies?province_id=99')
             ->assertOk()
             ->assertJsonFragment(['id' => $regId]);
     }
@@ -153,12 +154,12 @@ class MasterDataApiTest extends TestCase
         $user->givePermissionTo('view_master_data');
 
         $this->actingAs($user);
-        $this->withoutMiddleware(\App\Http\Middleware\VerifyCsrfToken::class);
+        $this->withoutMiddleware(VerifyCsrfToken::class);
 
-        $this->getJson('/home/master-data/dictionaries/jenis-objek')
+        $this->getJson('/app/master-data/dictionaries/jenis-objek')
             ->assertOk();
 
-        $this->postJson('/home/master-data/dictionaries/jenis-objek', [
+        $this->postJson('/app/master-data/dictionaries/jenis-objek', [
             'name' => 'Tidak Boleh',
             'is_active' => true,
         ])->assertForbidden();

@@ -10,7 +10,7 @@ it('limits data contributor dashboard to map and stat card props', function () {
     $user->assignRole('data_contributor');
 
     $this->actingAs($user)
-        ->get('/home')
+        ->get('/app')
         ->assertOk()
         ->assertSee('data_contributor')
         ->assertSee('mapPoints')

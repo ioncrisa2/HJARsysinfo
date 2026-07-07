@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Support\AdminAccess;
+use App\Support\AppAccess;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -33,7 +33,7 @@ class PembandingAccessRoleSeeder extends Seeder
             'reorder_data::pembanding',
             'export_data::pembanding',
             'bulk_import_data::pembanding',
-            ...AdminAccess::permissions(),
+            ...AppAccess::permissions(),
         ];
 
         $permissionModels = collect($permissions)

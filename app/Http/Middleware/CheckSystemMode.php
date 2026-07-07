@@ -2,17 +2,17 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SystemSetting;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\SystemSetting;
 
 class CheckSystemMode
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -42,9 +42,9 @@ class CheckSystemMode
             return true;
         }
 
-        // Let unauthenticated admin requests reach the auth middleware so super admins
+        // Let unauthenticated application requests reach auth so super admins
         // can still be redirected to login instead of being trapped behind 503.
-        if ($request->is('admin') || $request->is('admin/*')) {
+        if ($request->is('app') || $request->is('app/*')) {
             return ! $request->user() || $request->user()->hasRole('super_admin');
         }
 

@@ -130,14 +130,14 @@ it('allows only the owner or super admin to open and change a draft row', functi
     $superAdmin = p2pkDraftEditingUser('super_admin');
     $batch = p2pkDraftEditingBatch($owner);
     $row = p2pkDraftEditingRow($batch);
-    $editUrl = "/home/pembanding-imports/{$batch->id}/rows/{$row->id}/edit";
-    $updateUrl = "/home/pembanding-imports/{$batch->id}/rows/{$row->id}";
+    $editUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}/edit";
+    $updateUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
     $this->actingAs($owner)->get($editUrl)->assertOk();
     $this->actingAs($superAdmin)->get($editUrl)->assertOk();
     $this->actingAs($other)->get($editUrl)->assertForbidden();
     $this->actingAs($other)->put($updateUrl, ['nama_pemberi_informasi' => 'Tidak Berhak'])->assertForbidden();
-    $this->actingAs($other)->patch("/home/pembanding-imports/{$batch->id}/selection", [
+    $this->actingAs($other)->patch("/app/pembanding-imports/{$batch->id}/selection", [
         'action' => 'clear_all',
     ])->assertForbidden();
 
@@ -150,7 +150,7 @@ it('saves partial work as an incomplete draft without creating main data', funct
     $row = p2pkDraftEditingRow($batch);
 
     $this->actingAs($owner)
-        ->put("/home/pembanding-imports/{$batch->id}/rows/{$row->id}", [
+        ->put("/app/pembanding-imports/{$batch->id}/rows/{$row->id}", [
             'nama_pemberi_informasi' => 'Budi Pemilik',
             'lebar_depan' => 10,
         ])
@@ -173,7 +173,7 @@ it('marks a completed tanah draft ready and serves its image only through the pr
     ]);
 
     $this->actingAs($owner)
-        ->post("/home/pembanding-imports/{$batch->id}/rows/{$row->id}", [
+        ->post("/app/pembanding-imports/{$batch->id}/rows/{$row->id}", [
             '_method' => 'PUT',
             ...$payload,
         ])
@@ -189,7 +189,7 @@ it('marks a completed tanah draft ready and serves its image only through the pr
     Storage::disk('local')->assertExists($row->staging_image_path);
     Storage::disk('public')->assertMissing($row->staging_image_path);
 
-    $imageUrl = "/home/pembanding-imports/{$batch->id}/rows/{$row->id}/image";
+    $imageUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}/image";
     $this->actingAs($owner)->get($imageUrl)->assertOk()->assertHeader('content-type', 'image/jpeg');
     $this->actingAs(p2pkDraftEditingUser())->get($imageUrl)->assertForbidden();
     $this->assertDatabaseCount('data_pembanding', 0);
@@ -199,7 +199,7 @@ it('deletes the previous private image when a draft image is replaced', function
     $owner = p2pkDraftEditingUser();
     $batch = p2pkDraftEditingBatch($owner);
     $row = p2pkDraftEditingRow($batch);
-    $url = "/home/pembanding-imports/{$batch->id}/rows/{$row->id}";
+    $url = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
     $this->actingAs($owner)->post($url, [
         '_method' => 'PUT',
@@ -228,7 +228,7 @@ it('removes a private image and marks the selected row incomplete again', functi
     $owner = p2pkDraftEditingUser();
     $batch = p2pkDraftEditingBatch($owner);
     $row = p2pkDraftEditingRow($batch);
-    $url = "/home/pembanding-imports/{$batch->id}/rows/{$row->id}";
+    $url = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
     $this->actingAs($owner)->post($url, [
         '_method' => 'PUT',
@@ -273,7 +273,7 @@ it('supports all selection modes while refusing to select duplicate rows', funct
         'is_selected' => false,
         'duplicate_of_row_id' => $ready->id,
     ]);
-    $url = "/home/pembanding-imports/{$batch->id}/selection";
+    $url = "/app/pembanding-imports/{$batch->id}/selection";
 
     $this->actingAs($owner)->patch($url, [
         'action' => 'set_rows',
@@ -342,7 +342,7 @@ it('bulk applies an allowed value only to selected nonduplicate rows and refresh
     $shapeId = BentukTanah::query()->where('slug', 'persegi_panjang')->value('id');
 
     $this->actingAs($owner)
-        ->patch("/home/pembanding-imports/{$batch->id}/bulk-apply", [
+        ->patch("/app/pembanding-imports/{$batch->id}/bulk-apply", [
             'field' => 'bentuk_tanah_id',
             'value' => $shapeId,
         ])
@@ -371,7 +371,7 @@ it('rejects unsafe fields from bulk apply', function (string $field, mixed $valu
     $originalPayload = $row->mapped_payload;
 
     $this->actingAs($owner)
-        ->patch("/home/pembanding-imports/{$batch->id}/bulk-apply", [
+        ->patch("/app/pembanding-imports/{$batch->id}/bulk-apply", [
             'field' => $field,
             'value' => $value,
         ])

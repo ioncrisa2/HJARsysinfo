@@ -164,7 +164,7 @@ it('rejects finalization when a selected row is not ready', function () {
     ]);
 
     $this->actingAs($owner)
-        ->post("/home/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
+        ->post("/app/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
         ->assertRedirect()
         ->assertSessionHasErrors('finalize');
 
@@ -191,7 +191,7 @@ it('ignores unselected incomplete rows and dispatches selected rows in chunks of
     ]);
 
     $this->actingAs($owner)
-        ->post("/home/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
+        ->post("/app/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
@@ -369,7 +369,7 @@ it('allows a failed row to be manually retried as a new three-attempt cycle', fu
     ]);
 
     $this->actingAs($owner)
-        ->post("/home/pembanding-imports/{$batch->id}/rows/{$row->id}/retry")
+        ->post("/app/pembanding-imports/{$batch->id}/rows/{$row->id}/retry")
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 

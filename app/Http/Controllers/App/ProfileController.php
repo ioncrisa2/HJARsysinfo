@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\ProfileUpdateRequest;
+use App\Support\AppAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -20,8 +21,7 @@ class ProfileController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'roles' => $user->getRoleNames(),
-                'permissions' => $user->getPermissionNames(),
+                'roles' => $user->getRoleNames()->map(fn (string $role): string => AppAccess::roleLabel($role)),
             ],
         ]);
     }
@@ -31,7 +31,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $data = $request->validated();
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
             unset($data['password']);

@@ -3,7 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\SystemSetting;
-use App\Support\AdminAccess;
+use App\Support\AppAccess;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -23,11 +23,10 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user()?->only(['id', 'name', 'email']),
                 'is_super_admin' => (bool) $request->user()?->hasRole('super_admin'),
-                'can_access_admin' => AdminAccess::can($request->user(), AdminAccess::ACCESS_ADMIN),
                 'can_bulk_import' => (bool) $request->user()?->can('bulk_import_data::pembanding'),
                 'permissions' => $request->user()?->getAllPermissions()->pluck('name')->values()->all() ?? [],
             ],
-            'adminMenu' => fn (): array => AdminAccess::menuFor($request->user()),
+            'appMenu' => fn (): array => AppAccess::menuFor($request->user()),
             'flash' => [
                 'error' => fn (): ?string => $request->session()->get('error'),
                 'success' => fn (): ?string => $request->session()->get('success'),

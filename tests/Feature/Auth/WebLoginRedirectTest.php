@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -24,66 +23,45 @@ function makeWebLoginUser(array $attributes = [], ?string $role = null): User
             'name' => $role,
             'guard_name' => 'web',
         ]);
-
         $user->assignRole($roleModel);
     }
 
     return $user;
 }
 
-function grantWebLoginPermission(User $user, string $permission): void
-{
-    Permission::findOrCreate($permission, 'web');
-    $user->givePermissionTo($permission);
-}
+it('redirects every role to the shared application dashboard', function (?string $role) {
+    $user = makeWebLoginUser(['email' => ($role ?? 'regular').'@example.test'], $role);
 
-it('redirects super admin to admin dashboard when intended url is home', function () {
-    $user = makeWebLoginUser(['email' => 'admin@example.test'], 'super_admin');
-    grantWebLoginPermission($user, 'can_access_admin');
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect('/app');
+})->with(['super_admin', 'surveyor', null]);
 
-    $this
-        ->withSession(['url.intended' => 'http://localhost/home'])
-        ->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-        ])
-        ->assertRedirect(route('admin.dashboard'));
-});
-
-it('preserves admin intended urls for super admin users', function () {
-    $user = makeWebLoginUser(['email' => 'admin-users@example.test'], 'super_admin');
-    grantWebLoginPermission($user, 'can_access_admin');
-
-    $this
-        ->withSession(['url.intended' => 'http://localhost/admin/users'])
-        ->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-        ])
-        ->assertRedirect('http://localhost/admin/users');
-});
-
-it('does not redirect non admin users into admin urls after login', function () {
+it('preserves an intended application url for any authenticated role', function () {
     $user = makeWebLoginUser(['email' => 'user@example.test']);
 
-    $this
-        ->withSession(['url.intended' => 'http://localhost/admin'])
+    $intendedUrl = url('/app/users');
+
+    $this->withSession(['url.intended' => $intendedUrl])
         ->post('/login', [
             'email' => $user->email,
             'password' => 'password',
         ])
-        ->assertRedirect(route('home.dashboard'));
+        ->assertRedirect($intendedUrl);
 });
 
-it('redirects non super admin users with admin access permission to admin dashboard', function () {
-    $user = makeWebLoginUser(['email' => 'ops-admin@example.test']);
-    grantWebLoginPermission($user, 'can_access_admin');
+it('does not preserve legacy or external intended urls', function (string $intendedUrl) {
+    $user = makeWebLoginUser(['email' => md5($intendedUrl).'@example.test']);
 
-    $this
-        ->withSession(['url.intended' => 'http://localhost/home'])
+    $this->withSession(['url.intended' => $intendedUrl])
         ->post('/login', [
             'email' => $user->email,
             'password' => 'password',
         ])
-        ->assertRedirect(route('admin.dashboard'));
-});
+        ->assertRedirect('/app');
+})->with([
+    'legacy home' => 'http://localhost/home',
+    'legacy admin' => 'http://localhost/admin/users',
+    'external host' => 'https://example.org/app/users',
+]);

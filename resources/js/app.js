@@ -1,50 +1,41 @@
 import "./bootstrap";
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-import Alpine from 'alpinejs';
+import { createApp, h } from "vue";
+import { createInertiaApp } from "@inertiajs/vue3";
+import PrimeVue from "primevue/config";
+import Aura from "@primeuix/themes/aura";
+import "primeicons/primeicons.css";
+import ToastService from "primevue/toastservice";
+import ConfirmationService from "primevue/confirmationservice";
 
-window.L = L;
-window.Alpine = Alpine;
+const pages = import.meta.glob("./Pages/**/*.vue");
 
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+createInertiaApp({
+    resolve: (name) => {
+        const page = pages[`./Pages/${name}.vue`];
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl,
-    iconUrl,
-    shadowUrl,
+        if (!page) {
+            throw new Error(`Inertia page not found: ${name}`);
+        }
+
+        return page();
+    },
+    setup({ el, App, props, plugin }) {
+        createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .use(PrimeVue, {
+                ripple: true,
+                theme: {
+                    preset: Aura,
+                    options: {
+                        darkModeSelector: false,
+                    },
+                },
+            })
+            .use(ToastService)
+            .use(ConfirmationService)
+            .mount(el);
+    },
+    progress: {
+        color: "#f59e0b",
+    },
 });
-
-// Registrasi komponen Alpine yang sudah disederhanakan
-Alpine.data('leafletMap', ({ markers, center, zoom }) => ({
-    map: null,
-
-    init() {
-        // Inisialisasi peta
-        this.map = L.map(this.$refs.map).setView(center, zoom);
-
-        // Tambahkan tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(this.map);
-
-        // Gunakan icon default Leaflet (biru) atau tetap hijau jika diinginkan.
-        // Jika ingin tetap hijau seperti kode sebelumnya:
-        const greenIcon = new L.Icon({
-             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-             shadowUrl,
-             iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
-        });
-
-        // Loop markers dan tambahkan ke peta
-        markers.forEach(marker => {
-            L.marker([marker.lat, marker.lng], { icon: greenIcon })
-                .bindPopup(marker.popup)
-                .addTo(this.map);
-        });
-    }
-}));
-
-Alpine.start();

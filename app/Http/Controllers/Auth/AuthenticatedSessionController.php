@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -70,29 +68,20 @@ class AuthenticatedSessionController extends Controller
 
     private function redirectPath(Request $request, ?string $intendedUrl = null): string
     {
-        if (AdminAccess::can($request->user(), AdminAccess::ACCESS_ADMIN)) {
-            if ($this->intendedPathStartsWith($intendedUrl, '/admin')) {
-                return $intendedUrl;
-            }
-
-            return route('admin.dashboard');
-        }
-
-        if ($intendedUrl !== null && ! $this->intendedPathStartsWith($intendedUrl, '/admin')) {
+        if ($intendedUrl !== null && $this->isApplicationUrl($request, $intendedUrl)) {
             return $intendedUrl;
         }
 
-        return route('home.dashboard');
+        return route('app.dashboard');
     }
 
-    private function intendedPathStartsWith(?string $intendedUrl, string $prefix): bool
+    private function isApplicationUrl(Request $request, string $intendedUrl): bool
     {
-        if ($intendedUrl === null || $intendedUrl === '') {
-            return false;
-        }
-
         $path = parse_url($intendedUrl, PHP_URL_PATH);
+        $host = parse_url($intendedUrl, PHP_URL_HOST);
 
-        return is_string($path) && Str::startsWith($path, $prefix);
+        return is_string($path)
+            && ($host === null || $host === $request->getHost())
+            && ($path === '/app' || str_starts_with($path, '/app/'));
     }
 }

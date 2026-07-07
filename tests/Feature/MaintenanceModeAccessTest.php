@@ -15,7 +15,7 @@ it('allows super admin to access admin pages during maintenance mode', function 
     $superAdmin->assignRole('super_admin');
 
     $this->actingAs($superAdmin)
-        ->get('/admin/settings')
+        ->get('/app/settings')
         ->assertOk();
 });
 
@@ -24,12 +24,12 @@ it('blocks regular authenticated users during maintenance mode', function () {
     $user->assignRole('data_contributor');
 
     $this->actingAs($user)
-        ->get('/home')
+        ->get('/app')
         ->assertStatus(503);
 });
 
 it('redirects guest admin requests to login during maintenance mode', function () {
-    $this->get('/admin')
+    $this->get('/app')
         ->assertRedirect('/login');
 });
 
@@ -44,6 +44,6 @@ it('reads system mode directly from database instead of stale settings cache', f
     );
 
     $this->actingAs($user)
-        ->get('/home')
+        ->get('/app')
         ->assertOk();
 });

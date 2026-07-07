@@ -5,7 +5,8 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\JenisListing;
 use App\Models\Pembanding;
-use App\Support\AdminAccess;
+use App\Models\PembandingDeleteRequest;
+use App\Support\AppAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,14 +15,20 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): Response | RedirectResponse
+    public function __invoke(Request $request): Response|RedirectResponse
     {
-        if ((bool) $request->user()?->hasRole('super_admin')) {
-            return redirect()->route('admin.dashboard');
-        }
-
         $isDataContributor = (bool) $request->user()?->hasRole('data_contributor');
-        $canWidgets = AdminAccess::capabilityMap($request->user(), AdminAccess::widgetPermissionMap());
+        $canWidgets = AppAccess::capabilityMap($request->user(), AppAccess::widgetPermissionMap());
+        $pendingDeleteRequests = $request->user()->can('view_moderation')
+            ? PembandingDeleteRequest::query()->where('status', PembandingDeleteRequest::STATUS_PENDING)->count()
+            : 0;
+        $deleteRequestAlert = $pendingDeleteRequests > 0 ? [
+            'count' => $pendingDeleteRequests,
+            'message' => $pendingDeleteRequests === 1
+                ? '1 permintaan penghapusan menunggu review.'
+                : "{$pendingDeleteRequests} permintaan penghapusan menunggu review.",
+            'href' => route('app.moderation.index', ['tab' => 'requests']),
+        ] : null;
 
         // "Non properti" context is deprecated. Keep it out of the user dashboard without deleting data.
         $nonPropertiJenisObjekIds = DB::table('master_jenis_objek')
@@ -43,17 +50,17 @@ class DashboardController extends Controller
                 ->orderByDesc('id')
                 ->with('jenisListing:id,name')
                 ->get(['id', 'alamat_data', 'latitude', 'longitude', 'tanggal_data', 'harga', 'jenis_listing_id', 'image'])
-                ->map(fn(Pembanding $row): array => [
-                    'id'           => $row->id,
-                    'alamat'       => $row->alamat_data,
-                    'latitude'     => (float) $row->latitude,
-                    'longitude'    => (float) $row->longitude,
-                    'tanggal'      => $row->tanggal_data,
-                    'harga'        => $row->harga,
+                ->map(fn (Pembanding $row): array => [
+                    'id' => $row->id,
+                    'alamat' => $row->alamat_data,
+                    'latitude' => (float) $row->latitude,
+                    'longitude' => (float) $row->longitude,
+                    'tanggal' => $row->tanggal_data,
+                    'harga' => $row->harga,
                     'jenis_listing_id' => $row->jenis_listing_id ? (int) $row->jenis_listing_id : null,
                     'jenis_listing' => $row->jenisListing?->name,
-                    'detail_url'   => url("/home/pembanding/{$row->id}"),
-                    'image_url'    => $row->image_path,
+                    'detail_url' => route('app.pembanding.show', $row),
+                    'image_url' => $row->image_path,
                 ])
                 ->values();
         }
@@ -61,10 +68,10 @@ class DashboardController extends Controller
         $stats = [];
         if ($canWidgets['statsOverview']) {
             $stats = [
-                'total'          => Pembanding::count(),
-                'this_month'     => Pembanding::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count(),
-                'last_month'     => Pembanding::whereBetween('created_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count(),
-                'with_coords'    => Pembanding::whereNotNull('latitude')->whereNotNull('longitude')->count(),
+                'total' => Pembanding::count(),
+                'this_month' => Pembanding::whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count(),
+                'last_month' => Pembanding::whereBetween('created_at', [now()->subMonth()->startOfMonth(), now()->subMonth()->endOfMonth()])->count(),
+                'with_coords' => Pembanding::whereNotNull('latitude')->whereNotNull('longitude')->count(),
                 'province_count' => Pembanding::whereNotNull('province_id')->distinct('province_id')->count('province_id'),
             ];
         }
@@ -74,7 +81,7 @@ class DashboardController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(fn($item) => ['label' => $item->name, 'value' => $item->id])
+            ->map(fn ($item) => ['label' => $item->name, 'value' => $item->id])
             ->values();
 
         if ($isDataContributor) {
@@ -84,6 +91,7 @@ class DashboardController extends Controller
                 'stats' => $stats,
                 'jenisListingOptions' => $jenisListingOptions,
                 'canWidgets' => $canWidgets,
+                'deleteRequestAlert' => $deleteRequestAlert,
             ]);
         }
 
@@ -95,15 +103,15 @@ class DashboardController extends Controller
                 ->limit(8)
                 ->with(['jenisListing:id,name', 'jenisObjek:id,name'])
                 ->get(['id', 'alamat_data', 'harga', 'tanggal_data', 'jenis_listing_id', 'jenis_objek_id', 'image', 'created_at'])
-                ->map(fn(Pembanding $row): array => [
-                    'id'            => $row->id,
-                    'alamat'        => $row->alamat_data,
-                    'harga'         => $row->harga,
-                    'tanggal'       => $row->tanggal_data,
-                    'created_at'    => optional($row->created_at)->toIso8601String(),
-                    'image_url'     => $row->image_path,
+                ->map(fn (Pembanding $row): array => [
+                    'id' => $row->id,
+                    'alamat' => $row->alamat_data,
+                    'harga' => $row->harga,
+                    'tanggal' => $row->tanggal_data,
+                    'created_at' => optional($row->created_at)->toIso8601String(),
+                    'image_url' => $row->image_path,
                     'jenis_listing' => $row->jenisListing?->name,
-                    'jenis_objek'   => $row->jenisObjek?->name,
+                    'jenis_objek' => $row->jenisObjek?->name,
                 ])
                 ->values();
         }
@@ -275,7 +283,7 @@ class DashboardController extends Controller
         }
 
         $areaSince = now()->subDays(30)->startOfDay();
-        $pembandingTable = (new Pembanding())->getTable();
+        $pembandingTable = (new Pembanding)->getTable();
 
         $topAreaActivity = ['period_label' => '30 hari terakhir', 'total_input' => 0, 'rows' => []];
         if ($canWidgets['topAreaActivityTable']) {
@@ -346,18 +354,19 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('Dashboard', [
-            'dashboardVariant'   => 'default',
-            'mapPoints'          => $mapPoints,
-            'recentData'         => $recentData,
-            'stats'              => $stats,
-            'monthlyData'        => $monthlyData,
+            'dashboardVariant' => 'default',
+            'mapPoints' => $mapPoints,
+            'recentData' => $recentData,
+            'stats' => $stats,
+            'monthlyData' => $monthlyData,
             'listingRatioMonthly' => $listingRatioMonthly,
-            'topContributors'    => $topContributors,
-            'dataFreshness'      => $dataFreshness,
-            'topAreaActivity'    => $topAreaActivity,
-            'objectTypeCounts'   => $objectTypeCounts,
+            'topContributors' => $topContributors,
+            'dataFreshness' => $dataFreshness,
+            'topAreaActivity' => $topAreaActivity,
+            'objectTypeCounts' => $objectTypeCounts,
             'jenisListingOptions' => $jenisListingOptions,
-            'canWidgets'         => $canWidgets,
+            'canWidgets' => $canWidgets,
+            'deleteRequestAlert' => $deleteRequestAlert,
         ]);
     }
 }

@@ -43,7 +43,6 @@ class P2pkImportController extends Controller
 
         return Inertia::render('PembandingImports/Index', [
             'batches' => $batches,
-            'importContext' => $this->importContext(),
         ]);
     }
 
@@ -130,7 +129,6 @@ class P2pkImportController extends Controller
             'batch' => $this->batchPayload($batch),
             'rows' => $rows,
             'filters' => $filters,
-            'importContext' => $this->importContext(),
             'options' => fn (): array => Arr::only($formOptions->for(), [
                 'statusPemberiInfos',
                 'bentukTanahs',
@@ -211,7 +209,6 @@ class P2pkImportController extends Controller
                 'previous_url' => $previous ? route($this->routeName('rows.edit'), [$batch, $previous]) : null,
                 'next_url' => $next ? route($this->routeName('rows.edit'), [$batch, $next]) : null,
             ],
-            'importContext' => $this->importContext(),
         ]);
     }
 
@@ -378,7 +375,7 @@ class P2pkImportController extends Controller
         $pembanding = $row->pembanding ?: $row->conflictingPembanding;
 
         return $pembanding && ! $pembanding->trashed() && $request->user()->can('view', $pembanding)
-            ? route($this->isAdminContext() ? 'admin.pembanding.show' : 'home.pembanding.show', $pembanding)
+            ? route('app.pembanding.show', $pembanding)
             : null;
     }
 
@@ -393,24 +390,9 @@ class P2pkImportController extends Controller
             : null;
     }
 
-    private function importContext(): array
-    {
-        return [
-            'is_admin' => $this->isAdminContext(),
-            'base_url' => $this->isAdminContext()
-                ? '/admin/pembanding-imports'
-                : '/home/pembanding-imports',
-        ];
-    }
-
     private function routeName(string $suffix): string
     {
-        return ($this->isAdminContext() ? 'admin' : 'home').'.p2pk-imports.'.$suffix;
-    }
-
-    private function isAdminContext(): bool
-    {
-        return request()->routeIs('admin.p2pk-imports.*');
+        return 'app.p2pk-imports.'.$suffix;
     }
 
     private function ensureRowBelongsToBatch(P2pkImportBatch $batch, P2pkImportRow $row): void

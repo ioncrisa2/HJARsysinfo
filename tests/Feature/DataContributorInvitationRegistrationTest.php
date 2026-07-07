@@ -72,8 +72,8 @@ it('accepts a pending request and creates a data contributor user with the store
     ]);
 
     $this->actingAs($superAdmin)
-        ->post("/admin/data-contributor-registration-requests/{$registrationRequest->id}/accept")
-        ->assertRedirect('/admin/data-contributor-invitations');
+        ->post("/app/data-contributor-registration-requests/{$registrationRequest->id}/accept")
+        ->assertRedirect('/app/data-contributor-invitations');
 
     $user = User::query()->where('email', 'sari.data@kjpp-hjar.co.id')->firstOrFail();
 
@@ -92,12 +92,11 @@ it('accepts a pending request and creates a data contributor user with the store
 
 it('blocks invitation administration for non super admin users even when permission is assigned', function () {
     $user = User::factory()->create();
-    Permission::findOrCreate('can_access_admin', 'web');
     Permission::findOrCreate('manage_data_contributor_invitations', 'web');
-    $user->givePermissionTo(['can_access_admin', 'manage_data_contributor_invitations']);
+    $user->givePermissionTo('manage_data_contributor_invitations');
 
     $this->actingAs($user)
-        ->post('/admin/data-contributor-invitations')
+        ->post('/app/data-contributor-invitations')
         ->assertForbidden();
 });
 
@@ -123,13 +122,13 @@ it('allows super admin to delete only unused invitations', function () {
     ]);
 
     $this->actingAs($superAdmin)
-        ->delete("/admin/data-contributor-invitations/{$unusedInvite->id}")
-        ->assertRedirect('/admin/data-contributor-invitations?tab=tokens');
+        ->delete("/app/data-contributor-invitations/{$unusedInvite->id}")
+        ->assertRedirect('/app/data-contributor-invitations?tab=tokens');
 
     $this->assertDatabaseMissing('data_contributor_invites', ['id' => $unusedInvite->id]);
 
     $this->actingAs($superAdmin)
-        ->delete("/admin/data-contributor-invitations/{$submittedInvite->id}")
+        ->delete("/app/data-contributor-invitations/{$submittedInvite->id}")
         ->assertSessionHas('error', 'Invitation hanya bisa dihapus jika belum digunakan.');
 
     $this->assertDatabaseHas('data_contributor_invites', ['id' => $submittedInvite->id]);

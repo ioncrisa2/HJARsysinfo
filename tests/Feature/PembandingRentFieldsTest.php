@@ -64,7 +64,7 @@ function makePembandingRentPayload(array $overrides = []): array
 
 function validatePembandingRentPayload(array $payload): array
 {
-    $request = PembandingStoreRequest::create('/home/pembanding', 'POST', $payload, [], [
+    $request = PembandingStoreRequest::create('/app/pembanding', 'POST', $payload, [], [
         'image' => $payload['image'],
     ]);
 

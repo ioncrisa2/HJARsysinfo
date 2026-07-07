@@ -143,12 +143,12 @@ class PembandingController extends Controller
 
         if ($createAnother) {
             return redirect()
-                ->route('home.pembanding.create')
+                ->route('app.pembanding.create')
                 ->with('success', 'Data pembanding berhasil ditambahkan. Silakan input data baru.');
         }
 
         return redirect()
-            ->route('home.pembanding.show', $pembanding)
+            ->route('app.pembanding.show', $pembanding)
             ->with('success', 'Data pembanding berhasil ditambahkan.');
     }
 
@@ -330,8 +330,23 @@ class PembandingController extends Controller
         $savePembanding->update($pembanding, $data, $request->file('image'));
 
         return redirect()
-            ->route('home.pembanding.show', $pembanding)
+            ->route('app.pembanding.show', $pembanding)
             ->with('success', 'Data pembanding berhasil diperbarui.');
+    }
+
+    public function destroy(Pembanding $pembanding): RedirectResponse
+    {
+        Gate::authorize('delete', $pembanding);
+
+        $pembanding->forceFill([
+            'deleted_by_id' => auth()->id(),
+            'deleted_reason' => 'Dihapus melalui aplikasi',
+        ])->save();
+        $pembanding->delete();
+
+        return redirect()
+            ->route('app.pembanding.index')
+            ->with('success', 'Data pembanding berhasil dihapus.');
     }
 
     public function requestDelete(Request $request, Pembanding $pembanding): RedirectResponse
@@ -350,8 +365,8 @@ class PembandingController extends Controller
 
         if ($alreadyPending) {
             return redirect()
-                ->route('home.pembanding.show', $pembanding)
-                ->with('error', 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi super_admin.');
+                ->route('app.pembanding.show', $pembanding)
+                ->with('error', 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi moderator.');
         }
 
         PembandingDeleteRequest::create([
@@ -362,8 +377,8 @@ class PembandingController extends Controller
         ]);
 
         return redirect()
-            ->route('home.pembanding.show', $pembanding)
-            ->with('success', 'Permintaan hapus berhasil dikirim dan menunggu evaluasi super_admin.');
+            ->route('app.pembanding.show', $pembanding)
+            ->with('success', 'Permintaan hapus berhasil dikirim dan menunggu evaluasi moderator.');
     }
 
     // ── History ───────────────────────────────────────────────────────────────

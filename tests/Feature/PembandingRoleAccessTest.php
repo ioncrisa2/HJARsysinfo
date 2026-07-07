@@ -183,20 +183,20 @@ it('returns an actionable web form error for an exact duplicate', function () {
     $image = UploadedFile::fake()->image('foto.jpg');
     $imageContents = file_get_contents($image->getRealPath());
 
-    $this->post('/home/pembanding', pembandingPayload([
+    $this->post('/app/pembanding', pembandingPayload([
         'image' => $image,
     ]))->assertRedirect();
 
     $record = Pembanding::query()->sole();
 
-    $this->from('/home/pembanding/create')
-        ->post('/home/pembanding', pembandingPayload([
+    $this->from('/app/pembanding/create')
+        ->post('/app/pembanding', pembandingPayload([
             'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
         ]))
-        ->assertRedirect('/home/pembanding/create')
+        ->assertRedirect('/app/pembanding/create')
         ->assertSessionHasErrors('duplicate')
         ->assertSessionHas('duplicate.id', $record->id)
-        ->assertSessionHas('duplicate.url', url("/home/pembanding/{$record->id}"));
+        ->assertSessionHas('duplicate.url', url("/app/pembanding/{$record->id}"));
 });
 
 it('prevents data contributor from deleting any pembanding', function () {

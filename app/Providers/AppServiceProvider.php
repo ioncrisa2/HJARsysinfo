@@ -5,7 +5,7 @@ namespace App\Providers;
 use App\Models\Pembanding;
 use App\Policies\ActivityPolicy;
 use App\Policies\PembandingPolicy;
-use App\Support\AdminAccess;
+use App\Support\AppAccess;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -34,8 +34,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Pembanding::class, PembandingPolicy::class);
         Gate::define('exportPembanding', fn ($user): bool => $user->can('export_data::pembanding'));
         Gate::define(
-            'admin.permission',
-            fn ($user, string|array $permissions): bool => AdminAccess::can($user, $permissions)
+            'app.permission',
+            fn ($user, string|array $permissions): bool => AppAccess::can($user, $permissions)
         );
 
         RateLimiter::for('api-write', function (Request $request) {

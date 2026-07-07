@@ -40,11 +40,10 @@ class DuplicatePembandingException extends RuntimeException
             ], 409);
         }
 
-        $isAdmin = $request->is('admin/*');
         $canView = ! $this->existing->trashed()
             && ($request->user()?->can('view', $this->existing) ?? false);
         $url = $canView
-            ? url(($isAdmin ? '/admin/pembanding/' : '/home/pembanding/').$this->existing->getKey())
+            ? url('/app/pembanding/'.$this->existing->getKey())
             : null;
 
         return back()

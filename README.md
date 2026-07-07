@@ -15,11 +15,11 @@ HJAR Sysinfo adalah sistem informasi internal untuk mengelola **data pembanding 
 - Admin dan staf input data.
 - Supervisor atau analis untuk review data dan laporan.
 
-## Panel admin
+## Aplikasi web
 
-Panel admin utama hasil migrasi tersedia di `/admin` dan dibangun dengan Vue 3 + Inertia.js. Semua route admin berada di dalam middleware `auth`, `app.user`, dan `role:super_admin`.
+Seluruh user menggunakan application shell yang sama di `/app`, dibangun dengan Vue 3 dan Inertia.js. Sidebar, halaman, dan action ditampilkan berdasarkan permission masing-masing user.
 
-Panel admin lama sudah dilepas dari runtime dan dependency Composer. Route `/admin` sekarang sepenuhnya milik panel Vue/Inertia.
+Tidak ada panel terpisah untuk `super_admin`. Role tersebut menggunakan aplikasi yang sama dengan permission paling lengkap. Authorization tetap diterapkan pada route, policy, request, dan scope data; penyembunyian menu bukan pengganti keamanan backend.
 
 ## Setup pengembangan
 
@@ -36,12 +36,12 @@ Untuk menjalankan aset secara development:
 npm run dev
 ```
 
-## Modul `/admin`
+## Modul `/app`
 
 - Dashboard
 - User management
 - Access control untuk role dan permission
-- Data pembanding CRUD
+- Data pembanding dan Bulk Import
 - Moderation desk
 - Master data
 - Geo data

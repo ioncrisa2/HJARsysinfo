@@ -223,7 +223,7 @@ class DataPembandingController extends Controller
 
         if ($alreadyPending) {
             return response()->json([
-                'message' => 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi super_admin.',
+                'message' => 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi moderator.',
             ], 422);
         }
 
@@ -234,7 +234,7 @@ class DataPembandingController extends Controller
             'status' => PembandingDeleteRequest::STATUS_PENDING,
         ]);
 
-        return $this->success(null, 'Permintaan hapus berhasil dikirim dan menunggu evaluasi super_admin.');
+        return $this->success(null, 'Permintaan hapus berhasil dikirim dan menunggu evaluasi moderator.');
     }
 
     /**
