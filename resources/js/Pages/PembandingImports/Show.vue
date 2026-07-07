@@ -238,7 +238,7 @@ onBeforeUnmount(stopPolling);
 <template>
     <Head :title="`Periksa ${props.batch.filename}`" />
 
-    <main class="space-y-5">
+    <div class="space-y-5">
         <header>
             <Link :href="baseUrl" class="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500">
                 <i class="pi pi-arrow-left" aria-hidden="true" /> Riwayat unggahan
@@ -418,5 +418,5 @@ onBeforeUnmount(stopPolling);
                 </div>
             </template>
         </Dialog>
-    </main>
+    </div>
 </template>

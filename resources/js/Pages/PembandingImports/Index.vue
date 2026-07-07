@@ -76,7 +76,7 @@ const submit = () => {
 <template>
     <Head title="Masukkan Data dari Excel" />
 
-    <main class="space-y-5">
+    <div class="space-y-5">
         <header class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-wider text-amber-700">Data Pembanding</p>
@@ -177,5 +177,5 @@ const submit = () => {
                 <Link v-for="link in props.batches.links" :key="link.label" :href="link.url ?? '#'" preserve-scroll class="rounded-md px-3 py-2 text-sm" :class="[link.active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100', !link.url ? 'pointer-events-none opacity-40' : '']" v-html="link.label" />
             </nav>
         </section>
-    </main>
+    </div>
 </template>

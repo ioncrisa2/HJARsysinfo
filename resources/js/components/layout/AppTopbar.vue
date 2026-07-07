@@ -1,12 +1,12 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { Link, router, usePage } from "@inertiajs/vue3";
 import { useClickOutside } from "../../composables/useClickOutside";
 
 const props = defineProps({
     breadcrumbs: { type: Array, required: true },
     user: { type: Object, required: true },
-    sidebarOpen: { type: Boolean, required: true },
+    sidebarExpanded: { type: Boolean, required: true },
 });
 
 const emit = defineEmits(["toggleSidebar"]);
@@ -15,7 +15,7 @@ const page = usePage();
 const PREFIX = "/app";
 
 const initials = computed(() => (props.user.name ?? "A").slice(0, 1).toUpperCase());
-const canSearch = computed(() => (page.props.auth?.permissions ?? []).includes("view_search"));
+const canSearch = computed(() => Boolean(page.props.auth?.can?.search));
 const globalSearch = ref("");
 
 watch(
@@ -33,11 +33,33 @@ watch(
 
 // ── Profile Dropdown ─────────────────────────────────────────────────────────
 const profileOpen = ref(false);
-const toggleProfile = () => (profileOpen.value = !profileOpen.value);
+const profileButton = ref(null);
+const profileMenu = ref(null);
+const closeProfile = ({ restoreFocus = false } = {}) => {
+    profileOpen.value = false;
+    if (restoreFocus) nextTick(() => profileButton.value?.focus());
+};
+const toggleProfile = async () => {
+    profileOpen.value = !profileOpen.value;
+    if (profileOpen.value) {
+        await nextTick();
+        profileMenu.value?.querySelector('[role="menuitem"]')?.focus();
+    }
+};
 
 useClickOutside("[data-profile-dropdown]", () => {
-    profileOpen.value = false;
+    closeProfile();
 }, { enabled: () => profileOpen.value });
+
+const handleKeydown = (event) => {
+    if (profileOpen.value && event.key === "Escape") {
+        event.preventDefault();
+        closeProfile({ restoreFocus: true });
+    }
+};
+
+onMounted(() => window.addEventListener("keydown", handleKeydown));
+onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
 const logout = () => router.post("/logout");
 
@@ -55,35 +77,37 @@ const submitGlobalSearch = () => {
 
 <template>
     <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0">
-        <div class="flex items-center gap-3">
+        <div class="flex min-w-0 items-center gap-3">
             <button
                 type="button"
                 @click="emit('toggleSidebar')"
-                class="-ml-2 inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                :aria-label="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'"
-                :aria-expanded="sidebarOpen"
+                class="-ml-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                :aria-label="sidebarExpanded ? 'Tutup navigasi aplikasi' : 'Buka navigasi aplikasi'"
+                :aria-expanded="sidebarExpanded"
+                aria-controls="app-sidebar"
             >
                 <i class="pi pi-bars text-base" />
             </button>
 
             <!-- Breadcrumbs -->
-            <nav class="flex items-center text-sm">
+            <nav class="flex min-w-0 items-center text-sm" aria-label="Breadcrumb">
                 <template v-for="(crumb, i) in breadcrumbs" :key="i">
-                    <span v-if="i > 0" class="text-slate-300 mx-1.5">/</span>
+                    <span v-if="i > 0" class="mx-1.5 hidden text-slate-300 sm:inline" aria-hidden="true">/</span>
                     <Link
                         v-if="crumb.href"
                         :href="crumb.href"
-                        class="text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1"
+                        class="min-w-0 items-center gap-1 text-slate-500 transition-colors hover:text-slate-800"
+                        :class="i === breadcrumbs.length - 1 ? 'flex' : 'hidden sm:flex'"
                     >
-                        <i v-if="crumb.icon" class="pi text-xs" :class="crumb.icon" />
-                        <span>{{ crumb.label }}</span>
+                        <i v-if="crumb.icon" class="pi text-xs" :class="crumb.icon" aria-hidden="true" />
+                        <span class="truncate">{{ crumb.label }}</span>
                     </Link>
-                    <span v-else class="text-slate-800 font-semibold">{{ crumb.label }}</span>
+                    <span v-else class="truncate font-semibold text-slate-800">{{ crumb.label }}</span>
                 </template>
             </nav>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex shrink-0 items-center gap-3">
             <form v-if="canSearch" class="hidden lg:block" role="search" @submit.prevent="submitGlobalSearch">
                 <label for="app_global_search" class="sr-only">Pencarian global</label>
                 <div class="relative w-72">
@@ -101,8 +125,8 @@ const submitGlobalSearch = () => {
             <Link
                 v-if="canSearch"
                 :href="`${PREFIX}/search`"
-                class="inline-flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 lg:hidden"
-                aria-label="Open global search"
+                class="inline-flex size-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500 lg:hidden"
+                aria-label="Buka pencarian global"
             >
                 <i class="pi pi-search text-sm" />
             </Link>
@@ -110,8 +134,13 @@ const submitGlobalSearch = () => {
             <!-- Profile Dropdown -->
             <div class="relative" data-profile-dropdown>
                 <button
+                    ref="profileButton"
+                    type="button"
                     @click="toggleProfile"
-                    class="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1 pr-3 py-1 text-sm font-medium text-slate-700 transition hover:border-slate-300"
+                    class="flex min-h-11 items-center gap-2.5 rounded-full border border-slate-200 bg-white pl-1 pr-3 py-1 text-sm font-medium text-slate-700 transition hover:border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+                    aria-haspopup="menu"
+                    :aria-expanded="profileOpen"
+                    aria-controls="app-profile-menu"
                 >
                     <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
                         {{ initials }}
@@ -125,6 +154,9 @@ const submitGlobalSearch = () => {
                 <Transition name="dropdown">
                     <div
                         v-if="profileOpen"
+                        id="app-profile-menu"
+                        ref="profileMenu"
+                        role="menu"
                         class="absolute right-0 top-[calc(100%+8px)] w-48 rounded-xl border border-slate-100 bg-white shadow-lg z-50 overflow-hidden"
                     >
                         <div class="border-b border-slate-100 px-4 py-3">
@@ -132,12 +164,14 @@ const submitGlobalSearch = () => {
                             <p class="mt-0.5 truncate text-sm font-semibold text-slate-800">{{ user.name }}</p>
                         </div>
                         <div class="p-1">
-                            <Link href="/app/profile" class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                            <Link href="/app/profile" role="menuitem" class="flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500">
                                 <i class="pi pi-user text-xs" /> Profil
                             </Link>
                             <button
+                                type="button"
+                                role="menuitem"
                                 @click="logout"
-                                class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50"
+                                class="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-red-500 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-500"
                             >
                                 <i class="pi pi-sign-out text-xs" /> Keluar
                             </button>

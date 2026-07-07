@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onMounted, onUnmounted } from "vue";
+import { computed, nextTick, ref, watch, onMounted, onUnmounted } from "vue";
 import { Head, router, usePage } from "@inertiajs/vue3";
 import Toast from "primevue/toast";
 import ConfirmDialog from "primevue/confirmdialog";
@@ -39,43 +39,101 @@ onMounted(() => {
 // ── Sidebar State ────────────────────────────────────────────────────────────
 const sidebarOpen = ref(true);
 const mobileOverlay = ref(false);
+const isMobile = ref(false);
 const autoCollapseBreakpoint = 1024;
+let mobileMenuTrigger = null;
+let removeNavigateListener = null;
+
+const sidebarExpanded = computed(() => isMobile.value ? mobileOverlay.value : sidebarOpen.value);
+const sidebarInert = computed(() => isMobile.value && !mobileOverlay.value);
+
+const focusableElements = () => Array.from(document.querySelectorAll(
+    '#app-sidebar a[href], #app-sidebar button:not([disabled]), #app-sidebar input:not([disabled]), #app-sidebar [tabindex]:not([tabindex="-1"])',
+));
+
+const focusMobileMenu = async () => {
+    await nextTick();
+    focusableElements()[0]?.focus();
+};
 
 const toggleSidebar = () => {
-    if (window.innerWidth < 768) {
-        mobileOverlay.value = !mobileOverlay.value;
+    if (isMobile.value) {
+        if (mobileOverlay.value) {
+            closeMobileMenu();
+        } else {
+            mobileMenuTrigger = document.activeElement;
+            mobileOverlay.value = true;
+            focusMobileMenu();
+        }
     } else {
         sidebarOpen.value = !sidebarOpen.value;
     }
 };
 
-const closeMobileMenu = () => {
+const closeMobileMenu = ({ restoreFocus = true } = {}) => {
+    if (!mobileOverlay.value) return;
+
     mobileOverlay.value = false;
+    if (restoreFocus) {
+        nextTick(() => mobileMenuTrigger?.focus?.());
+    }
 };
 
 const setInitialSidebarState = () => {
-    if (window.innerWidth >= 768 && window.innerWidth < autoCollapseBreakpoint) {
+    isMobile.value = window.innerWidth < 768;
+    if (!isMobile.value && window.innerWidth < autoCollapseBreakpoint) {
         sidebarOpen.value = false;
     }
 };
 
-// Close mobile overlay on route navigation
-router.on("navigate", () => {
-    mobileOverlay.value = false;
-});
-
 // Handle resize: close mobile overlay when going to desktop
 const handleResize = () => {
-    if (window.innerWidth >= 768) {
+    isMobile.value = window.innerWidth < 768;
+    if (!isMobile.value) {
         mobileOverlay.value = false;
+    }
+};
+
+const handleKeydown = (event) => {
+    if (!mobileOverlay.value) return;
+
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeMobileMenu();
+        return;
+    }
+
+    if (event.key !== "Tab") return;
+
+    const focusable = focusableElements();
+    if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
     }
 };
 
 onMounted(() => {
     setInitialSidebarState();
+    removeNavigateListener = router.on("navigate", () => closeMobileMenu({ restoreFocus: false }));
     window.addEventListener("resize", handleResize);
+    window.addEventListener("keydown", handleKeydown);
 });
-onUnmounted(() => window.removeEventListener("resize", handleResize));
+onUnmounted(() => {
+    removeNavigateListener?.();
+    window.removeEventListener("resize", handleResize);
+    window.removeEventListener("keydown", handleKeydown);
+});
 
 // ── Breadcrumbs ──────────────────────────────────────────────────────────────
 const breadcrumbs = computed(() => {
@@ -130,8 +188,11 @@ const breadcrumbs = computed(() => {
 
         <!-- Mobile Overlay Backdrop -->
         <Transition name="fade">
-            <div
+            <button
                 v-if="mobileOverlay"
+                type="button"
+                tabindex="-1"
+                aria-label="Tutup navigasi aplikasi"
                 class="fixed inset-0 bg-black/50 z-40 md:hidden"
                 @click="closeMobileMenu"
             />
@@ -140,7 +201,8 @@ const breadcrumbs = computed(() => {
         <!-- Sidebar -->
         <AppSidebar
             :sidebarOpen="sidebarOpen" 
-            :mobileOverlay="mobileOverlay" 
+            :mobileOverlay="mobileOverlay"
+            :inert="sidebarInert"
         />
 
         <!-- Main Content Area -->
@@ -149,7 +211,7 @@ const breadcrumbs = computed(() => {
             <AppTopbar
                 :breadcrumbs="breadcrumbs" 
                 :user="user" 
-                :sidebarOpen="sidebarOpen"
+                :sidebarExpanded="sidebarExpanded"
                 @toggleSidebar="toggleSidebar" 
             />
 

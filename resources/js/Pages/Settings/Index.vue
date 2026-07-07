@@ -4,10 +4,11 @@ import AppLayout from "../../Layouts/AppLayout.vue";
 import UiSurface from "../../components/ui/UiSurface.vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
-import Dropdown from "primevue/dropdown";
+import Select from "primevue/select";
 import ColorPicker from "primevue/colorpicker";
 import FileUpload from "primevue/fileupload";
 import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 
 const props = defineProps({
     settings: { type: Object, default: () => ({}) },
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const confirm = useConfirm();
 
 const form = useForm({
     system_mode: props.settings.system_mode || "live",
@@ -66,16 +68,23 @@ const handleLogoSelect = (event) => {
 const clearCache = () => {
     if (!props.can.clearCache) return;
 
-    router.post("/app/settings/clear-cache", {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            toast.add({
-                severity: "success",
-                summary: "Cache Dibersihkan",
-                detail: "Semua cache sistem telah dibersihkan.",
-                life: 3000,
-            });
-        },
+    confirm.require({
+        message: "Bersihkan seluruh cache aplikasi sekarang? Pengguna mungkin mengalami respons lebih lambat untuk request pertama setelah cache dibersihkan.",
+        header: "Konfirmasi bersihkan cache",
+        icon: "pi pi-exclamation-triangle",
+        acceptLabel: "Bersihkan Cache",
+        rejectLabel: "Batal",
+        accept: () => router.post("/app/settings/clear-cache", {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.add({
+                    severity: "success",
+                    summary: "Cache Dibersihkan",
+                    detail: "Semua cache sistem telah dibersihkan.",
+                    life: 3000,
+                });
+            },
+        }),
     });
 };
 </script>
@@ -114,7 +123,7 @@ const clearCache = () => {
                     <div class="space-y-4">
                         <div>
                             <label class="mb-1 block text-sm font-semibold text-slate-700">Mode Sistem</label>
-                            <Dropdown
+                            <Select
                                 v-model="form.system_mode"
                                 :disabled="!props.can.update"
                                 :options="modeOptions"

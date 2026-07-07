@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\AppAccessPermissionSeeder;
 use Database\Seeders\PembandingAccessRoleSeeder;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 beforeEach(function () {
     $this->seed(PembandingAccessRoleSeeder::class);
@@ -19,6 +20,14 @@ function appPermissionUser(array $permissions): User
         ->each(fn (string $permission) => Permission::findOrCreate($permission, 'web'));
 
     $user->givePermissionTo($permissions);
+
+    return $user;
+}
+
+function appRoleUser(string $role): User
+{
+    $user = User::factory()->create(['deactivated_at' => null]);
+    $user->assignRole(Role::findByName($role, 'web'));
 
     return $user;
 }
@@ -64,6 +73,39 @@ it('filters the shared application menu from backend permissions', function () {
     expect($menuLabels)
         ->toContain('Dashboard', 'Users', 'Export Data')
         ->not->toContain('Pengaturan', 'Backup Sistem', 'Access Control');
+});
+
+it('builds the shared menu for every primary role', function (string $role, array $visible, array $hidden) {
+    $response = $this->actingAs(appRoleUser($role))->get('/app')->assertOk();
+    $labels = collect($response->viewData('page')['props']['appMenu'])
+        ->flatMap(fn (array $section): array => collect($section['items'])
+            ->flatMap(fn (array $item): array => [
+                $item['label'],
+                ...collect($item['children'] ?? [])->pluck('label')->all(),
+            ])
+            ->all())
+        ->all();
+
+    expect($labels)->toContain(...$visible);
+    foreach ($hidden as $label) {
+        expect($labels)->not->toContain($label);
+    }
+})->with([
+    'super admin' => ['super_admin', ['Dashboard', 'Users', 'Daftar Data', 'Bulk Import', 'Pengaturan'], []],
+    'pimpinan' => ['pimpinan', ['Dashboard', 'Bank Data', 'Daftar Data'], ['Users', 'Bulk Import', 'Pengaturan']],
+    'data contributor' => ['data_contributor', ['Dashboard', 'Bank Data', 'Daftar Data'], ['Users', 'Bulk Import', 'Pengaturan']],
+    'surveyor' => ['surveyor', ['Dashboard', 'Bank Data', 'Daftar Data'], ['Users', 'Bulk Import', 'Pengaturan']],
+    'bulk import' => ['bulk_import', ['Dashboard', 'Bank Data', 'Bulk Import'], ['Users', 'Daftar Data', 'Pengaturan']],
+]);
+
+it('shares narrow frontend capabilities instead of raw permissions or panel flags', function () {
+    $user = appPermissionUser(['view_search']);
+    $auth = $this->actingAs($user)->get('/app')->assertOk()->viewData('page')['props']['auth'];
+
+    expect($auth)
+        ->toHaveKey('user')
+        ->toHaveKey('can.search', true)
+        ->not->toHaveKeys(['permissions', 'is_super_admin', 'can_bulk_import']);
 });
 
 it('shows bank data children according to permissions', function () {

@@ -36,7 +36,7 @@ it('redirects every role to the shared application dashboard', function (?string
         'email' => $user->email,
         'password' => 'password',
     ])->assertRedirect('/app');
-})->with(['super_admin', 'surveyor', null]);
+})->with(['super_admin', 'pimpinan', 'data_contributor', 'surveyor', 'bulk_import', null]);
 
 it('preserves an intended application url for any authenticated role', function () {
     $user = makeWebLoginUser(['email' => 'user@example.test']);
@@ -64,4 +64,15 @@ it('does not preserve legacy or external intended urls', function (string $inten
     'legacy home' => 'http://localhost/home',
     'legacy admin' => 'http://localhost/admin/users',
     'external host' => 'https://example.org/app/users',
+]);
+
+it('preserves query strings while redirecting authenticated legacy urls', function (string $legacyUrl) {
+    $user = makeWebLoginUser();
+
+    $this->actingAs($user)
+        ->get($legacyUrl)
+        ->assertRedirect('/app/pembanding?page=2&status=ready');
+})->with([
+    '/home/pembanding?status=ready&page=2',
+    '/admin/pembanding?status=ready&page=2',
 ]);

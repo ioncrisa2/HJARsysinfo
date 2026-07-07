@@ -144,7 +144,7 @@ const currencyConfig = { ...numConfig, maxFractionDigits: 0, prefix: "Rp " };
 <template>
     <Head :title="`Lengkapi data baris ${props.row.source_row_number}`" />
 
-    <main class="space-y-4 py-4">
+    <div class="space-y-4 py-4">
         <nav class="flex flex-wrap items-center justify-between gap-3" aria-label="Navigasi draf">
             <Link :href="`${baseUrl}/${props.batch.id}`" class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-600 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500">
                 <i class="pi pi-arrow-left" aria-hidden="true" /> Kembali ke daftar data
@@ -209,5 +209,5 @@ const currencyConfig = { ...numConfig, maxFractionDigits: 0, prefix: "Rp " };
             @clear-image="clearImage"
             @submit="submit"
         />
-    </main>
+    </div>
 </template>

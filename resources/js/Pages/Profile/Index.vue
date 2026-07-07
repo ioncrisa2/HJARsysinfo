@@ -106,7 +106,7 @@ const submit = () => {
 
             </div>
 
-            <div class="space-y-4">
+            <form class="space-y-4" @submit.prevent="submit">
                 <UiSurface padding="none" class="overflow-hidden">
                     <div class="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
                         <UiSectionHeader title="Informasi Akun" subtitle="Nama dan email yang digunakan untuk login." icon="pi pi-id-card" />
@@ -172,6 +172,7 @@ const submit = () => {
 
                 <div class="flex items-center justify-end gap-2">
                     <Button
+                        type="button"
                         label="Reset"
                         icon="pi pi-refresh"
                         severity="secondary"
@@ -180,13 +181,13 @@ const submit = () => {
                         @click="form.reset()"
                     />
                     <Button
+                        type="submit"
                         label="Simpan"
                         icon="pi pi-save"
                         :loading="form.processing"
-                        @click="submit"
                     />
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 </template>

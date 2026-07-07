@@ -8,7 +8,7 @@ import UiSurface from "../../components/ui/UiSurface.vue";
 import { apiRequest } from "../../utils/apiRequest";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
-import Dropdown from "primevue/dropdown";
+import Select from "primevue/select";
 import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
@@ -369,7 +369,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                     />
                                 </span>
 
-                                <Dropdown
+                                <Select
                                     v-if="['regencies', 'districts', 'villages'].includes(currentResource)"
                                     v-model="filterState.province_id"
                                     :options="options.provinces"
@@ -382,7 +382,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                     @change="handleProvinceFilterChange"
                                 />
 
-                                <Dropdown
+                                <Select
                                     v-if="['districts', 'villages'].includes(currentResource)"
                                     v-model="filterState.regency_id"
                                     :options="regencyOptions"
@@ -397,7 +397,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                     @change="handleRegencyFilterChange"
                                 />
 
-                                <Dropdown
+                                <Select
                                     v-if="currentResource === 'villages'"
                                     v-model="filterState.district_id"
                                     :options="districtOptions"
@@ -412,7 +412,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                     @change="applyFilters"
                                 />
 
-                                <Dropdown
+                                <Select
                                     v-model="filterState.per_page"
                                     :options="[10, 20, 50, 100]"
                                     placeholder="Per halaman"
@@ -530,7 +530,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                 </UiField>
 
                 <UiField v-if="currentResource !== 'provinces'" id="geo_province" label="Provinsi" required :error="form.errors.province_id">
-                    <Dropdown
+                    <Select
                         input-id="geo_province"
                         v-model="form.province_id"
                         :options="options.provinces"
@@ -545,7 +545,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                 </UiField>
 
                 <UiField v-if="['districts', 'villages'].includes(currentResource)" id="geo_regency" label="Kabupaten / Kota" required :error="form.errors.regency_id">
-                    <Dropdown
+                    <Select
                         input-id="geo_regency"
                         v-model="form.regency_id"
                         :options="regencyOptions"
@@ -561,7 +561,7 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                 </UiField>
 
                 <UiField v-if="currentResource === 'villages'" id="geo_district" label="Kecamatan" required :error="form.errors.district_id">
-                    <Dropdown
+                    <Select
                         input-id="geo_district"
                         v-model="form.district_id"
                         :options="districtOptions"

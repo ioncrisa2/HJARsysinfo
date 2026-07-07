@@ -122,7 +122,7 @@ const buildPointMarker = (point) => {
                 <span style="position:absolute;right:8px;top:8px;background:#d97706;color:white;font-weight:700;font-size:10px;padding:3px 8px;border-radius:999px;z-index:1">
                     ${escapeHtml(point.jenis_listing ?? "")}
                 </span>
-                <img src="${escapeHtml(imageUrl)}" style="width:100%;height:100%;object-fit:cover" loading="lazy" />
+                <img src="${escapeHtml(imageUrl)}" alt="Foto properti" style="width:100%;height:100%;object-fit:cover" loading="lazy" />
             </div>
             <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:3px;line-height:1.3">
                 ${escapeHtml(point.alamat ?? "Tanpa alamat")}

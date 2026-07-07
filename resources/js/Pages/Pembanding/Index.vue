@@ -176,7 +176,7 @@ const resetFilters = () => {
 <template>
     <Head title="Data Pembanding" />
 
-    <main class="space-y-3">
+    <div class="space-y-3">
 
         <PembandingHeaderBar
             :total="records.total ?? 0"
@@ -235,7 +235,7 @@ const resetFilters = () => {
             :has-active-filters="hasActiveFilters"
             @reset="resetFilters"
         />
-    </main>
+    </div>
 
     <PembandingExportDialog
         v-if="canExport"

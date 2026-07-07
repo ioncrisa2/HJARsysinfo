@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 const props = defineProps({
     sidebarOpen: { type: Boolean, required: true },
     mobileOverlay: { type: Boolean, required: true },
+    inert: { type: Boolean, default: false },
 });
 
 const page = usePage();
@@ -33,7 +34,10 @@ const toggleGroup = (section, item) => {
 
 <template>
     <aside
+        id="app-sidebar"
         aria-label="Navigasi aplikasi"
+        :aria-hidden="inert ? 'true' : undefined"
+        :inert="inert"
         :class="[
             'bg-slate-900 flex-shrink-0 transition-all duration-300 ease-in-out z-50',
             'fixed md:relative inset-y-0 left-0',
@@ -50,7 +54,11 @@ const toggleGroup = (section, item) => {
                     aria-label="Beranda aplikasi"
                 >
                     <div v-if="page.props.appSettings?.app_logo" class="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden bg-white">
-                        <img :src="'/storage/' + page.props.appSettings.app_logo" class="h-full w-full object-cover" />
+                        <img
+                            :src="'/storage/' + page.props.appSettings.app_logo"
+                            :alt="`Logo ${page.props.appSettings?.company_name || 'Bank Data KJPP HJA\'R'}`"
+                            class="h-full w-full object-cover"
+                        />
                     </div>
                     <div v-else class="flex h-8 w-8 items-center justify-center rounded-md overflow-hidden bg-white ring-1 ring-slate-700">
                         <img :src="'/images/h-logo.jpg'" alt="" class="h-full w-full object-cover" aria-hidden="true" />
@@ -109,7 +117,7 @@ const toggleGroup = (section, item) => {
                                         v-for="child in item.children"
                                         :key="child.href"
                                         :href="child.href"
-                                        class="flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                                        class="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
                                         :class="isActive(child.href)
                                             ? 'bg-amber-500/10 text-amber-400'
                                             : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"

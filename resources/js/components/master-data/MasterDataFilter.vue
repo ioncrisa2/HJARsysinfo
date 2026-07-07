@@ -1,6 +1,6 @@
 <script setup>
 import Button from "primevue/button";
-import Dropdown from "primevue/dropdown";
+import Select from "primevue/select";
 import InputText from "primevue/inputtext";
 
 const props = defineProps({
@@ -49,7 +49,7 @@ const perPageOptions = [10, 20, 50, 100];
                 />
             </span>
 
-            <Dropdown
+            <Select
                 v-model="filterState.status"
                 :options="statusOptions"
                 option-label="label"
@@ -58,7 +58,7 @@ const perPageOptions = [10, 20, 50, 100];
                 @change="emit('applyFilters')"
             />
 
-            <Dropdown
+            <Select
                 v-model="filterState.sort_by"
                 :options="sortOptions"
                 option-label="label"
@@ -68,7 +68,7 @@ const perPageOptions = [10, 20, 50, 100];
             />
 
             <div class="grid grid-cols-[1fr_auto] gap-2">
-                <Dropdown
+                <Select
                     v-model="filterState.per_page"
                     :options="perPageOptions"
                     class="w-full"

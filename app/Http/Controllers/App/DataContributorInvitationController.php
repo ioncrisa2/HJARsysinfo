@@ -20,7 +20,7 @@ class DataContributorInvitationController extends Controller
 
     public function index(Request $request): Response
     {
-        $this->authorizeInvitationAdmin($request);
+        $this->authorizeInvitationManagement();
         $this->expireStaleInvitations();
 
         $registrationRequests = DataContributorRegistrationRequest::query()
@@ -80,7 +80,7 @@ class DataContributorInvitationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeInvitationAdmin($request);
+        $this->authorizeInvitationManagement();
 
         $token = bin2hex(random_bytes(32));
 
@@ -100,7 +100,7 @@ class DataContributorInvitationController extends Controller
 
     public function destroy(Request $request, DataContributorInvite $invite): RedirectResponse
     {
-        $this->authorizeInvitationAdmin($request);
+        $this->authorizeInvitationManagement();
 
         if ($invite->status !== DataContributorInvite::STATUS_UNUSED || $invite->registrationRequest()->exists()) {
             return redirect()
@@ -117,7 +117,7 @@ class DataContributorInvitationController extends Controller
 
     public function accept(Request $request, DataContributorRegistrationRequest $registrationRequest): RedirectResponse
     {
-        $this->authorizeInvitationAdmin($request);
+        $this->authorizeInvitationManagement();
 
         $result = DB::transaction(function () use ($request, $registrationRequest): string {
             $registrationRequest = DataContributorRegistrationRequest::query()
@@ -167,7 +167,7 @@ class DataContributorInvitationController extends Controller
 
     public function reject(RejectRegistrationRequest $request, DataContributorRegistrationRequest $registrationRequest): RedirectResponse
     {
-        $this->authorizeInvitationAdmin($request);
+        $this->authorizeInvitationManagement();
 
         DB::transaction(function () use ($request, $registrationRequest): void {
             $registrationRequest = DataContributorRegistrationRequest::query()
@@ -198,10 +198,9 @@ class DataContributorInvitationController extends Controller
             ->with('success', 'Request data contributor berhasil ditolak.');
     }
 
-    private function authorizeInvitationAdmin(Request $request): void
+    private function authorizeInvitationManagement(): void
     {
         $this->authorizePermission('manage_data_contributor_invitations');
-        abort_unless($request->user()?->hasRole('super_admin'), 403);
     }
 
     private function expireStaleInvitations(): void

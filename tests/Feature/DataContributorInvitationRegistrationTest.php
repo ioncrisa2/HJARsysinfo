@@ -90,14 +90,19 @@ it('accepts a pending request and creates a data contributor user with the store
         ->and($invite->status)->toBe(DataContributorInvite::STATUS_ACCEPTED);
 });
 
-it('blocks invitation administration for non super admin users even when permission is assigned', function () {
+it('allows invitation administration based on permission without requiring a specific role', function () {
     $user = User::factory()->create();
     Permission::findOrCreate('manage_data_contributor_invitations', 'web');
     $user->givePermissionTo('manage_data_contributor_invitations');
 
     $this->actingAs($user)
         ->post('/app/data-contributor-invitations')
-        ->assertForbidden();
+        ->assertRedirect('/app/data-contributor-invitations');
+
+    $this->assertDatabaseHas('data_contributor_invites', [
+        'created_by' => $user->id,
+        'status' => DataContributorInvite::STATUS_UNUSED,
+    ]);
 });
 
 it('allows super admin to delete only unused invitations', function () {

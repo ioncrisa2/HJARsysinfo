@@ -22,9 +22,9 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user()?->only(['id', 'name', 'email']),
-                'is_super_admin' => (bool) $request->user()?->hasRole('super_admin'),
-                'can_bulk_import' => (bool) $request->user()?->can('bulk_import_data::pembanding'),
-                'permissions' => $request->user()?->getAllPermissions()->pluck('name')->values()->all() ?? [],
+                'can' => AppAccess::capabilityMap($request->user(), [
+                    'search' => 'view_search',
+                ]),
             ],
             'appMenu' => fn (): array => AppAccess::menuFor($request->user()),
             'flash' => [

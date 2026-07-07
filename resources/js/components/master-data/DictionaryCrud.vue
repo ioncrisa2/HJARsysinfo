@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import InputText from "primevue/inputtext";
 import Checkbox from "primevue/checkbox";
-import Dropdown from "primevue/dropdown";
+import Select from "primevue/select";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import UiSurface from "../ui/UiSurface.vue";
@@ -399,7 +399,7 @@ watch(
 
                     <div v-if="props.extra.includes('badge_color_token')" class="grid gap-4 sm:grid-cols-2">
                         <UiField id="md_badge" label="Badge color" help="Hanya untuk Jenis Listing.">
-                            <Dropdown
+                            <Select
                                 v-model="form.badge_color_token"
                                 :options="badgeOptions"
                                 option-label="label"

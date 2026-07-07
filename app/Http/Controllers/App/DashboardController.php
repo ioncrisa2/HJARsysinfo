@@ -142,9 +142,15 @@ class DashboardController extends Controller
 
             $monthKeys = $monthBuckets->map(fn ($date) => $date->format('Y-m'))->values();
             $monthLabels = $monthBuckets->map(fn ($date) => $date->translatedFormat('M Y'))->values();
+            $monthExpression = match (DB::connection()->getDriverName()) {
+                'mysql', 'mariadb' => "DATE_FORMAT(created_at, '%Y-%m')",
+                'pgsql' => "TO_CHAR(created_at, 'YYYY-MM')",
+                'sqlsrv' => "FORMAT(created_at, 'yyyy-MM')",
+                default => "strftime('%Y-%m', created_at)",
+            };
 
             $listingCounts = Pembanding::query()
-                ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month_key, jenis_listing_id, COUNT(*) as total")
+                ->selectRaw("{$monthExpression} as month_key, jenis_listing_id, COUNT(*) as total")
                 ->whereBetween('created_at', [$startRange, $endRange])
                 ->whereNotNull('jenis_listing_id')
                 ->groupBy('month_key', 'jenis_listing_id')
