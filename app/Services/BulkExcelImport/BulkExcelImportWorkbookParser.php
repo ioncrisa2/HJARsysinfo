@@ -35,6 +35,7 @@ class BulkExcelImportWorkbookParser
             if (($sheetInfo['totalRows'] ?? 0) - 1 > self::MAX_ROWS) {
                 throw new InvalidBulkExcelImportWorkbookException('File berisi lebih dari '.self::MAX_ROWS.' data. Pecah file menjadi beberapa unggahan.');
             }
+            $reader->setLoadSheetsOnly([self::SHEET_NAME]);
             $spreadsheet = $reader->load($path);
         } catch (InvalidBulkExcelImportWorkbookException $exception) {
             throw $exception;

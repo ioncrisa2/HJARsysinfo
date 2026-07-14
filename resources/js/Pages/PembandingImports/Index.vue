@@ -104,7 +104,10 @@ const submit = () => {
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="upload-heading">
             <div class="max-w-3xl">
                 <h2 id="upload-heading" class="text-lg font-bold text-slate-900">1. Unggah File Excel</h2>
-                <p class="mt-1 text-sm text-slate-600">Gunakan file .xlsx atau .xlsm dengan sheet Data_Pembanding. Maksimal 500 data dan ukuran 10 MB.</p>
+                <p class="mt-1 text-sm text-slate-600">
+                    Unggah file hasil export secara langsung. Sistem hanya membaca sheet <strong>Data_Pembanding</strong>;
+                    sheet lain otomatis diabaikan dan tidak perlu dihapus. Maksimal 500 data dan ukuran 10 MB.
+                </p>
 
                 <form class="mt-5 space-y-3" @submit.prevent="submit">
                     <label for="bulk-excel-import-file" class="block text-sm font-semibold text-slate-800">File Excel</label>

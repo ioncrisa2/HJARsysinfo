@@ -1,8 +1,8 @@
 <?php
 
-use App\Models\District;
 use App\Models\BulkExcelImportBatch;
 use App\Models\BulkExcelImportRow;
+use App\Models\District;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\User;
@@ -36,13 +36,20 @@ function bulkExcelImportTestRow(array $overrides = []): array
     ], $overrides);
 }
 
-function bulkExcelImportTestUpload(array $rows, array $headers = BulkExcelImportWorkbookParser::HEADERS, string $name = 'bulk-import.xlsx'): UploadedFile
-{
+function bulkExcelImportTestUpload(
+    array $rows,
+    array $headers = BulkExcelImportWorkbookParser::HEADERS,
+    string $name = 'bulk-import.xlsx',
+    array $extraSheets = [],
+): UploadedFile {
     $spreadsheet = new Spreadsheet;
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle(BulkExcelImportWorkbookParser::SHEET_NAME);
     $sheet->fromArray($headers, null, 'A1');
     $sheet->fromArray($rows, null, 'A2');
+    foreach ($extraSheets as $extraSheet) {
+        $spreadsheet->createSheet()->setTitle($extraSheet)->setCellValue('A1', 'Sheet ini harus diabaikan');
+    }
 
     $path = tempnam(sys_get_temp_dir(), 'bulk-excel-import-test-');
     (new Xlsx($spreadsheet))->save($path);
@@ -99,6 +106,24 @@ it('stores workbook rows as drafts without creating main records', function () {
         ->and(BulkExcelImportRow::query()->where('status', BulkExcelImportRow::STATUS_INCOMPLETE)->count())->toBe(2);
     $this->assertDatabaseCount('data_pembanding', 0);
     Storage::disk('local')->assertExists($batch->source_path);
+});
+
+it('reads only Data_Pembanding and ignores every other exported sheet', function () {
+    $user = bulkExcelImportRoleUser();
+    $upload = bulkExcelImportTestUpload(
+        [bulkExcelImportTestRow()],
+        name: 'export-lengkap.xlsm',
+        extraSheets: ['Cover', 'Rekap', 'Lampiran', 'Referensi'],
+    );
+
+    $this->actingAs($user)
+        ->post('/app/pembanding-imports', ['file' => $upload])
+        ->assertRedirect();
+
+    $batch = BulkExcelImportBatch::query()->sole();
+    expect($batch->sheet_name)->toBe(BulkExcelImportWorkbookParser::SHEET_NAME)
+        ->and($batch->total_rows)->toBe(1)
+        ->and($batch->rows()->sole()->raw_payload['Alamat'])->toBe('Jalan Contoh 1');
 });
 
 it('keeps super admin bulk import inside the shared application', function () {
