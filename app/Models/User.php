@@ -65,6 +65,11 @@ class User extends Authenticatable
         return $this->hasMany(BulkExcelImportBatch::class, 'owner_id');
     }
 
+    public function exportRuns(): HasMany
+    {
+        return $this->hasMany(ExportRun::class);
+    }
+
     public function scopeActive(Builder $query): void
     {
         $query->whereNull('deactivated_at');

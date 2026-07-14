@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\App\AccessControlController;
 use App\Http\Controllers\App\ActivityLogController;
+use App\Http\Controllers\App\AppNotificationController;
 use App\Http\Controllers\App\BackupController;
 use App\Http\Controllers\App\BulkExcelImportController;
 use App\Http\Controllers\App\DashboardController;
@@ -182,6 +183,11 @@ Route::middleware(['auth', 'app.user'])
 
         Route::get('export', [ExportController::class, 'index'])->middleware('permission:view_export')->name('export.index');
         Route::get('export/download', [ExportController::class, 'download'])->middleware('permission:export_data::pembanding')->name('export.download');
+        Route::post('export/preview', [ExportController::class, 'preview'])->middleware('permission:export_data::pembanding')->name('export.preview');
+        Route::post('export/runs', [ExportController::class, 'store'])->middleware('permission:export_data::pembanding')->name('export.runs.store');
+        Route::get('export/runs/{exportRun}', [ExportController::class, 'status'])->middleware('permission:export_data::pembanding')->name('export.runs.status');
+        Route::get('export/runs/{exportRun}/download', [ExportController::class, 'downloadRun'])->middleware('permission:export_data::pembanding')->name('export.runs.download');
+        Route::post('export/runs/{exportRun}/retry', [ExportController::class, 'retry'])->middleware('permission:export_data::pembanding')->name('export.runs.retry');
         Route::get('backup', [BackupController::class, 'index'])->middleware('permission:view_backup')->name('backup.index');
         Route::post('backup/database', [BackupController::class, 'database'])->middleware('permission:create_database_backup')->name('backup.database');
         Route::post('backup/uploads', [BackupController::class, 'uploads'])->middleware('permission:create_uploads_backup')->name('backup.uploads');
@@ -191,6 +197,7 @@ Route::middleware(['auth', 'app.user'])
         Route::post('settings/clear-cache', [SettingController::class, 'clearCache'])->middleware('permission:clear_cache')->name('settings.clear-cache');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->middleware('permission:view_activity_log')->name('activity-logs.index');
         Route::get('activity-logs/{id}', [ActivityLogController::class, 'show'])->middleware('permission:view_activity_log')->name('activity-logs.show');
+        Route::post('notifications/read-all', [AppNotificationController::class, 'readAll'])->name('notifications.read-all');
     });
 
 Route::middleware('auth')->group(function () {

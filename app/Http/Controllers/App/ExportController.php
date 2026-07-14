@@ -2,26 +2,31 @@
 
 namespace App\Http\Controllers\App;
 
-use App\Exports\PembandingSelectionExport;
 use App\Http\Controllers\App\Concerns\AuthorizesPermissions;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\App\PembandingExportRequest;
+use App\Jobs\GeneratePembandingExport;
 use App\Models\District;
+use App\Models\ExportRun;
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\Pembanding;
 use App\Models\Province;
 use App\Models\Regency;
+use App\Models\User;
 use App\Models\Village;
+use App\Services\Exports\PembandingExportFileService;
+use App\Services\Exports\PembandingExportQueryService;
+use App\Services\Pembanding\PembandingBrowseFilterService;
 use App\Support\AppAccess;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
+use App\Support\Exports\PembandingExportColumnRegistry;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -29,177 +34,269 @@ class ExportController extends Controller
 {
     use AuthorizesPermissions;
 
-    private const MAX_EXPORT_ROWS = 5000;
+    private const LIMITS = [
+        'excel' => 5000,
+        'csv' => 5000,
+        'geojson' => 5000,
+        'kml' => 5000,
+        'pdf_summary' => 1000,
+        'pdf_detail' => 100,
+    ];
 
-    public function index(Request $request): InertiaResponse
+    private const ASYNC_LIMITS = [
+        'excel' => 100000,
+        'csv' => 100000,
+        'geojson' => 50000,
+        'kml' => 50000,
+        'pdf_summary' => 5000,
+        'pdf_detail' => 500,
+    ];
+
+    public function __construct(
+        private readonly PembandingExportQueryService $queryService,
+        private readonly PembandingExportFileService $fileService,
+        private readonly PembandingExportColumnRegistry $columnRegistry,
+    ) {}
+
+    public function index(PembandingExportRequest $request): InertiaResponse
     {
         $this->authorizePermission('view_export');
 
-        $filters = $this->filters($request);
-        $query = $this->applyFilters($this->baseQuery(), $filters);
+        $filters = $this->requestFilters($request);
+        $query = $this->queryService->query($request->user(), $filters);
+        $perPage = (int) ($request->validated('per_page') ?? 25);
 
         $records = (clone $query)
-            ->orderByDesc('tanggal_data')
-            ->orderByDesc('id')
-            ->paginate($filters['per_page'])
+            ->paginate($perPage)
             ->through(fn (Pembanding $record): array => $this->mapRecord($record))
             ->withQueryString();
 
         return Inertia::render('Export/Index', [
             'records' => $records,
-            'filters' => $filters,
-            'options' => $this->options($filters),
-            'summary' => [
-                'total' => (clone $query)->count(),
-                'max_export_rows' => self::MAX_EXPORT_ROWS,
-            ],
+            'filters' => [...$filters, 'per_page' => $perPage],
+            'options' => $this->options($filters, $request->user()),
+            'exportConfiguration' => $this->columnRegistry->publicConfiguration($request->user()),
+            'exportRuns' => $request->user()->exportRuns()->latest()->limit(10)->get()->map(fn (ExportRun $run): array => $this->mapExportRun($run)),
+            'summary' => $this->summary($query),
             'can' => AppAccess::capabilityMap($request->user(), [
                 'download' => 'export_data::pembanding',
+                'sensitive' => 'export_sensitive_data::pembanding',
             ]),
         ]);
     }
 
-    public function download(Request $request): BinaryFileResponse|StreamedResponse
+    public function download(PembandingExportRequest $request): BinaryFileResponse|StreamedResponse
     {
         $this->authorizePermission('export_data::pembanding');
 
-        $data = $request->validate([
-            'format' => ['required', 'string', 'in:excel,pdf'],
-            'ids' => ['nullable', 'string'],
-            'province_id' => ['nullable', 'string', 'exists:provinces,id'],
-            'regency_id' => ['nullable', 'string', 'exists:regencies,id'],
-            'district_id' => ['nullable', 'string', 'exists:districts,id'],
-            'village_id' => ['nullable', 'string', 'exists:villages,id'],
-            'jenis_listing_id' => ['nullable', 'integer', 'exists:master_jenis_listing,id'],
-            'jenis_objek_id' => ['nullable', 'integer', 'exists:master_jenis_objek,id'],
-            'dari_tanggal' => ['nullable', 'date'],
-            'sampai_tanggal' => ['nullable', 'date', 'after_or_equal:dari_tanggal'],
-            'q' => ['nullable', 'string', 'max:255'],
-        ]);
+        $format = (string) ($request->validated('format') ?? 'excel');
+        $mode = (string) ($request->validated('mode') ?? 'summary');
+        $scope = (string) ($request->validated('scope') ?? 'filtered');
+        $filters = $this->requestFilters($request);
+        $ids = $scope === 'selected' ? $this->queryService->parseIds($request->input('ids')) : [];
 
-        $ids = $this->parseIds((string) ($data['ids'] ?? ''));
-        $filters = $this->filters($request);
-
-        $query = $this->applyFilters($this->baseQuery(), $filters);
-
-        if ($ids !== []) {
-            $query->whereKey($ids);
-        } else {
-            $query->limit(self::MAX_EXPORT_ROWS);
+        if ($scope === 'selected' && $ids === []) {
+            throw ValidationException::withMessages(['ids' => 'Pilih sedikitnya satu data untuk diexport.']);
         }
 
-        $records = $query
-            ->orderByDesc('tanggal_data')
-            ->orderByDesc('id')
-            ->get();
+        $query = $this->queryService->query($request->user(), $filters, $ids);
+        $count = (clone $query)->count();
+        $limit = $this->limitFor($format, $mode);
 
-        return $this->export($records, $data['format']);
-    }
+        if ($count > $limit) {
+            throw ValidationException::withMessages([
+                'scope' => "Export {$format} {$mode} maksimal {$limit} data untuk proses langsung. Persempit filter atau gunakan pilihan data.",
+            ]);
+        }
 
-    private function baseQuery(): Builder
-    {
-        return Pembanding::query()->with([
-            'province',
-            'regency',
-            'district',
-            'village',
-            'jenisListing',
-            'jenisObjek',
-            'statusPemberiInformasi',
-            'bentukTanah',
-            'dokumenTanah',
-            'posisiTanah',
-            'kondisiTanah',
-            'topografiRef',
-            'peruntukanRef',
-        ]);
-    }
+        $columns = $this->columnRegistry->resolveColumns(
+            $request->user(),
+            $request->validated('profile'),
+            $request->validated('columns') ?? [],
+        );
 
-    private function applyFilters(Builder $query, array $filters): Builder
-    {
-        return $query
-            ->when($filters['province_id'], fn (Builder $builder, string $value) => $builder->where('province_id', $value))
-            ->when($filters['regency_id'], fn (Builder $builder, string $value) => $builder->where('regency_id', $value))
-            ->when($filters['district_id'], fn (Builder $builder, string $value) => $builder->where('district_id', $value))
-            ->when($filters['village_id'], fn (Builder $builder, string $value) => $builder->where('village_id', $value))
-            ->when($filters['jenis_listing_id'], fn (Builder $builder, int $value) => $builder->where('jenis_listing_id', $value))
-            ->when($filters['jenis_objek_id'], fn (Builder $builder, int $value) => $builder->where('jenis_objek_id', $value))
-            ->when($filters['dari_tanggal'], fn (Builder $builder, string $date) => $builder->whereDate('tanggal_data', '>=', $date))
-            ->when($filters['sampai_tanggal'], fn (Builder $builder, string $date) => $builder->whereDate('tanggal_data', '<=', $date))
-            ->when($filters['q'], function (Builder $builder, string $search): void {
-                $builder->where(function (Builder $query) use ($search): void {
-                    $query
-                        ->where('alamat_data', 'like', "%{$search}%")
-                        ->orWhere('nama_pemberi_informasi', 'like', "%{$search}%");
-                });
-            });
-    }
+        if ($columns === []) {
+            throw ValidationException::withMessages(['columns' => 'Tidak ada kolom yang diizinkan untuk diexport.']);
+        }
 
-    private function filters(Request $request): array
-    {
-        $validated = $request->validate([
-            'province_id' => ['nullable', 'string', 'exists:provinces,id'],
-            'regency_id' => ['nullable', 'string', 'exists:regencies,id'],
-            'district_id' => ['nullable', 'string', 'exists:districts,id'],
-            'village_id' => ['nullable', 'string', 'exists:villages,id'],
-            'jenis_listing_id' => ['nullable', 'integer', 'exists:master_jenis_listing,id'],
-            'jenis_objek_id' => ['nullable', 'integer', 'exists:master_jenis_objek,id'],
-            'dari_tanggal' => ['nullable', 'date'],
-            'sampai_tanggal' => ['nullable', 'date', 'after_or_equal:dari_tanggal'],
-            'q' => ['nullable', 'string', 'max:255'],
-            'per_page' => ['nullable', 'integer', 'in:25,50,100'],
-        ]);
-
-        $filters = [
-            'province_id' => $validated['province_id'] ?? null,
-            'regency_id' => $validated['regency_id'] ?? null,
-            'district_id' => $validated['district_id'] ?? null,
-            'village_id' => $validated['village_id'] ?? null,
-            'jenis_listing_id' => isset($validated['jenis_listing_id']) ? (int) $validated['jenis_listing_id'] : null,
-            'jenis_objek_id' => isset($validated['jenis_objek_id']) ? (int) $validated['jenis_objek_id'] : null,
-            'dari_tanggal' => $validated['dari_tanggal'] ?? null,
-            'sampai_tanggal' => $validated['sampai_tanggal'] ?? null,
-            'q' => filled($validated['q'] ?? null) ? trim((string) $validated['q']) : null,
-            'per_page' => (int) ($validated['per_page'] ?? 25),
+        $metadata = [
+            'Dibuat pada' => now()->format('Y-m-d H:i:s T'),
+            'Diminta oleh' => $request->user()->name,
+            'Format' => strtoupper($format),
+            'Mode' => $mode,
+            'Profil' => $request->validated('profile') ?? PembandingExportColumnRegistry::DEFAULT_PROFILE,
+            'Scope' => $scope,
+            'Jumlah data' => $count,
+            'Filter' => array_filter($filters, fn (mixed $value): bool => filled($value)),
         ];
 
-        if (! $filters['province_id']) {
-            $filters['regency_id'] = null;
-            $filters['district_id'] = null;
-            $filters['village_id'] = null;
-        }
+        activity('export')->causedBy($request->user())->event('downloaded')
+            ->withProperties([
+                'format' => $format,
+                'mode' => $mode,
+                'profile' => $request->validated('profile') ?? PembandingExportColumnRegistry::DEFAULT_PROFILE,
+                'scope' => $scope,
+                'records' => $count,
+                'filters' => $filters,
+                'columns' => $columns,
+            ])->log('Export sinkron dibuat dan diunduh');
 
-        if (! $filters['regency_id']) {
-            $filters['district_id'] = null;
-            $filters['village_id'] = null;
-        }
-
-        if (! $filters['district_id']) {
-            $filters['village_id'] = null;
-        }
-
-        return $filters;
+        return $this->fileService->download($query->get(), $format, $mode, $columns, $metadata);
     }
 
-    private function options(array $filters): array
+    public function preview(PembandingExportRequest $request): JsonResponse
+    {
+        $this->authorizePermission('export_data::pembanding');
+
+        $format = (string) ($request->validated('format') ?? 'excel');
+        $mode = (string) ($request->validated('mode') ?? 'summary');
+        $scope = (string) ($request->validated('scope') ?? 'filtered');
+        $ids = $scope === 'selected' ? $this->queryService->parseIds($request->input('ids')) : [];
+        $query = $this->queryService->query($request->user(), $this->requestFilters($request), $ids);
+        $count = (clone $query)->count();
+        $limit = $this->limitFor($format, $mode);
+
+        return response()->json([
+            'count' => $count,
+            'sync_limit' => $limit,
+            'queued' => $count > $limit,
+            'without_coordinates' => (clone $query)->where(function ($builder): void {
+                $builder->whereNull('latitude')->orWhereNull('longitude');
+            })->count(),
+        ]);
+    }
+
+    public function store(PembandingExportRequest $request): RedirectResponse
+    {
+        $this->authorizePermission('export_data::pembanding');
+
+        $format = (string) ($request->validated('format') ?? 'excel');
+        $mode = (string) ($request->validated('mode') ?? 'summary');
+        $profile = (string) ($request->validated('profile') ?? PembandingExportColumnRegistry::DEFAULT_PROFILE);
+        $scope = (string) ($request->validated('scope') ?? 'filtered');
+        $filters = $this->requestFilters($request);
+        $ids = $scope === 'selected' ? $this->queryService->parseIds($request->input('ids')) : [];
+
+        if ($scope === 'selected' && $ids === []) {
+            throw ValidationException::withMessages(['ids' => 'Pilih sedikitnya satu data untuk diexport.']);
+        }
+
+        $columns = $this->columnRegistry->resolveColumns($request->user(), $profile, $request->validated('columns') ?? []);
+        if ($columns === []) {
+            throw ValidationException::withMessages(['columns' => 'Tidak ada kolom yang diizinkan untuk diexport.']);
+        }
+
+        $snapshotAt = now();
+        $total = $this->queryService->query($request->user(), $filters, $ids, $snapshotAt)->count();
+        $asyncLimit = self::ASYNC_LIMITS[$format === 'pdf' ? "pdf_{$mode}" : $format] ?? self::ASYNC_LIMITS['excel'];
+        if ($total > $asyncLimit) {
+            throw ValidationException::withMessages([
+                'scope' => "Export ini berisi {$total} data dan melewati batas antrean {$asyncLimit}. Persempit filter sebelum melanjutkan.",
+            ]);
+        }
+        $run = ExportRun::query()->create([
+            'user_id' => $request->user()->id,
+            'status' => ExportRun::STATUS_PENDING,
+            'format' => $format,
+            'mode' => $mode,
+            'profile' => $profile,
+            'scope' => $scope,
+            'filters' => $filters,
+            'selected_ids' => $ids,
+            'columns' => $columns,
+            'snapshot_at' => $snapshotAt,
+            'total_records' => $total,
+            'disk' => 'local',
+        ]);
+
+        activity('export')->causedBy($request->user())->performedOn($run)->event('requested')
+            ->withProperties(['filters' => $filters, 'columns' => $columns, 'records' => $total])->log('Export diminta');
+        GeneratePembandingExport::dispatch($run->id);
+
+        return back()->with('success', 'Export masuk antrean. Statusnya dapat dipantau pada riwayat export.');
+    }
+
+    public function status(PembandingExportRequest $request, ExportRun $exportRun): JsonResponse
+    {
+        $this->authorizeRun($request->user(), $exportRun);
+
+        return response()->json($this->mapExportRun($exportRun->fresh()));
+    }
+
+    public function downloadRun(PembandingExportRequest $request, ExportRun $exportRun): StreamedResponse
+    {
+        $this->authorizeRun($request->user(), $exportRun);
+        abort_unless($exportRun->isDownloadable() && Storage::disk($exportRun->disk)->exists($exportRun->path), 404);
+
+        $exportRun->update(['downloaded_at' => now()]);
+        activity('export')->causedBy($request->user())->performedOn($exportRun)->event('downloaded')->log('File export diunduh');
+
+        return Storage::disk($exportRun->disk)->download($exportRun->path, $exportRun->filename);
+    }
+
+    public function retry(PembandingExportRequest $request, ExportRun $exportRun): RedirectResponse
+    {
+        $this->authorizeRun($request->user(), $exportRun);
+        abort_unless($exportRun->status === ExportRun::STATUS_FAILED, 409);
+
+        $exportRun->update([
+            'status' => ExportRun::STATUS_PENDING,
+            'started_at' => null,
+            'failed_at' => null,
+            'error' => null,
+            'processed_records' => 0,
+        ]);
+        GeneratePembandingExport::dispatch($exportRun->id);
+
+        return back()->with('success', 'Export dijadwalkan ulang.');
+    }
+
+    private function limitFor(string $format, string $mode): int
+    {
+        return self::LIMITS[$format === 'pdf' ? "pdf_{$mode}" : $format] ?? self::LIMITS['excel'];
+    }
+
+    private function summary($query): array
+    {
+        return [
+            'total' => (clone $query)->count(),
+            'limits' => self::LIMITS,
+            'max_export_rows' => self::LIMITS['excel'],
+            'without_coordinates' => (clone $query)->where(function ($builder): void {
+                $builder->whereNull('latitude')->orWhereNull('longitude');
+            })->count(),
+            'without_photo' => (clone $query)->where(function ($builder): void {
+                $builder->whereNull('image')->orWhere('image', '');
+            })->count(),
+            'without_price' => (clone $query)->where(function ($builder): void {
+                $builder->whereNull('harga')->orWhere('harga', '<=', 0);
+            })->count(),
+            'stale' => (clone $query)->whereDate('tanggal_data', '<', now()->subYears(2)->toDateString())->count(),
+            'inactive_references' => (clone $query)->where(function ($issues): void {
+                foreach (['jenisListing', 'jenisObjek', 'statusPemberiInformasi', 'bentukTanah', 'dokumenTanah', 'posisiTanah', 'kondisiTanah', 'topografiRef', 'peruntukanRef'] as $relation) {
+                    $issues->orWhereHas($relation, fn ($reference) => $reference->where('is_active', false));
+                }
+            })->count(),
+        ];
+    }
+
+    private function options(array $filters, User $user): array
     {
         return [
             'provinces' => $this->mapSelectOptions(Province::query()->orderBy('name')->get()),
             'regencies' => $filters['province_id']
-                ? $this->mapSelectOptions(Regency::query()->where('province_id', $filters['province_id'])->orderBy('name')->get())
-                : [],
+                ? $this->mapSelectOptions(Regency::query()->where('province_id', $filters['province_id'])->orderBy('name')->get()) : [],
             'districts' => $filters['regency_id']
-                ? $this->mapSelectOptions(District::query()->where('regency_id', $filters['regency_id'])->orderBy('name')->get())
-                : [],
+                ? $this->mapSelectOptions(District::query()->where('regency_id', $filters['regency_id'])->orderBy('name')->get()) : [],
             'villages' => $filters['district_id']
-                ? $this->mapSelectOptions(Village::query()->where('district_id', $filters['district_id'])->orderBy('name')->get())
+                ? $this->mapSelectOptions(Village::query()->where('district_id', $filters['district_id'])->orderBy('name')->get()) : [],
+            'jenisListings' => $this->mapSelectOptions(JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
+            'jenisObjeks' => $this->mapSelectOptions(JenisObjek::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()),
+            'creators' => $user->can('view_any_data::pembanding')
+                ? $this->mapSelectOptions(User::query()
+                    ->whereIn('id', Pembanding::query()->select('created_by')->whereNotNull('created_by'))
+                    ->orderBy('name')->get())
                 : [],
-            'jenisListings' => $this->mapSelectOptions(
-                JenisListing::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()
-            ),
-            'jenisObjeks' => $this->mapSelectOptions(
-                JenisObjek::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get()
-            ),
         ];
     }
 
@@ -227,47 +324,40 @@ class ExportController extends Controller
         ];
     }
 
-    private function export(Collection $records, string $format): BinaryFileResponse|StreamedResponse
-    {
-        $filename = 'pembanding-'.now()->format('Ymd_His');
-
-        if ($format === 'pdf') {
-            $pdf = Pdf::loadView('exports.pembanding-pdf', [
-                'records' => $records,
-            ])->setPaper('a4', 'landscape');
-
-            return Response::streamDownload(
-                fn () => print ($pdf->output()),
-                "{$filename}.pdf",
-                ['Content-Type' => 'application/pdf']
-            );
-        }
-
-        return Excel::download(new PembandingSelectionExport($records), "{$filename}.xlsx");
-    }
-
-    private function parseIds(string $ids): array
-    {
-        if ($ids === '') {
-            return [];
-        }
-
-        return collect(explode(',', $ids))
-            ->map(fn (string $id): int => (int) trim($id))
-            ->filter(fn (int $id): bool => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-    }
-
     private function mapSelectOptions(Collection $items): array
     {
-        return $items
-            ->map(fn ($item): array => [
-                'label' => (string) $item->name,
-                'value' => $item->id,
-            ])
-            ->values()
-            ->all();
+        return $items->map(fn ($item): array => ['label' => (string) $item->name, 'value' => $item->id])->values()->all();
+    }
+
+    private function authorizeRun(User $user, ExportRun $run): void
+    {
+        abort_unless((int) $run->user_id === (int) $user->id || $user->can('view_export_audit'), 403);
+    }
+
+    private function mapExportRun(ExportRun $run): array
+    {
+        return [
+            'id' => $run->id,
+            'status' => $run->status,
+            'format' => $run->format,
+            'mode' => $run->mode,
+            'profile' => $run->profile,
+            'scope' => $run->scope,
+            'total_records' => $run->total_records,
+            'processed_records' => $run->processed_records,
+            'created_at' => $run->created_at?->toIso8601String(),
+            'expires_at' => $run->expires_at?->toIso8601String(),
+            'error' => $run->status === ExportRun::STATUS_FAILED ? $run->error : null,
+            'download_url' => $run->isDownloadable() ? route('app.export.runs.download', $run) : null,
+            'retry_url' => $run->status === ExportRun::STATUS_FAILED ? route('app.export.runs.retry', $run) : null,
+        ];
+    }
+
+    private function requestFilters(PembandingExportRequest $request): array
+    {
+        return [
+            ...$request->filters(app(PembandingBrowseFilterService::class)),
+            'dataset' => (string) ($request->validated('dataset') ?? 'all'),
+        ];
     }
 }

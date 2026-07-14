@@ -130,7 +130,7 @@ const toQueryPayload = (source = appliedFilters) => {
 const buildExportUrl = (format = "excel") => {
     const params = new URLSearchParams(toQueryPayload());
     params.set("format", format);
-    return `/app/pembanding/export?${params.toString()}`;
+    return `/app/export/download?${params.toString()}&scope=filtered`;
 };
 
 const exportByFilter = (format = "excel") => {

@@ -120,7 +120,11 @@ class PembandingBrowseFilterService
             ->when($filters['village_id'] ?? null, fn (Builder $builder, $value) => $builder->where('village_id', $value))
             ->when(
                 $filters['q'] ?? null,
-                fn (Builder $builder, string $search) => $builder->where('alamat_data', 'like', '%'.$search.'%')
+                fn (Builder $builder, string $search) => $builder->where(function (Builder $query) use ($search): void {
+                    $query
+                        ->where('alamat_data', 'like', '%'.$search.'%')
+                        ->orWhere('nama_pemberi_informasi', 'like', '%'.$search.'%');
+                })
             )
             ->when(
                 $filters['dari_tanggal'] ?? null,

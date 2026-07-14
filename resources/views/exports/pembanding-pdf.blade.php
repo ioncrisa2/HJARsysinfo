@@ -21,6 +21,10 @@
             width: 100%;
         }
 
+        .record:last-child {
+            page-break-after: auto;
+        }
+
         .header {
             margin-bottom: 8px;
         }
@@ -117,6 +121,9 @@
     @foreach ($records as $record)
         <div class="record">
             <div class="header">
+                <div class="small" style="margin-bottom: 6px;">
+                    Export dibuat {{ $metadata['Dibuat pada'] ?? now()->format('Y-m-d H:i:s') }} oleh {{ $metadata['Diminta oleh'] ?? '-' }} · Dokumen internal
+                </div>
                 <h1>Data Pembanding #{{ $record->id }}</h1>
             </div>
 
@@ -203,6 +210,7 @@
                         </tr>
                     </table>
 
+                    @if ($includeSensitive)
                     <div class="panel">
                         <div class="small" style="margin-bottom:4px;">Pemberi Informasi</div>
                         <table>
@@ -220,6 +228,7 @@
                             </tr>
                         </table>
                     </div>
+                    @endif
                 </div>
 
                 <!-- RIGHT COLUMN -->

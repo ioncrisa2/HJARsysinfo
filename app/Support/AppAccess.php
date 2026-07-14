@@ -68,6 +68,7 @@ class AppAccess
             'delete_geo_data',
 
             'view_export',
+            'view_export_audit',
             'view_backup',
             'create_database_backup',
             'create_uploads_backup',

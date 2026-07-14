@@ -17,6 +17,8 @@ const PREFIX = "/app";
 const initials = computed(() => (props.user.name ?? "A").slice(0, 1).toUpperCase());
 const canSearch = computed(() => Boolean(page.props.auth?.can?.search));
 const globalSearch = ref("");
+const notifications = computed(() => page.props.notifications ?? { unread_count: 0, items: [] });
+const notificationsOpen = ref(false);
 
 watch(
     () => page.url,
@@ -50,11 +52,17 @@ const toggleProfile = async () => {
 useClickOutside("[data-profile-dropdown]", () => {
     closeProfile();
 }, { enabled: () => profileOpen.value });
+useClickOutside("[data-notifications-dropdown]", () => {
+    notificationsOpen.value = false;
+}, { enabled: () => notificationsOpen.value });
 
 const handleKeydown = (event) => {
     if (profileOpen.value && event.key === "Escape") {
         event.preventDefault();
         closeProfile({ restoreFocus: true });
+    } else if (notificationsOpen.value && event.key === "Escape") {
+        event.preventDefault();
+        notificationsOpen.value = false;
     }
 };
 
@@ -62,6 +70,10 @@ onMounted(() => window.addEventListener("keydown", handleKeydown));
 onUnmounted(() => window.removeEventListener("keydown", handleKeydown));
 
 const logout = () => router.post("/logout");
+const markNotificationsRead = () => router.post("/app/notifications/read-all", {}, {
+    preserveScroll: true,
+    onSuccess: () => { notificationsOpen.value = false; },
+});
 
 const submitGlobalSearch = () => {
     if (!canSearch.value) return;
@@ -130,6 +142,37 @@ const submitGlobalSearch = () => {
             >
                 <i class="pi pi-search text-sm" />
             </Link>
+
+            <div class="relative" data-notifications-dropdown>
+                <button
+                    type="button"
+                    class="relative inline-flex size-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+                    aria-label="Notifikasi aplikasi"
+                    aria-haspopup="menu"
+                    :aria-expanded="notificationsOpen"
+                    @click="notificationsOpen = !notificationsOpen"
+                >
+                    <i class="pi pi-bell" aria-hidden="true" />
+                    <span v-if="notifications.unread_count" class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                        {{ notifications.unread_count > 99 ? "99+" : notifications.unread_count }}
+                    </span>
+                </button>
+                <Transition name="dropdown">
+                    <div v-if="notificationsOpen" role="menu" class="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg">
+                        <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                            <p class="text-sm font-bold text-slate-900">Notifikasi</p>
+                            <button v-if="notifications.unread_count" type="button" class="text-xs font-bold text-blue-700 hover:underline" @click="markNotificationsRead">Tandai dibaca</button>
+                        </div>
+                        <div v-if="notifications.items.length" class="divide-y divide-slate-100">
+                            <Link v-for="item in notifications.items" :key="item.id" href="/app/export" role="menuitem" class="block min-h-11 px-4 py-3 hover:bg-slate-50">
+                                <p class="text-sm font-semibold text-slate-800">{{ item.message }}</p>
+                                <p class="mt-1 text-xs uppercase text-slate-500">{{ item.status }}</p>
+                            </Link>
+                        </div>
+                        <p v-else class="px-4 py-6 text-center text-sm text-slate-500">Tidak ada notifikasi baru.</p>
+                    </div>
+                </Transition>
+            </div>
 
             <!-- Profile Dropdown -->
             <div class="relative" data-profile-dropdown>

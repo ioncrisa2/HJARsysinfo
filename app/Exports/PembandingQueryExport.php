@@ -2,20 +2,17 @@
 
 namespace App\Exports;
 
-use App\Exports\Sheets\PembandingDataSheet;
 use App\Exports\Sheets\PembandingMetadataSheet;
+use App\Exports\Sheets\PembandingQueryDataSheet;
 use App\Support\Exports\PembandingExportColumnRegistry;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class PembandingSelectionExport implements WithMultipleSheets
+class PembandingQueryExport implements WithMultipleSheets
 {
-    /**
-     * @param  array<int, string>  $columns
-     * @param  array<string, mixed>  $metadata
-     */
+    /** @param array<int, string> $columns @param array<string, mixed> $metadata */
     public function __construct(
-        private readonly Collection $records,
+        private readonly Builder $query,
         private readonly array $columns,
         private readonly array $metadata,
         private readonly PembandingExportColumnRegistry $registry,
@@ -24,7 +21,7 @@ class PembandingSelectionExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new PembandingDataSheet($this->records, $this->columns, $this->registry),
+            new PembandingQueryDataSheet($this->query, $this->columns, $this->registry),
             new PembandingMetadataSheet($this->metadata),
         ];
     }

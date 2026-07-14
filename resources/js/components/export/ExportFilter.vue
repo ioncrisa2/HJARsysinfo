@@ -108,6 +108,21 @@ const emit = defineEmits([
             />
         </div>
 
+        <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <Select
+                v-if="options.creators?.length"
+                v-model="filterState.created_by"
+                :options="options.creators"
+                option-label="label"
+                option-value="value"
+                placeholder="Pembuat data"
+                filter
+                show-clear
+                class="w-full"
+                @change="emit('applyFilters')"
+            />
+        </div>
+
         <div class="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-4 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex flex-wrap items-center gap-2">
                 <DatePicker

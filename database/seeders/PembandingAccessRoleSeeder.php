@@ -32,6 +32,7 @@ class PembandingAccessRoleSeeder extends Seeder
             'replicate_data::pembanding',
             'reorder_data::pembanding',
             'export_data::pembanding',
+            'export_sensitive_data::pembanding',
             'bulk_import_data::pembanding',
             ...AppAccess::permissions(),
         ];
