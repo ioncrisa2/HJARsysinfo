@@ -4,7 +4,7 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-class P2pkImportRowProcessingException extends RuntimeException
+class BulkExcelImportRowProcessingException extends RuntimeException
 {
     public function __construct(
         string $message,

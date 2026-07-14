@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Services\P2pk;
+namespace App\Services\BulkExcelImport;
 
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\Peruntukan;
 use App\Models\StatusPemberiInformasi;
 
-class P2pkRowMapper
+class BulkExcelImportRowMapper
 {
     private const OBJECT_MAP = [
         'TANAH KOSONG' => ['jenis_objek' => 'tanah', 'peruntukan' => 'tanah_kosong'],
@@ -31,8 +31,8 @@ class P2pkRowMapper
     ];
 
     public function __construct(
-        private readonly P2pkValueNormalizer $normalizer,
-        private readonly P2pkLocationResolver $locations,
+        private readonly BulkExcelImportValueNormalizer $normalizer,
+        private readonly BulkExcelImportLocationResolver $locations,
     ) {}
 
     /** @return array{mapped: array<string, mixed>, missing: array<int, array{field: string, label: string}>, warnings: array<int, array{field: string, message: string}>} */

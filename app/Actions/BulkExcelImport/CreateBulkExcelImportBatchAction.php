@@ -1,32 +1,32 @@
 <?php
 
-namespace App\Actions\P2pk;
+namespace App\Actions\BulkExcelImport;
 
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Models\User;
-use App\Services\P2pk\P2pkRowMapper;
-use App\Services\P2pk\P2pkValueNormalizer;
-use App\Services\P2pk\P2pkWorkbookParser;
+use App\Services\BulkExcelImport\BulkExcelImportRowMapper;
+use App\Services\BulkExcelImport\BulkExcelImportValueNormalizer;
+use App\Services\BulkExcelImport\BulkExcelImportWorkbookParser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
-class CreateP2pkImportBatchAction
+class CreateBulkExcelImportBatchAction
 {
     public function __construct(
-        private readonly P2pkWorkbookParser $parser,
-        private readonly P2pkRowMapper $mapper,
-        private readonly P2pkValueNormalizer $normalizer,
+        private readonly BulkExcelImportWorkbookParser $parser,
+        private readonly BulkExcelImportRowMapper $mapper,
+        private readonly BulkExcelImportValueNormalizer $normalizer,
     ) {}
 
-    /** @return array{batch: P2pkImportBatch, existing: bool} */
+    /** @return array{batch: BulkExcelImportBatch, existing: bool} */
     public function execute(User $owner, UploadedFile $file): array
     {
         $checksum = hash_file('sha256', $file->getRealPath());
-        $existing = P2pkImportBatch::query()
+        $existing = BulkExcelImportBatch::query()
             ->where('owner_id', $owner->id)
             ->where('file_checksum', $checksum)
             ->first();
@@ -36,7 +36,7 @@ class CreateP2pkImportBatchAction
         }
 
         $extension = strtolower($file->getClientOriginalExtension());
-        $path = 'p2pk-imports/'.$owner->id.'/'.Str::uuid().'.'.$extension;
+        $path = 'bulk-excel-imports/'.$owner->id.'/'.Str::uuid().'.'.$extension;
         $stored = Storage::disk('local')->putFileAs(dirname($path), $file, basename($path));
         if ($stored === false) {
             throw new \RuntimeException('File Excel gagal disimpan. Coba unggah kembali.');
@@ -44,15 +44,15 @@ class CreateP2pkImportBatchAction
 
         try {
             $parsed = $this->parser->parse(Storage::disk('local')->path($path));
-            $batch = DB::transaction(function () use ($owner, $file, $checksum, $path, $parsed): P2pkImportBatch {
-                $batch = P2pkImportBatch::query()->create([
+            $batch = DB::transaction(function () use ($owner, $file, $checksum, $path, $parsed): BulkExcelImportBatch {
+                $batch = BulkExcelImportBatch::query()->create([
                     'owner_id' => $owner->id,
                     'original_filename' => mb_substr(basename($file->getClientOriginalName()), 0, 255),
                     'source_disk' => 'local',
                     'source_path' => $path,
                     'file_checksum' => $checksum,
                     'sheet_name' => $parsed['sheet_name'],
-                    'status' => P2pkImportBatch::STATUS_DRAFT,
+                    'status' => BulkExcelImportBatch::STATUS_DRAFT,
                     'last_activity_at' => now(),
                 ]);
 
@@ -64,10 +64,10 @@ class CreateP2pkImportBatchAction
                     $mapped = $this->mapper->map($sourceRow['values']);
                     $duplicateOf = $seen[$fingerprint] ?? null;
                     $status = $duplicateOf
-                        ? P2pkImportRow::STATUS_DUPLICATE
+                        ? BulkExcelImportRow::STATUS_DUPLICATE
                         : ($mapped['warnings'] !== []
-                            ? P2pkImportRow::STATUS_NEEDS_CONFIRMATION
-                            : ($mapped['missing'] !== [] ? P2pkImportRow::STATUS_INCOMPLETE : P2pkImportRow::STATUS_READY));
+                            ? BulkExcelImportRow::STATUS_NEEDS_CONFIRMATION
+                            : ($mapped['missing'] !== [] ? BulkExcelImportRow::STATUS_INCOMPLETE : BulkExcelImportRow::STATUS_READY));
 
                     $row = $batch->rows()->create([
                         'source_row_number' => $sourceRow['row_number'],
@@ -86,7 +86,7 @@ class CreateP2pkImportBatchAction
 
                     $seen[$fingerprint] ??= $row;
                     $selected += $row->is_selected ? 1 : 0;
-                    $ready += $row->status === P2pkImportRow::STATUS_READY ? 1 : 0;
+                    $ready += $row->status === BulkExcelImportRow::STATUS_READY ? 1 : 0;
                 }
 
                 $batch->update([

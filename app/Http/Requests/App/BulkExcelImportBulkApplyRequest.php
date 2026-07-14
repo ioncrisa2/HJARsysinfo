@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\App;
 
-use App\Actions\P2pk\BulkApplyP2pkImportRowsAction;
-use App\Models\P2pkImportBatch;
+use App\Actions\BulkExcelImport\BulkApplyBulkExcelImportRowsAction;
+use App\Models\BulkExcelImportBatch;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class P2pkImportBulkApplyRequest extends FormRequest
+class BulkExcelImportBulkApplyRequest extends FormRequest
 {
     private const TABLES = [
         'status_pemberi_informasi_id' => 'master_status_pemberi_informasi',
@@ -23,7 +23,7 @@ class P2pkImportBulkApplyRequest extends FormRequest
     {
         $batch = $this->route('batch');
 
-        return $batch instanceof P2pkImportBatch
+        return $batch instanceof BulkExcelImportBatch
             && $this->user()?->can('update', $batch) === true;
     }
 
@@ -33,7 +33,7 @@ class P2pkImportBulkApplyRequest extends FormRequest
         $table = self::TABLES[$this->input('field')] ?? self::TABLES['status_pemberi_informasi_id'];
 
         return [
-            'field' => ['required', 'string', Rule::in(BulkApplyP2pkImportRowsAction::ALLOWED_FIELDS)],
+            'field' => ['required', 'string', Rule::in(BulkApplyBulkExcelImportRowsAction::ALLOWED_FIELDS)],
             'value' => ['required', 'integer', Rule::exists($table, 'id')],
         ];
     }

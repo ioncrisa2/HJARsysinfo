@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\P2pk;
+namespace App\Services\BulkExcelImport;
 
 use App\Models\District;
 use App\Models\Province;
@@ -8,9 +8,9 @@ use App\Models\Regency;
 use App\Models\Village;
 use Illuminate\Database\Eloquent\Collection;
 
-class P2pkLocationResolver
+class BulkExcelImportLocationResolver
 {
-    public function __construct(private readonly P2pkValueNormalizer $normalizer) {}
+    public function __construct(private readonly BulkExcelImportValueNormalizer $normalizer) {}
 
     /** @return array{mapped: array<string, string|null>, warnings: array<int, array{field: string, message: string}>} */
     public function resolve(array $source): array

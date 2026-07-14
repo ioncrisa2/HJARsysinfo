@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Actions\P2pk;
+namespace App\Actions\BulkExcelImport;
 
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
-class BulkApplyP2pkImportRowsAction
+class BulkApplyBulkExcelImportRowsAction
 {
     public const ALLOWED_FIELDS = [
         'status_pemberi_informasi_id',
@@ -21,19 +21,19 @@ class BulkApplyP2pkImportRowsAction
     ];
 
     public function __construct(
-        private readonly UpdateP2pkImportRowAction $updateRow,
-        private readonly RefreshP2pkImportBatchSummaryAction $refreshSummary,
+        private readonly UpdateBulkExcelImportRowAction $updateRow,
+        private readonly RefreshBulkExcelImportBatchSummaryAction $refreshSummary,
     ) {}
 
-    public function execute(P2pkImportBatch $batch, string $field, int $value): int
+    public function execute(BulkExcelImportBatch $batch, string $field, int $value): int
     {
         if (! in_array($field, self::ALLOWED_FIELDS, true)) {
             throw new InvalidArgumentException('Field tidak diizinkan untuk diterapkan ke banyak data.');
         }
 
         return DB::transaction(function () use ($batch, $field, $value): int {
-            $lockedBatch = P2pkImportBatch::query()->lockForUpdate()->findOrFail($batch->getKey());
-            if ($lockedBatch->status !== P2pkImportBatch::STATUS_DRAFT) {
+            $lockedBatch = BulkExcelImportBatch::query()->lockForUpdate()->findOrFail($batch->getKey());
+            if ($lockedBatch->status !== BulkExcelImportBatch::STATUS_DRAFT) {
                 throw ValidationException::withMessages(['field' => 'Perubahan massal tidak dapat dilakukan setelah proses dimulai.']);
             }
 
@@ -43,8 +43,8 @@ class BulkApplyP2pkImportRowsAction
                 ->whereNull('duplicate_of_row_id')
                 ->whereNull('pembanding_id')
                 ->whereNotIn('status', [
-                    P2pkImportRow::STATUS_DUPLICATE,
-                    P2pkImportRow::STATUS_IMPORTED,
+                    BulkExcelImportRow::STATUS_DUPLICATE,
+                    BulkExcelImportRow::STATUS_IMPORTED,
                 ])
                 ->lockForUpdate()
                 ->get();

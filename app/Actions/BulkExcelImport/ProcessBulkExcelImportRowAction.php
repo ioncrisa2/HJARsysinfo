@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Actions\P2pk;
+namespace App\Actions\BulkExcelImport;
 
 use App\Actions\Pembanding\SavePembandingAction;
 use App\Exceptions\DuplicatePembandingException;
-use App\Exceptions\P2pkImportRowProcessingException;
+use App\Exceptions\BulkExcelImportRowProcessingException;
 use App\Http\Requests\App\PembandingStoreRequest;
-use App\Models\P2pkImportRow;
+use App\Models\BulkExcelImportRow;
 use App\Models\Pembanding;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
@@ -15,37 +15,37 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class ProcessP2pkImportRowAction
+class ProcessBulkExcelImportRowAction
 {
     public function __construct(private readonly SavePembandingAction $savePembanding) {}
 
-    public function execute(P2pkImportRow $row): P2pkImportRow
+    public function execute(BulkExcelImportRow $row): BulkExcelImportRow
     {
         $created = null;
 
         try {
-            $processed = DB::transaction(function () use ($row, &$created): P2pkImportRow {
-                $locked = P2pkImportRow::query()->with('batch.initiatedBy')->lockForUpdate()->findOrFail($row->getKey());
+            $processed = DB::transaction(function () use ($row, &$created): BulkExcelImportRow {
+                $locked = BulkExcelImportRow::query()->with('batch.initiatedBy')->lockForUpdate()->findOrFail($row->getKey());
                 if ($locked->pembanding_id !== null) {
-                    $locked->update(['status' => P2pkImportRow::STATUS_IMPORTED, 'last_error' => null, 'failure_code' => null]);
+                    $locked->update(['status' => BulkExcelImportRow::STATUS_IMPORTED, 'last_error' => null, 'failure_code' => null]);
 
                     return $locked;
                 }
 
                 $batch = $locked->batch;
                 if (! $batch->finalization_date || ! $batch->initiated_by) {
-                    throw new P2pkImportRowProcessingException(
+                    throw new BulkExcelImportRowProcessingException(
                         'Informasi finalisasi tidak lengkap. Hubungi pengelola sistem.',
                         'invalid_batch',
                     );
                 }
 
-                $previous = P2pkImportRow::query()
+                $previous = BulkExcelImportRow::query()
                     ->where('imported_source_fingerprint', $locked->source_fingerprint)
                     ->whereKeyNot($locked->getKey())
                     ->first();
                 if ($previous) {
-                    throw new P2pkImportRowProcessingException(
+                    throw new BulkExcelImportRowProcessingException(
                         'Data sumber yang sama sudah pernah dimasukkan sebelumnya.',
                         'source_already_imported',
                         false,
@@ -61,7 +61,7 @@ class ProcessP2pkImportRowAction
                 try {
                     $created = $this->savePembanding->create($data, $image);
                 } catch (DuplicatePembandingException $exception) {
-                    throw new P2pkImportRowProcessingException(
+                    throw new BulkExcelImportRowProcessingException(
                         $exception->getMessage(),
                         'final_duplicate',
                         false,
@@ -70,7 +70,7 @@ class ProcessP2pkImportRowAction
                 }
 
                 $locked->update([
-                    'status' => P2pkImportRow::STATUS_IMPORTED,
+                    'status' => BulkExcelImportRow::STATUS_IMPORTED,
                     'pembanding_id' => $created->getKey(),
                     'conflicting_pembanding_id' => null,
                     'imported_source_fingerprint' => $locked->source_fingerprint,
@@ -86,11 +86,11 @@ class ProcessP2pkImportRowAction
             }
 
             if ($this->isSourceClaimConflict($exception)) {
-                $previous = P2pkImportRow::query()
+                $previous = BulkExcelImportRow::query()
                     ->where('imported_source_fingerprint', $row->source_fingerprint)
                     ->first();
 
-                throw new P2pkImportRowProcessingException(
+                throw new BulkExcelImportRowProcessingException(
                     'Data sumber yang sama sudah pernah dimasukkan sebelumnya.',
                     'source_already_imported',
                     false,
@@ -112,11 +112,11 @@ class ProcessP2pkImportRowAction
         return $processed->refresh();
     }
 
-    private function stagingImage(P2pkImportRow $row): UploadedFile
+    private function stagingImage(BulkExcelImportRow $row): UploadedFile
     {
         $disk = Storage::disk($row->staging_image_disk ?: 'local');
         if (! $row->staging_image_path || ! $disk->exists($row->staging_image_path)) {
-            throw new P2pkImportRowProcessingException(
+            throw new BulkExcelImportRowProcessingException(
                 'Gambar tidak ditemukan. Unggah kembali gambar aset ini.',
                 'missing_image',
             );
@@ -132,7 +132,7 @@ class ProcessP2pkImportRowAction
     }
 
     /** @return array<string, mixed> */
-    private function validatedPayload(P2pkImportRow $row, UploadedFile $image): array
+    private function validatedPayload(BulkExcelImportRow $row, UploadedFile $image): array
     {
         $payload = [...($row->mapped_payload ?? []), 'tanggal_data' => $row->batch->finalization_date->format('Y-m-d')];
         $request = PembandingStoreRequest::create('/', 'POST', $payload, [], ['image' => $image]);
@@ -143,13 +143,13 @@ class ProcessP2pkImportRowAction
         } catch (ValidationException $exception) {
             $message = collect($exception->errors())->flatten()->first() ?: 'Data tidak lagi memenuhi aturan isian.';
 
-            throw new P2pkImportRowProcessingException($message, 'validation');
+            throw new BulkExcelImportRowProcessingException($message, 'validation');
         }
 
         return $request->validated();
     }
 
-    private function removeStagingImage(P2pkImportRow $row): void
+    private function removeStagingImage(BulkExcelImportRow $row): void
     {
         if (! $row->staging_image_path) {
             return;
@@ -174,7 +174,6 @@ class ProcessP2pkImportRowAction
     private function isSourceClaimConflict(QueryException $exception): bool
     {
         return in_array(($exception->errorInfo[0] ?? null), ['23000', '19'], true)
-            && (str_contains($exception->getMessage(), 'p2pk_import_source_unique')
-                || str_contains($exception->getMessage(), 'imported_source_fingerprint'));
+            && str_contains($exception->getMessage(), 'imported_source_fingerprint');
     }
 }

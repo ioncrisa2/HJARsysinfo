@@ -2,11 +2,11 @@
 
 namespace App\Jobs;
 
-use App\Actions\P2pk\ProcessP2pkImportRowAction;
-use App\Actions\P2pk\RefreshP2pkImportBatchSummaryAction;
-use App\Exceptions\P2pkImportRowProcessingException;
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Actions\BulkExcelImport\ProcessBulkExcelImportRowAction;
+use App\Actions\BulkExcelImport\RefreshBulkExcelImportBatchSummaryAction;
+use App\Exceptions\BulkExcelImportRowProcessingException;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,7 +15,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Throwable;
 
-class ProcessP2pkImportChunk implements ShouldQueue
+class ProcessBulkExcelImportChunk implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -37,17 +37,17 @@ class ProcessP2pkImportChunk implements ShouldQueue
     /** @return array<int, object> */
     public function middleware(): array
     {
-        return [(new WithoutOverlapping("p2pk-import-batch-{$this->batchId}"))->releaseAfter(5)->expireAfter(90)];
+        return [(new WithoutOverlapping("bulk-excel-import-batch-{$this->batchId}"))->releaseAfter(5)->expireAfter(90)];
     }
 
     public function handle(
-        ProcessP2pkImportRowAction $processRow,
-        RefreshP2pkImportBatchSummaryAction $refreshSummary,
+        ProcessBulkExcelImportRowAction $processRow,
+        RefreshBulkExcelImportBatchSummaryAction $refreshSummary,
     ): void {
         $retryIds = [];
 
         foreach ($this->rowIds as $rowId) {
-            $row = P2pkImportRow::query()->where('batch_id', $this->batchId)->find($rowId);
+            $row = BulkExcelImportRow::query()->where('batch_id', $this->batchId)->find($rowId);
             if (! $row || $row->pembanding_id !== null) {
                 if ($row) {
                     $processRow->execute($row);
@@ -63,7 +63,7 @@ class ProcessP2pkImportChunk implements ShouldQueue
             }
 
             $row->update([
-                'status' => P2pkImportRow::STATUS_PROCESSING,
+                'status' => BulkExcelImportRow::STATUS_PROCESSING,
                 'attempts' => $row->attempts + 1,
                 'last_error' => null,
                 'failure_code' => null,
@@ -71,11 +71,11 @@ class ProcessP2pkImportChunk implements ShouldQueue
 
             try {
                 $processRow->execute($row->refresh());
-            } catch (P2pkImportRowProcessingException $exception) {
+            } catch (BulkExcelImportRowProcessingException $exception) {
                 $status = match ($exception->failureCode) {
-                    'final_duplicate' => P2pkImportRow::STATUS_FINAL_DUPLICATE,
-                    'source_already_imported' => P2pkImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
-                    default => P2pkImportRow::STATUS_FAILED,
+                    'final_duplicate' => BulkExcelImportRow::STATUS_FINAL_DUPLICATE,
+                    'source_already_imported' => BulkExcelImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
+                    default => BulkExcelImportRow::STATUS_FAILED,
                 };
 
                 $row->refresh()->update([
@@ -86,21 +86,21 @@ class ProcessP2pkImportChunk implements ShouldQueue
                 ]);
 
                 if ($exception->retryable && $row->attempts < 3) {
-                    $row->update(['status' => P2pkImportRow::STATUS_QUEUED]);
+                    $row->update(['status' => BulkExcelImportRow::STATUS_QUEUED]);
                     $retryIds[] = $row->id;
                 }
             } catch (Throwable $exception) {
                 report($exception);
                 $row->refresh();
                 if ($row->pembanding_id !== null) {
-                    $row->update(['status' => P2pkImportRow::STATUS_IMPORTED, 'last_error' => null, 'failure_code' => null]);
+                    $row->update(['status' => BulkExcelImportRow::STATUS_IMPORTED, 'last_error' => null, 'failure_code' => null]);
 
                     continue;
                 }
 
                 if ($row->attempts < 3) {
                     $row->update([
-                        'status' => P2pkImportRow::STATUS_QUEUED,
+                        'status' => BulkExcelImportRow::STATUS_QUEUED,
                         'last_error' => 'Sistem belum dapat memproses data ini. Percobaan akan diulangi.',
                         'failure_code' => 'transient',
                     ]);
@@ -111,7 +111,7 @@ class ProcessP2pkImportChunk implements ShouldQueue
             }
         }
 
-        $batch = P2pkImportBatch::query()->find($this->batchId);
+        $batch = BulkExcelImportBatch::query()->find($this->batchId);
         if ($batch) {
             $refreshSummary->execute($batch);
         }
@@ -121,8 +121,8 @@ class ProcessP2pkImportChunk implements ShouldQueue
                 self::dispatch($this->batchId, $retryIds)->delay(now()->addSeconds(10));
             } catch (Throwable $exception) {
                 report($exception);
-                P2pkImportRow::query()->whereKey($retryIds)->update([
-                    'status' => P2pkImportRow::STATUS_FAILED,
+                BulkExcelImportRow::query()->whereKey($retryIds)->update([
+                    'status' => BulkExcelImportRow::STATUS_FAILED,
                     'last_error' => 'Percobaan ulang belum dapat dijadwalkan. Silakan coba proses kembali.',
                     'failure_code' => 'transient',
                 ]);
@@ -135,24 +135,24 @@ class ProcessP2pkImportChunk implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
-        P2pkImportRow::query()
+        BulkExcelImportRow::query()
             ->where('batch_id', $this->batchId)
             ->whereKey($this->rowIds)
-            ->whereIn('status', [P2pkImportRow::STATUS_QUEUED, P2pkImportRow::STATUS_PROCESSING])
+            ->whereIn('status', [BulkExcelImportRow::STATUS_QUEUED, BulkExcelImportRow::STATUS_PROCESSING])
             ->update([
-                'status' => P2pkImportRow::STATUS_FAILED,
+                'status' => BulkExcelImportRow::STATUS_FAILED,
                 'last_error' => 'Proses terhenti. Silakan coba proses kembali.',
                 'failure_code' => 'transient',
             ]);
 
-        $batch = P2pkImportBatch::query()->find($this->batchId);
+        $batch = BulkExcelImportBatch::query()->find($this->batchId);
         if ($batch) {
-            app(RefreshP2pkImportBatchSummaryAction::class)->execute($batch);
+            app(RefreshBulkExcelImportBatchSummaryAction::class)->execute($batch);
         }
     }
 
-    private function markFailed(P2pkImportRow $row, string $message, string $code): void
+    private function markFailed(BulkExcelImportRow $row, string $message, string $code): void
     {
-        $row->update(['status' => P2pkImportRow::STATUS_FAILED, 'last_error' => $message, 'failure_code' => $code]);
+        $row->update(['status' => BulkExcelImportRow::STATUS_FAILED, 'last_error' => $message, 'failure_code' => $code]);
     }
 }

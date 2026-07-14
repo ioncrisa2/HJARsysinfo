@@ -1,16 +1,16 @@
 <?php
 
-use App\Actions\P2pk\ProcessP2pkImportRowAction;
-use App\Actions\P2pk\RefreshP2pkImportBatchSummaryAction;
-use App\Jobs\ProcessP2pkImportChunk;
+use App\Actions\BulkExcelImport\ProcessBulkExcelImportRowAction;
+use App\Actions\BulkExcelImport\RefreshBulkExcelImportBatchSummaryAction;
+use App\Jobs\ProcessBulkExcelImportChunk;
 use App\Models\BentukTanah;
 use App\Models\District;
 use App\Models\DokumenTanah;
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
 use App\Models\Province;
@@ -38,7 +38,7 @@ beforeEach(function () {
     Village::query()->create(['id' => '9601010001', 'district_id' => '9601010', 'name' => 'Desa Finalisasi']);
 });
 
-function p2pkFinalizationUser(string $role = 'bulk_import'): User
+function bulkExcelImportFinalizationUser(string $role = 'bulk_import'): User
 {
     $user = User::factory()->create(['deactivated_at' => null]);
     $user->assignRole($role);
@@ -46,20 +46,20 @@ function p2pkFinalizationUser(string $role = 'bulk_import'): User
     return $user;
 }
 
-function p2pkFinalizationBatch(User $owner, array $attributes = []): P2pkImportBatch
+function bulkExcelImportFinalizationBatch(User $owner, array $attributes = []): BulkExcelImportBatch
 {
     $token = (string) Str::uuid();
-    $sourcePath = "p2pk-imports/{$owner->id}/{$token}/source.xlsx";
+    $sourcePath = "bulk-excel-imports/{$owner->id}/{$token}/source.xlsx";
     Storage::disk('local')->put($sourcePath, 'private workbook fixture');
 
-    return P2pkImportBatch::query()->create(array_replace([
+    return BulkExcelImportBatch::query()->create(array_replace([
         'owner_id' => $owner->id,
         'original_filename' => 'finalisasi.xlsx',
         'source_disk' => 'local',
         'source_path' => $sourcePath,
         'file_checksum' => hash('sha256', $token),
         'sheet_name' => 'Data_Pembanding',
-        'status' => P2pkImportBatch::STATUS_DRAFT,
+        'status' => BulkExcelImportBatch::STATUS_DRAFT,
         'total_rows' => 0,
         'selected_rows' => 0,
         'ready_rows' => 0,
@@ -69,7 +69,7 @@ function p2pkFinalizationBatch(User $owner, array $attributes = []): P2pkImportB
     ], $attributes));
 }
 
-function p2pkFinalizationPayload(int $number, array $overrides = []): array
+function bulkExcelImportFinalizationPayload(int $number, array $overrides = []): array
 {
     return array_replace([
         'jenis_listing_id' => JenisListing::query()->where('slug', 'penawaran')->value('id'),
@@ -101,13 +101,13 @@ function p2pkFinalizationPayload(int $number, array $overrides = []): array
     ], $overrides);
 }
 
-function p2pkFinalizationRow(P2pkImportBatch $batch, array $attributes = []): P2pkImportRow
+function bulkExcelImportFinalizationRow(BulkExcelImportBatch $batch, array $attributes = []): BulkExcelImportRow
 {
     $number = (int) ($attributes['source_row_number'] ?? ($batch->rows()->count() + 2));
-    $status = $attributes['status'] ?? P2pkImportRow::STATUS_READY;
+    $status = $attributes['status'] ?? BulkExcelImportRow::STATUS_READY;
     $imagePath = array_key_exists('staging_image_path', $attributes)
         ? $attributes['staging_image_path']
-        : "p2pk-imports/{$batch->owner_id}/images/{$number}/asset.jpg";
+        : "bulk-excel-imports/{$batch->owner_id}/images/{$number}/asset.jpg";
 
     $imageSize = null;
     if ($imagePath !== null && ! array_key_exists('skip_image_file', $attributes)) {
@@ -124,8 +124,8 @@ function p2pkFinalizationRow(P2pkImportBatch $batch, array $attributes = []): P2
         'status' => $status,
         'is_selected' => true,
         'raw_payload' => ['Nomor Laporan Penilaian' => "LP-{$number}"],
-        'mapped_payload' => p2pkFinalizationPayload($number),
-        'missing_fields' => $status === P2pkImportRow::STATUS_READY ? [] : [['field' => 'image', 'label' => 'Gambar']],
+        'mapped_payload' => bulkExcelImportFinalizationPayload($number),
+        'missing_fields' => $status === BulkExcelImportRow::STATUS_READY ? [] : [['field' => 'image', 'label' => 'Gambar']],
         'warnings' => [],
         'staging_image_disk' => $imagePath === null ? null : 'local',
         'staging_image_path' => $imagePath,
@@ -140,26 +140,26 @@ function p2pkFinalizationRow(P2pkImportBatch $batch, array $attributes = []): P2
         'selected_rows' => $batch->rows()->where('is_selected', true)->count(),
         'ready_rows' => $batch->rows()
             ->where('is_selected', true)
-            ->where('status', P2pkImportRow::STATUS_READY)
+            ->where('status', BulkExcelImportRow::STATUS_READY)
             ->count(),
     ]);
 
     return $row;
 }
 
-function runP2pkFinalizationJob(P2pkImportBatch $batch, array $rowIds): void
+function runBulkExcelImportFinalizationJob(BulkExcelImportBatch $batch, array $rowIds): void
 {
-    $job = new ProcessP2pkImportChunk($batch->id, $rowIds);
+    $job = new ProcessBulkExcelImportChunk($batch->id, $rowIds);
     app()->call([$job, 'handle']);
 }
 
 it('rejects finalization when a selected row is not ready', function () {
     Queue::fake();
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner);
-    p2pkFinalizationRow($batch);
-    p2pkFinalizationRow($batch, [
-        'status' => P2pkImportRow::STATUS_INCOMPLETE,
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner);
+    bulkExcelImportFinalizationRow($batch);
+    bulkExcelImportFinalizationRow($batch, [
+        'status' => BulkExcelImportRow::STATUS_INCOMPLETE,
         'staging_image_path' => null,
     ]);
 
@@ -169,7 +169,7 @@ it('rejects finalization when a selected row is not ready', function () {
         ->assertSessionHasErrors('finalize');
 
     $batch->refresh();
-    expect($batch->status)->toBe(P2pkImportBatch::STATUS_DRAFT)
+    expect($batch->status)->toBe(BulkExcelImportBatch::STATUS_DRAFT)
         ->and($batch->finalization_date)->toBeNull()
         ->and($batch->initiated_by)->toBeNull();
     Queue::assertNothingPushed();
@@ -179,13 +179,13 @@ it('rejects finalization when a selected row is not ready', function () {
 it('ignores unselected incomplete rows and dispatches selected rows in chunks of at most ten', function () {
     Queue::fake();
     Carbon::setTestNow(Carbon::parse('2026-07-03 23:55:00', 'Asia/Jakarta'));
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner);
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner);
     $selectedIds = collect(range(2, 24))
-        ->map(fn (int $number): int => p2pkFinalizationRow($batch, ['source_row_number' => $number])->id);
-    p2pkFinalizationRow($batch, [
+        ->map(fn (int $number): int => bulkExcelImportFinalizationRow($batch, ['source_row_number' => $number])->id);
+    bulkExcelImportFinalizationRow($batch, [
         'source_row_number' => 25,
-        'status' => P2pkImportRow::STATUS_INCOMPLETE,
+        'status' => BulkExcelImportRow::STATUS_INCOMPLETE,
         'is_selected' => false,
         'staging_image_path' => null,
     ]);
@@ -195,44 +195,44 @@ it('ignores unselected incomplete rows and dispatches selected rows in chunks of
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    $jobs = Queue::pushed(ProcessP2pkImportChunk::class);
-    $queuedIds = $jobs->flatMap(fn (ProcessP2pkImportChunk $job): array => $job->rowIds)->values();
+    $jobs = Queue::pushed(ProcessBulkExcelImportChunk::class);
+    $queuedIds = $jobs->flatMap(fn (ProcessBulkExcelImportChunk $job): array => $job->rowIds)->values();
     expect($jobs)->toHaveCount(3)
-        ->and($jobs->map(fn (ProcessP2pkImportChunk $job): int => count($job->rowIds))->all())->toBe([10, 10, 3])
+        ->and($jobs->map(fn (ProcessBulkExcelImportChunk $job): int => count($job->rowIds))->all())->toBe([10, 10, 3])
         ->and($queuedIds->sort()->values()->all())->toBe($selectedIds->sort()->values()->all())
         ->and($queuedIds->duplicates())->toBeEmpty();
 
     $batch->refresh();
-    expect($batch->status)->toBe(P2pkImportBatch::STATUS_PROCESSING)
+    expect($batch->status)->toBe(BulkExcelImportBatch::STATUS_PROCESSING)
         ->and($batch->finalization_date?->toDateString())->toBe('2026-07-03')
         ->and($batch->initiated_by)->toBe($owner->id)
-        ->and($batch->rows()->where('status', P2pkImportRow::STATUS_QUEUED)->count())->toBe(23)
-        ->and($batch->rows()->where('status', P2pkImportRow::STATUS_INCOMPLETE)->count())->toBe(1);
+        ->and($batch->rows()->where('status', BulkExcelImportRow::STATUS_QUEUED)->count())->toBe(23)
+        ->and($batch->rows()->where('status', BulkExcelImportRow::STATUS_INCOMPLETE)->count())->toBe(1);
 });
 
 it('creates the final record with the captured date and removes its staging image', function () {
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_PROCESSING,
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_PROCESSING,
         'finalization_date' => '2026-07-03',
         'initiated_by' => $owner->id,
     ]);
-    $row = p2pkFinalizationRow($batch, ['status' => P2pkImportRow::STATUS_QUEUED]);
+    $row = bulkExcelImportFinalizationRow($batch, ['status' => BulkExcelImportRow::STATUS_QUEUED]);
     $stagingPath = $row->staging_image_path;
 
     Carbon::setTestNow('2026-07-04 08:00:00');
-    runP2pkFinalizationJob($batch, [$row->id]);
+    runBulkExcelImportFinalizationJob($batch, [$row->id]);
 
     $row->refresh();
     $batch->refresh();
     $record = $row->pembanding()->firstOrFail();
-    expect($row->status)->toBe(P2pkImportRow::STATUS_IMPORTED)
+    expect($row->status)->toBe(BulkExcelImportRow::STATUS_IMPORTED)
         ->and($row->imported_source_fingerprint)->toBe($row->source_fingerprint)
         ->and($record->tanggal_data?->toDateString())->toBe('2026-07-03')
         ->and($record->created_by)->toBe($owner->id)
         ->and($record->business_fingerprint)->not->toBeNull()
         ->and($record->active_fingerprint)->toBe($record->business_fingerprint)
-        ->and($batch->status)->toBe(P2pkImportBatch::STATUS_COMPLETE)
+        ->and($batch->status)->toBe(BulkExcelImportBatch::STATUS_COMPLETE)
         ->and($batch->imported_rows)->toBe(1)
         ->and($batch->failed_rows)->toBe(0)
         ->and($batch->finalized_at)->not->toBeNull();
@@ -241,51 +241,51 @@ it('creates the final record with the captured date and removes its staging imag
 });
 
 it('is idempotent when a completed job is delivered more than once', function () {
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_PROCESSING,
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_PROCESSING,
         'finalization_date' => '2026-07-03',
         'initiated_by' => $owner->id,
     ]);
-    $row = p2pkFinalizationRow($batch, ['status' => P2pkImportRow::STATUS_QUEUED]);
+    $row = bulkExcelImportFinalizationRow($batch, ['status' => BulkExcelImportRow::STATUS_QUEUED]);
 
-    runP2pkFinalizationJob($batch, [$row->id]);
+    runBulkExcelImportFinalizationJob($batch, [$row->id]);
     $firstRecordId = $row->fresh()->pembanding_id;
-    runP2pkFinalizationJob($batch, [$row->id]);
+    runBulkExcelImportFinalizationJob($batch, [$row->id]);
 
     expect($row->fresh()->pembanding_id)->toBe($firstRecordId)
-        ->and($row->fresh()->status)->toBe(P2pkImportRow::STATUS_IMPORTED);
+        ->and($row->fresh()->status)->toBe(BulkExcelImportRow::STATUS_IMPORTED);
     $this->assertDatabaseCount('data_pembanding', 1);
     expect(Storage::disk('public')->allFiles('foto_pembanding'))->toHaveCount(1);
 });
 
 it('prevents the same source row from being imported by a different batch', function () {
-    $owner = p2pkFinalizationUser();
-    $sourceFingerprint = hash('sha256', 'stable-p2pk-source-row');
-    $firstBatch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_PROCESSING,
+    $owner = bulkExcelImportFinalizationUser();
+    $sourceFingerprint = hash('sha256', 'stable-bulk-excel-import-source-row');
+    $firstBatch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_PROCESSING,
         'finalization_date' => '2026-07-03',
         'initiated_by' => $owner->id,
     ]);
-    $first = p2pkFinalizationRow($firstBatch, ['source_fingerprint' => $sourceFingerprint]);
-    runP2pkFinalizationJob($firstBatch, [$first->id]);
+    $first = bulkExcelImportFinalizationRow($firstBatch, ['source_fingerprint' => $sourceFingerprint]);
+    runBulkExcelImportFinalizationJob($firstBatch, [$first->id]);
 
-    $secondBatch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_PROCESSING,
+    $secondBatch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_PROCESSING,
         'finalization_date' => '2026-07-04',
         'initiated_by' => $owner->id,
     ]);
-    $second = p2pkFinalizationRow($secondBatch, [
+    $second = bulkExcelImportFinalizationRow($secondBatch, [
         'source_fingerprint' => $sourceFingerprint,
-        'mapped_payload' => p2pkFinalizationPayload(99, [
-            'alamat_data' => 'Data pelengkap diubah tetapi sumber P2PK tetap sama',
+        'mapped_payload' => bulkExcelImportFinalizationPayload(99, [
+            'alamat_data' => 'Data pelengkap diubah tetapi sumber Bulk Excel Import tetap sama',
             'harga' => 999999999,
         ]),
     ]);
-    runP2pkFinalizationJob($secondBatch, [$second->id]);
+    runBulkExcelImportFinalizationJob($secondBatch, [$second->id]);
 
     $second->refresh();
-    expect($second->status)->toBe(P2pkImportRow::STATUS_SOURCE_ALREADY_IMPORTED)
+    expect($second->status)->toBe(BulkExcelImportRow::STATUS_SOURCE_ALREADY_IMPORTED)
         ->and($second->pembanding_id)->toBeNull()
         ->and($second->conflicting_pembanding_id)->toBe($first->fresh()->pembanding_id)
         ->and($second->failure_code)->toBe('source_already_imported');
@@ -293,16 +293,16 @@ it('prevents the same source row from being imported by a different batch', func
 });
 
 it('rejects an exact final duplicate even when its source fingerprint differs', function () {
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_PROCESSING,
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_PROCESSING,
         'finalization_date' => '2026-07-03',
         'initiated_by' => $owner->id,
     ]);
-    $first = p2pkFinalizationRow($batch, ['source_row_number' => 2]);
-    $secondImagePath = "p2pk-imports/{$owner->id}/images/exact-copy/asset.jpg";
+    $first = bulkExcelImportFinalizationRow($batch, ['source_row_number' => 2]);
+    $secondImagePath = "bulk-excel-imports/{$owner->id}/images/exact-copy/asset.jpg";
     Storage::disk('local')->copy($first->staging_image_path, $secondImagePath);
-    $second = p2pkFinalizationRow($batch, [
+    $second = bulkExcelImportFinalizationRow($batch, [
         'source_row_number' => 3,
         'source_fingerprint' => hash('sha256', 'different-source-row'),
         'mapped_payload' => $first->mapped_payload,
@@ -310,13 +310,13 @@ it('rejects an exact final duplicate even when its source fingerprint differs', 
         'skip_image_file' => true,
     ]);
 
-    runP2pkFinalizationJob($batch, [$first->id, $second->id]);
+    runBulkExcelImportFinalizationJob($batch, [$first->id, $second->id]);
 
-    expect($first->fresh()->status)->toBe(P2pkImportRow::STATUS_IMPORTED)
-        ->and($second->fresh()->status)->toBe(P2pkImportRow::STATUS_FINAL_DUPLICATE)
+    expect($first->fresh()->status)->toBe(BulkExcelImportRow::STATUS_IMPORTED)
+        ->and($second->fresh()->status)->toBe(BulkExcelImportRow::STATUS_FINAL_DUPLICATE)
         ->and($second->fresh()->failure_code)->toBe('final_duplicate')
         ->and($second->fresh()->conflicting_pembanding_id)->toBe($first->fresh()->pembanding_id)
-        ->and($batch->fresh()->status)->toBe(P2pkImportBatch::STATUS_PARTIAL)
+        ->and($batch->fresh()->status)->toBe(BulkExcelImportBatch::STATUS_PARTIAL)
         ->and($batch->fresh()->imported_rows)->toBe(1)
         ->and($batch->fresh()->failed_rows)->toBe(1);
     $this->assertDatabaseCount('data_pembanding', 1);
@@ -324,45 +324,45 @@ it('rejects an exact final duplicate even when its source fingerprint differs', 
 
 it('stops retrying a temporary failure after three row attempts', function () {
     Queue::fake();
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_PROCESSING,
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_PROCESSING,
         'finalization_date' => '2026-07-03',
         'initiated_by' => $owner->id,
     ]);
-    $row = p2pkFinalizationRow($batch, ['status' => P2pkImportRow::STATUS_QUEUED]);
-    $processor = Mockery::mock(ProcessP2pkImportRowAction::class);
+    $row = bulkExcelImportFinalizationRow($batch, ['status' => BulkExcelImportRow::STATUS_QUEUED]);
+    $processor = Mockery::mock(ProcessBulkExcelImportRowAction::class);
     $processor->shouldReceive('execute')->times(3)->andThrow(new RuntimeException('temporary outage'));
-    $summary = app(RefreshP2pkImportBatchSummaryAction::class);
+    $summary = app(RefreshBulkExcelImportBatchSummaryAction::class);
 
     foreach (range(1, 3) as $attempt) {
         Queue::fake();
-        (new ProcessP2pkImportChunk($batch->id, [$row->id]))->handle($processor, $summary);
+        (new ProcessBulkExcelImportChunk($batch->id, [$row->id]))->handle($processor, $summary);
         expect($row->fresh()->attempts)->toBe($attempt);
 
         if ($attempt < 3) {
-            expect($row->fresh()->status)->toBe(P2pkImportRow::STATUS_QUEUED);
-            Queue::assertPushed(ProcessP2pkImportChunk::class, 1);
+            expect($row->fresh()->status)->toBe(BulkExcelImportRow::STATUS_QUEUED);
+            Queue::assertPushed(ProcessBulkExcelImportChunk::class, 1);
         }
     }
 
-    expect($row->fresh()->status)->toBe(P2pkImportRow::STATUS_FAILED)
+    expect($row->fresh()->status)->toBe(BulkExcelImportRow::STATUS_FAILED)
         ->and($row->fresh()->failure_code)->toBe('transient')
-        ->and($batch->fresh()->status)->toBe(P2pkImportBatch::STATUS_FAILED);
+        ->and($batch->fresh()->status)->toBe(BulkExcelImportBatch::STATUS_FAILED);
     Queue::assertNothingPushed();
 });
 
 it('allows a failed row to be manually retried as a new three-attempt cycle', function () {
     Queue::fake();
-    $owner = p2pkFinalizationUser();
-    $batch = p2pkFinalizationBatch($owner, [
-        'status' => P2pkImportBatch::STATUS_FAILED,
+    $owner = bulkExcelImportFinalizationUser();
+    $batch = bulkExcelImportFinalizationBatch($owner, [
+        'status' => BulkExcelImportBatch::STATUS_FAILED,
         'finalization_date' => '2026-07-03',
         'initiated_by' => $owner->id,
         'failed_rows' => 1,
     ]);
-    $row = p2pkFinalizationRow($batch, [
-        'status' => P2pkImportRow::STATUS_FAILED,
+    $row = bulkExcelImportFinalizationRow($batch, [
+        'status' => BulkExcelImportRow::STATUS_FAILED,
         'attempts' => 3,
         'last_error' => 'Gangguan penyimpanan sementara.',
         'failure_code' => 'transient',
@@ -374,12 +374,12 @@ it('allows a failed row to be manually retried as a new three-attempt cycle', fu
         ->assertSessionHasNoErrors();
 
     $row->refresh();
-    expect($row->status)->toBe(P2pkImportRow::STATUS_QUEUED)
+    expect($row->status)->toBe(BulkExcelImportRow::STATUS_QUEUED)
         ->and($row->attempts)->toBe(0)
         ->and($row->last_error)->toBeNull()
         ->and($row->failure_code)->toBeNull()
-        ->and($batch->fresh()->status)->toBe(P2pkImportBatch::STATUS_PROCESSING);
-    Queue::assertPushed(ProcessP2pkImportChunk::class, function (ProcessP2pkImportChunk $job) use ($batch, $row): bool {
+        ->and($batch->fresh()->status)->toBe(BulkExcelImportBatch::STATUS_PROCESSING);
+    Queue::assertPushed(ProcessBulkExcelImportChunk::class, function (ProcessBulkExcelImportChunk $job) use ($batch, $row): bool {
         return $job->batchId === $batch->id && $job->rowIds === [$row->id];
     });
 });

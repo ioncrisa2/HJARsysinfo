@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class P2pkImportRow extends Model
+class BulkExcelImportRow extends Model
 {
     public const STATUS_DUPLICATE = 'duplicate';
 
@@ -78,7 +78,7 @@ class P2pkImportRow extends Model
 
     public function batch(): BelongsTo
     {
-        return $this->belongsTo(P2pkImportBatch::class, 'batch_id');
+        return $this->belongsTo(BulkExcelImportBatch::class, 'batch_id');
     }
 
     public function duplicateOf(): BelongsTo

@@ -103,20 +103,20 @@ const submit = () => {
 
         <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="upload-heading">
             <div class="max-w-3xl">
-                <h2 id="upload-heading" class="text-lg font-bold text-slate-900">1. Unggah Excel P2PK</h2>
+                <h2 id="upload-heading" class="text-lg font-bold text-slate-900">1. Unggah File Excel</h2>
                 <p class="mt-1 text-sm text-slate-600">Gunakan file .xlsx atau .xlsm dengan sheet Data_Pembanding. Maksimal 500 data dan ukuran 10 MB.</p>
 
                 <form class="mt-5 space-y-3" @submit.prevent="submit">
-                    <label for="p2pk-file" class="block text-sm font-semibold text-slate-800">File Excel</label>
+                    <label for="bulk-excel-import-file" class="block text-sm font-semibold text-slate-800">File Excel</label>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <input
-                            id="p2pk-file"
+                            id="bulk-excel-import-file"
                             ref="fileInput"
                             type="file"
                             accept=".xlsx,.xlsm"
                             class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-semibold file:text-slate-700 hover:file:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
                             :aria-invalid="Boolean(form.errors.file)"
-                            :aria-describedby="form.errors.file ? 'p2pk-file-error' : 'p2pk-file-help'"
+                            :aria-describedby="form.errors.file ? 'bulk-excel-import-file-error' : 'bulk-excel-import-file-help'"
                             @change="chooseFile"
                         />
                         <button
@@ -128,8 +128,8 @@ const submit = () => {
                             {{ form.processing ? 'Sedang membaca...' : 'Baca dan simpan sebagai draf' }}
                         </button>
                     </div>
-                    <p id="p2pk-file-help" class="text-xs text-slate-500">File tidak akan langsung membuat Data Pembanding.</p>
-                    <p v-if="form.errors.file" id="p2pk-file-error" class="text-sm font-semibold text-red-700" role="alert">{{ form.errors.file }}</p>
+                    <p id="bulk-excel-import-file-help" class="text-xs text-slate-500">File tidak akan langsung membuat Data Pembanding.</p>
+                    <p v-if="form.errors.file" id="bulk-excel-import-file-error" class="text-sm font-semibold text-red-700" role="alert">{{ form.errors.file }}</p>
                 </form>
             </div>
         </section>
@@ -170,7 +170,7 @@ const submit = () => {
             <div v-else class="px-5 py-10 text-center">
                 <i class="pi pi-file-excel text-3xl text-slate-300" aria-hidden="true" />
                 <p class="mt-3 font-semibold text-slate-800">Belum ada unggahan Excel</p>
-                <p class="mt-1 text-sm text-slate-500">Unggah file P2PK pertama untuk membuat draf.</p>
+                <p class="mt-1 text-sm text-slate-500">Unggah file Excel pertama untuk membuat draf Bulk Excel Import.</p>
             </div>
 
             <nav v-if="props.batches.links?.length > 3" class="flex flex-wrap justify-center gap-1 border-t border-slate-200 px-5 py-4" aria-label="Halaman riwayat unggahan">

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Actions\P2pk;
+namespace App\Actions\BulkExcelImport;
 
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
-use App\Services\P2pk\P2pkDraftReadinessService;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
+use App\Services\BulkExcelImport\BulkExcelImportDraftReadinessService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -12,21 +12,21 @@ use Illuminate\Support\Str;
 use LogicException;
 use Throwable;
 
-class UpdateP2pkImportRowAction
+class UpdateBulkExcelImportRowAction
 {
     public function __construct(
-        private readonly P2pkDraftReadinessService $readiness,
-        private readonly RefreshP2pkImportBatchSummaryAction $refreshSummary,
+        private readonly BulkExcelImportDraftReadinessService $readiness,
+        private readonly RefreshBulkExcelImportBatchSummaryAction $refreshSummary,
     ) {}
 
     /** @param array<string, mixed> $changes */
     public function execute(
-        P2pkImportRow $row,
+        BulkExcelImportRow $row,
         array $changes,
         ?UploadedFile $image = null,
         bool $refreshBatchSummary = true,
-    ): P2pkImportRow {
-        if ($row->pembanding_id !== null || $row->status === P2pkImportRow::STATUS_IMPORTED) {
+    ): BulkExcelImportRow {
+        if ($row->pembanding_id !== null || $row->status === BulkExcelImportRow::STATUS_IMPORTED) {
             throw new LogicException('Data yang sudah diimpor tidak dapat diubah.');
         }
 
@@ -37,15 +37,15 @@ class UpdateP2pkImportRowAction
         $oldImage = null;
 
         try {
-            $updated = DB::transaction(function () use ($row, $changes, $image, $newImage, $removeImage, $refreshBatchSummary, &$oldImage): P2pkImportRow {
-                $lockedBatch = P2pkImportBatch::query()->lockForUpdate()->findOrFail($row->batch_id);
+            $updated = DB::transaction(function () use ($row, $changes, $image, $newImage, $removeImage, $refreshBatchSummary, &$oldImage): BulkExcelImportRow {
+                $lockedBatch = BulkExcelImportBatch::query()->lockForUpdate()->findOrFail($row->batch_id);
                 if (! $lockedBatch->allowsDraftChanges()) {
                     throw new LogicException('Data tidak dapat diubah selama proses memasukkan data berjalan.');
                 }
 
-                /** @var P2pkImportRow $locked */
-                $locked = P2pkImportRow::query()->lockForUpdate()->findOrFail($row->getKey());
-                if ($locked->pembanding_id !== null || $locked->status === P2pkImportRow::STATUS_IMPORTED) {
+                /** @var BulkExcelImportRow $locked */
+                $locked = BulkExcelImportRow::query()->lockForUpdate()->findOrFail($row->getKey());
+                if ($locked->pembanding_id !== null || $locked->status === BulkExcelImportRow::STATUS_IMPORTED) {
                     throw new LogicException('Data yang sudah diimpor tidak dapat diubah.');
                 }
 
@@ -88,11 +88,11 @@ class UpdateP2pkImportRowAction
                 );
 
                 $status = match (true) {
-                    $locked->duplicate_of_row_id !== null => P2pkImportRow::STATUS_DUPLICATE,
-                    $warnings !== [] => P2pkImportRow::STATUS_NEEDS_CONFIRMATION,
-                    $validationWarnings !== [] => P2pkImportRow::STATUS_INVALID,
-                    $readiness['missing_fields'] !== [] => P2pkImportRow::STATUS_INCOMPLETE,
-                    default => P2pkImportRow::STATUS_READY,
+                    $locked->duplicate_of_row_id !== null => BulkExcelImportRow::STATUS_DUPLICATE,
+                    $warnings !== [] => BulkExcelImportRow::STATUS_NEEDS_CONFIRMATION,
+                    $validationWarnings !== [] => BulkExcelImportRow::STATUS_INVALID,
+                    $readiness['missing_fields'] !== [] => BulkExcelImportRow::STATUS_INCOMPLETE,
+                    default => BulkExcelImportRow::STATUS_READY,
                 };
 
                 $locked->update([
@@ -128,11 +128,11 @@ class UpdateP2pkImportRowAction
         return $updated->refresh();
     }
 
-    private function storeImage(P2pkImportRow $row, UploadedFile $image): string
+    private function storeImage(BulkExcelImportRow $row, UploadedFile $image): string
     {
         $extension = strtolower($image->guessExtension() ?: $image->getClientOriginalExtension());
         $filename = Str::uuid().($extension !== '' ? '.'.$extension : '');
-        $directory = 'p2pk-imports/'.$row->batch->owner_id.'/images/'.$row->getKey();
+        $directory = 'bulk-excel-imports/'.$row->batch->owner_id.'/images/'.$row->getKey();
         $path = Storage::disk('local')->putFileAs($directory, $image, $filename);
 
         if ($path === false) {

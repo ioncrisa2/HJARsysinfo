@@ -1,9 +1,9 @@
 <?php
 
-use App\Services\P2pk\P2pkValueNormalizer;
+use App\Services\BulkExcelImport\BulkExcelImportValueNormalizer;
 
 it('normalizes Indonesian and international formatted numbers', function (string $value, float $expected) {
-    expect((new P2pkValueNormalizer)->number($value))->toBe($expected);
+    expect((new BulkExcelImportValueNormalizer)->number($value))->toBe($expected);
 })->with([
     ['Rp 1.250.000', 1250000.0],
     ['1.250.000,50', 1250000.5],
@@ -13,7 +13,7 @@ it('normalizes Indonesian and international formatted numbers', function (string
 ]);
 
 it('rejects coordinates outside valid latitude and longitude ranges', function () {
-    $normalizer = new P2pkValueNormalizer;
+    $normalizer = new BulkExcelImportValueNormalizer;
 
     expect($normalizer->coordinates('112.584118,112.584118'))->toBeNull()
         ->and($normalizer->coordinates('-6.2,106.8'))->toBe([

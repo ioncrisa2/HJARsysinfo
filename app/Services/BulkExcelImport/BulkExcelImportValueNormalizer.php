@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Services\P2pk;
+namespace App\Services\BulkExcelImport;
 
 use Illuminate\Support\Str;
 
-class P2pkValueNormalizer
+class BulkExcelImportValueNormalizer
 {
     public function text(mixed $value): ?string
     {

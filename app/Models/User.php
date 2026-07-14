@@ -60,9 +60,9 @@ class User extends Authenticatable
         return $this->hasMany(Pembanding::class, 'created_by');
     }
 
-    public function p2pkImportBatches(): HasMany
+    public function bulkExcelImportBatches(): HasMany
     {
-        return $this->hasMany(P2pkImportBatch::class, 'owner_id');
+        return $this->hasMany(BulkExcelImportBatch::class, 'owner_id');
     }
 
     public function scopeActive(Builder $query): void

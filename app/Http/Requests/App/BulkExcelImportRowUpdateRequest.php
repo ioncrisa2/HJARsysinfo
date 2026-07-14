@@ -2,19 +2,19 @@
 
 namespace App\Http\Requests\App;
 
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use Illuminate\Validation\Rules\RequiredIf;
 
-class P2pkImportRowUpdateRequest extends PembandingStoreRequest
+class BulkExcelImportRowUpdateRequest extends PembandingStoreRequest
 {
     public function authorize(): bool
     {
         $batch = $this->route('batch');
         $row = $this->route('row');
 
-        return $batch instanceof P2pkImportBatch
-            && $row instanceof P2pkImportRow
+        return $batch instanceof BulkExcelImportBatch
+            && $row instanceof BulkExcelImportRow
             && $row->batch_id === $batch->id
             && (bool) $this->user()?->can('update', $batch);
     }

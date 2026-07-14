@@ -1,23 +1,23 @@
 <?php
 
-namespace App\Actions\P2pk;
+namespace App\Actions\BulkExcelImport;
 
-use App\Jobs\ProcessP2pkImportChunk;
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Jobs\ProcessBulkExcelImportChunk;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
-class FinalizeP2pkImportBatchAction
+class FinalizeBulkExcelImportBatchAction
 {
-    public function execute(P2pkImportBatch $batch, User $initiator): P2pkImportBatch
+    public function execute(BulkExcelImportBatch $batch, User $initiator): BulkExcelImportBatch
     {
         $chunks = DB::transaction(function () use ($batch, $initiator): array {
-            $locked = P2pkImportBatch::query()->lockForUpdate()->findOrFail($batch->getKey());
+            $locked = BulkExcelImportBatch::query()->lockForUpdate()->findOrFail($batch->getKey());
 
-            if ($locked->status !== P2pkImportBatch::STATUS_DRAFT) {
+            if ($locked->status !== BulkExcelImportBatch::STATUS_DRAFT) {
                 throw ValidationException::withMessages([
                     'finalize' => 'Data ini sudah pernah mulai diproses. Muat ulang halaman untuk melihat hasil terbaru.',
                 ]);
@@ -28,7 +28,7 @@ class FinalizeP2pkImportBatchAction
                 throw ValidationException::withMessages(['finalize' => 'Pilih setidaknya satu data untuk dimasukkan.']);
             }
 
-            $notReady = $selected->where('status', '!=', P2pkImportRow::STATUS_READY)->count();
+            $notReady = $selected->where('status', '!=', BulkExcelImportRow::STATUS_READY)->count();
             if ($notReady > 0) {
                 throw ValidationException::withMessages([
                     'finalize' => "Masih ada {$notReady} data terpilih yang belum lengkap.",
@@ -36,15 +36,15 @@ class FinalizeP2pkImportBatchAction
             }
 
             $rowIds = $selected->pluck('id');
-            P2pkImportRow::query()->whereKey($rowIds)->update([
-                'status' => P2pkImportRow::STATUS_QUEUED,
+            BulkExcelImportRow::query()->whereKey($rowIds)->update([
+                'status' => BulkExcelImportRow::STATUS_QUEUED,
                 'attempts' => 0,
                 'last_error' => null,
                 'failure_code' => null,
             ]);
 
             $locked->update([
-                'status' => P2pkImportBatch::STATUS_PROCESSING,
+                'status' => BulkExcelImportBatch::STATUS_PROCESSING,
                 'finalization_date' => now('Asia/Jakarta')->toDateString(),
                 'initiated_by' => $initiator->getKey(),
                 'finalized_at' => null,
@@ -56,16 +56,16 @@ class FinalizeP2pkImportBatchAction
 
         foreach ($chunks as $index => $rowIds) {
             try {
-                ProcessP2pkImportChunk::dispatch($batch->getKey(), $rowIds)->afterCommit();
+                ProcessBulkExcelImportChunk::dispatch($batch->getKey(), $rowIds)->afterCommit();
             } catch (Throwable $exception) {
                 report($exception);
                 $undispatchedIds = collect(array_slice($chunks, $index))->flatten()->all();
-                P2pkImportRow::query()->whereKey($undispatchedIds)->where('status', P2pkImportRow::STATUS_QUEUED)->update([
-                    'status' => P2pkImportRow::STATUS_FAILED,
+                BulkExcelImportRow::query()->whereKey($undispatchedIds)->where('status', BulkExcelImportRow::STATUS_QUEUED)->update([
+                    'status' => BulkExcelImportRow::STATUS_FAILED,
                     'last_error' => 'Proses belum dapat dijadwalkan. Silakan coba proses kembali.',
                     'failure_code' => 'transient',
                 ]);
-                app(RefreshP2pkImportBatchSummaryAction::class)->execute($batch->refresh());
+                app(RefreshBulkExcelImportBatchSummaryAction::class)->execute($batch->refresh());
                 break;
             }
         }

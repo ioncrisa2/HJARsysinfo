@@ -2,17 +2,17 @@
 
 namespace App\Http\Requests\App;
 
-use App\Models\P2pkImportBatch;
+use App\Models\BulkExcelImportBatch;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class P2pkImportSelectionRequest extends FormRequest
+class BulkExcelImportSelectionRequest extends FormRequest
 {
     public function authorize(): bool
     {
         $batch = $this->route('batch');
 
-        return $batch instanceof P2pkImportBatch
+        return $batch instanceof BulkExcelImportBatch
             && (bool) $this->user()?->can('update', $batch);
     }
 

@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers\App;
 
-use App\Actions\P2pk\BulkApplyP2pkImportRowsAction;
-use App\Actions\P2pk\CreateP2pkImportBatchAction;
-use App\Actions\P2pk\FinalizeP2pkImportBatchAction;
-use App\Actions\P2pk\RetryP2pkImportRowAction;
-use App\Actions\P2pk\UpdateP2pkImportRowAction;
-use App\Actions\P2pk\UpdateP2pkImportSelectionAction;
-use App\Exceptions\InvalidP2pkWorkbookException;
+use App\Actions\BulkExcelImport\BulkApplyBulkExcelImportRowsAction;
+use App\Actions\BulkExcelImport\CreateBulkExcelImportBatchAction;
+use App\Actions\BulkExcelImport\FinalizeBulkExcelImportBatchAction;
+use App\Actions\BulkExcelImport\RetryBulkExcelImportRowAction;
+use App\Actions\BulkExcelImport\UpdateBulkExcelImportRowAction;
+use App\Actions\BulkExcelImport\UpdateBulkExcelImportSelectionAction;
+use App\Exceptions\InvalidBulkExcelImportWorkbookException;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\App\P2pkImportBulkApplyRequest;
-use App\Http\Requests\App\P2pkImportFinalizeRequest;
-use App\Http\Requests\App\P2pkImportRowUpdateRequest;
-use App\Http\Requests\App\P2pkImportSelectionRequest;
-use App\Http\Requests\App\P2pkImportStoreRequest;
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Http\Requests\App\BulkExcelImportBulkApplyRequest;
+use App\Http\Requests\App\BulkExcelImportFinalizeRequest;
+use App\Http\Requests\App\BulkExcelImportRowUpdateRequest;
+use App\Http\Requests\App\BulkExcelImportSelectionRequest;
+use App\Http\Requests\App\BulkExcelImportStoreRequest;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Services\Pembanding\PembandingFormOptionsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,29 +28,29 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class P2pkImportController extends Controller
+class BulkExcelImportController extends Controller
 {
     public function index(Request $request): Response
     {
-        Gate::authorize('viewAny', P2pkImportBatch::class);
+        Gate::authorize('viewAny', BulkExcelImportBatch::class);
 
-        $batches = P2pkImportBatch::query()
+        $batches = BulkExcelImportBatch::query()
             ->when(! $request->user()->hasRole('super_admin'), fn ($query) => $query->where('owner_id', $request->user()->id))
             ->with('owner:id,name')
             ->latest('updated_at')
             ->paginate(15)
-            ->through(fn (P2pkImportBatch $batch): array => $this->batchPayload($batch));
+            ->through(fn (BulkExcelImportBatch $batch): array => $this->batchPayload($batch));
 
         return Inertia::render('PembandingImports/Index', [
             'batches' => $batches,
         ]);
     }
 
-    public function store(P2pkImportStoreRequest $request, CreateP2pkImportBatchAction $action): RedirectResponse
+    public function store(BulkExcelImportStoreRequest $request, CreateBulkExcelImportBatchAction $action): RedirectResponse
     {
         try {
             $result = $action->execute($request->user(), $request->file('file'));
-        } catch (InvalidP2pkWorkbookException $exception) {
+        } catch (InvalidBulkExcelImportWorkbookException $exception) {
             throw ValidationException::withMessages(['file' => $exception->getMessage()]);
         }
 
@@ -65,7 +65,7 @@ class P2pkImportController extends Controller
 
     public function show(
         Request $request,
-        P2pkImportBatch $batch,
+        BulkExcelImportBatch $batch,
         PembandingFormOptionsService $formOptions,
     ): Response {
         Gate::authorize('view', $batch);
@@ -73,17 +73,17 @@ class P2pkImportController extends Controller
 
         $filters = $request->validate([
             'status' => ['nullable', Rule::in([
-                P2pkImportRow::STATUS_INCOMPLETE,
-                P2pkImportRow::STATUS_NEEDS_CONFIRMATION,
-                P2pkImportRow::STATUS_INVALID,
-                P2pkImportRow::STATUS_DUPLICATE,
-                P2pkImportRow::STATUS_READY,
-                P2pkImportRow::STATUS_IMPORTED,
-                P2pkImportRow::STATUS_FAILED,
-                P2pkImportRow::STATUS_QUEUED,
-                P2pkImportRow::STATUS_PROCESSING,
-                P2pkImportRow::STATUS_FINAL_DUPLICATE,
-                P2pkImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
+                BulkExcelImportRow::STATUS_INCOMPLETE,
+                BulkExcelImportRow::STATUS_NEEDS_CONFIRMATION,
+                BulkExcelImportRow::STATUS_INVALID,
+                BulkExcelImportRow::STATUS_DUPLICATE,
+                BulkExcelImportRow::STATUS_READY,
+                BulkExcelImportRow::STATUS_IMPORTED,
+                BulkExcelImportRow::STATUS_FAILED,
+                BulkExcelImportRow::STATUS_QUEUED,
+                BulkExcelImportRow::STATUS_PROCESSING,
+                BulkExcelImportRow::STATUS_FINAL_DUPLICATE,
+                BulkExcelImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
             ])],
             'selected' => ['nullable', Rule::in(['0', '1'])],
         ]);
@@ -93,7 +93,7 @@ class P2pkImportController extends Controller
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
             ->when(isset($filters['selected']), fn ($query) => $query->where('is_selected', $filters['selected'] === '1'))
             ->paginate(25)
-            ->through(fn (P2pkImportRow $row): array => [
+            ->through(fn (BulkExcelImportRow $row): array => [
                 'id' => $row->id,
                 'source_row_number' => $row->source_row_number,
                 'status' => $row->status,
@@ -115,11 +115,11 @@ class P2pkImportController extends Controller
                 'result_url' => $this->resultUrl($request, $row),
                 'retry_url' => $this->retryUrl($batch, $row),
                 'edit_url' => ! $batch->allowsDraftChanges() || in_array($row->status, [
-                    P2pkImportRow::STATUS_DUPLICATE,
-                    P2pkImportRow::STATUS_FINAL_DUPLICATE,
-                    P2pkImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
-                    P2pkImportRow::STATUS_QUEUED,
-                    P2pkImportRow::STATUS_PROCESSING,
+                    BulkExcelImportRow::STATUS_DUPLICATE,
+                    BulkExcelImportRow::STATUS_FINAL_DUPLICATE,
+                    BulkExcelImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
+                    BulkExcelImportRow::STATUS_QUEUED,
+                    BulkExcelImportRow::STATUS_PROCESSING,
                 ], true)
                     ? null
                     : route($this->routeName('rows.edit'), [$batch, $row]),
@@ -142,9 +142,9 @@ class P2pkImportController extends Controller
     }
 
     public function bulkApply(
-        P2pkImportBulkApplyRequest $request,
-        P2pkImportBatch $batch,
-        BulkApplyP2pkImportRowsAction $action,
+        BulkExcelImportBulkApplyRequest $request,
+        BulkExcelImportBatch $batch,
+        BulkApplyBulkExcelImportRowsAction $action,
     ): RedirectResponse {
         $validated = $request->validated();
         $updated = $action->execute($batch, $validated['field'], (int) $validated['value']);
@@ -158,8 +158,8 @@ class P2pkImportController extends Controller
     }
 
     public function edit(
-        P2pkImportBatch $batch,
-        P2pkImportRow $row,
+        BulkExcelImportBatch $batch,
+        BulkExcelImportRow $row,
         PembandingFormOptionsService $formOptions,
     ): Response {
         Gate::authorize('update', $batch);
@@ -167,11 +167,11 @@ class P2pkImportController extends Controller
 
         if (! $batch->allowsDraftChanges()
             || in_array($row->status, [
-                P2pkImportRow::STATUS_DUPLICATE,
-                P2pkImportRow::STATUS_FINAL_DUPLICATE,
-                P2pkImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
-                P2pkImportRow::STATUS_QUEUED,
-                P2pkImportRow::STATUS_PROCESSING,
+                BulkExcelImportRow::STATUS_DUPLICATE,
+                BulkExcelImportRow::STATUS_FINAL_DUPLICATE,
+                BulkExcelImportRow::STATUS_SOURCE_ALREADY_IMPORTED,
+                BulkExcelImportRow::STATUS_QUEUED,
+                BulkExcelImportRow::STATUS_PROCESSING,
             ], true)
             || $row->pembanding_id !== null) {
             abort(404);
@@ -179,13 +179,13 @@ class P2pkImportController extends Controller
 
         $payload = $row->mapped_payload ?? [];
         $previous = $batch->rows()
-            ->where('status', '!=', P2pkImportRow::STATUS_DUPLICATE)
+            ->where('status', '!=', BulkExcelImportRow::STATUS_DUPLICATE)
             ->whereNull('pembanding_id')
             ->where('source_row_number', '<', $row->source_row_number)
             ->orderByDesc('source_row_number')
             ->first();
         $next = $batch->rows()
-            ->where('status', '!=', P2pkImportRow::STATUS_DUPLICATE)
+            ->where('status', '!=', BulkExcelImportRow::STATUS_DUPLICATE)
             ->whereNull('pembanding_id')
             ->where('source_row_number', '>', $row->source_row_number)
             ->orderBy('source_row_number')
@@ -213,15 +213,15 @@ class P2pkImportController extends Controller
     }
 
     public function update(
-        P2pkImportRowUpdateRequest $request,
-        P2pkImportBatch $batch,
-        P2pkImportRow $row,
-        UpdateP2pkImportRowAction $action,
+        BulkExcelImportRowUpdateRequest $request,
+        BulkExcelImportBatch $batch,
+        BulkExcelImportRow $row,
+        UpdateBulkExcelImportRowAction $action,
     ): RedirectResponse {
         $this->ensureRowBelongsToBatch($batch, $row);
         $updated = $action->execute($row, $request->validated(), $request->file('image'));
 
-        $message = $updated->status === P2pkImportRow::STATUS_READY
+        $message = $updated->status === BulkExcelImportRow::STATUS_READY
             ? 'Draf tersimpan dan data ini sudah lengkap.'
             : 'Draf tersimpan. Lengkapi bagian yang masih ditandai.';
 
@@ -230,7 +230,7 @@ class P2pkImportController extends Controller
             ->with('success', $message);
     }
 
-    public function image(P2pkImportBatch $batch, P2pkImportRow $row)
+    public function image(BulkExcelImportBatch $batch, BulkExcelImportRow $row)
     {
         Gate::authorize('view', $batch);
         $this->ensureRowBelongsToBatch($batch, $row);
@@ -256,9 +256,9 @@ class P2pkImportController extends Controller
     }
 
     public function selection(
-        P2pkImportSelectionRequest $request,
-        P2pkImportBatch $batch,
-        UpdateP2pkImportSelectionAction $action,
+        BulkExcelImportSelectionRequest $request,
+        BulkExcelImportBatch $batch,
+        UpdateBulkExcelImportSelectionAction $action,
     ): RedirectResponse {
         $validated = $request->validated();
         $action->execute(
@@ -272,9 +272,9 @@ class P2pkImportController extends Controller
     }
 
     public function finalize(
-        P2pkImportFinalizeRequest $request,
-        P2pkImportBatch $batch,
-        FinalizeP2pkImportBatchAction $action,
+        BulkExcelImportFinalizeRequest $request,
+        BulkExcelImportBatch $batch,
+        FinalizeBulkExcelImportBatchAction $action,
     ): RedirectResponse {
         $action->execute($batch, $request->user());
 
@@ -283,9 +283,9 @@ class P2pkImportController extends Controller
 
     public function retry(
         Request $request,
-        P2pkImportBatch $batch,
-        P2pkImportRow $row,
-        RetryP2pkImportRowAction $action,
+        BulkExcelImportBatch $batch,
+        BulkExcelImportRow $row,
+        RetryBulkExcelImportRowAction $action,
     ): RedirectResponse {
         Gate::authorize('update', $batch);
         $this->ensureRowBelongsToBatch($batch, $row);
@@ -294,15 +294,15 @@ class P2pkImportController extends Controller
         return back()->with('success', 'Data akan dicoba kembali. Hasil akan diperbarui otomatis.');
     }
 
-    private function batchPayload(P2pkImportBatch $batch): array
+    private function batchPayload(BulkExcelImportBatch $batch): array
     {
         $processingRows = $batch->rows()
             ->reorder()
             ->where('is_selected', true)
-            ->whereIn('status', [P2pkImportRow::STATUS_QUEUED, P2pkImportRow::STATUS_PROCESSING])
+            ->whereIn('status', [BulkExcelImportRow::STATUS_QUEUED, BulkExcelImportRow::STATUS_PROCESSING])
             ->count();
-        $canEdit = $batch->status === P2pkImportBatch::STATUS_DRAFT;
-        $canFinalize = $batch->status === P2pkImportBatch::STATUS_DRAFT
+        $canEdit = $batch->status === BulkExcelImportBatch::STATUS_DRAFT;
+        $canFinalize = $batch->status === BulkExcelImportBatch::STATUS_DRAFT
             && $batch->selected_rows > 0
             && $batch->selected_rows === $batch->ready_rows;
 
@@ -331,15 +331,15 @@ class P2pkImportController extends Controller
     private function rowStatusLabel(string $status): string
     {
         return match ($status) {
-            P2pkImportRow::STATUS_DUPLICATE => 'Data sama',
-            P2pkImportRow::STATUS_NEEDS_CONFIRMATION => 'Perlu diperiksa',
-            P2pkImportRow::STATUS_INVALID => 'Perlu diperbaiki',
-            P2pkImportRow::STATUS_READY => 'Siap dimasukkan',
-            P2pkImportRow::STATUS_QUEUED, P2pkImportRow::STATUS_PROCESSING => 'Sedang diproses',
-            P2pkImportRow::STATUS_IMPORTED => 'Berhasil dimasukkan',
-            P2pkImportRow::STATUS_FAILED => 'Perlu diperbaiki',
-            P2pkImportRow::STATUS_FINAL_DUPLICATE => 'Sudah ada di Data Pembanding',
-            P2pkImportRow::STATUS_SOURCE_ALREADY_IMPORTED => 'Sumber sudah pernah dimasukkan',
+            BulkExcelImportRow::STATUS_DUPLICATE => 'Data sama',
+            BulkExcelImportRow::STATUS_NEEDS_CONFIRMATION => 'Perlu diperiksa',
+            BulkExcelImportRow::STATUS_INVALID => 'Perlu diperbaiki',
+            BulkExcelImportRow::STATUS_READY => 'Siap dimasukkan',
+            BulkExcelImportRow::STATUS_QUEUED, BulkExcelImportRow::STATUS_PROCESSING => 'Sedang diproses',
+            BulkExcelImportRow::STATUS_IMPORTED => 'Berhasil dimasukkan',
+            BulkExcelImportRow::STATUS_FAILED => 'Perlu diperbaiki',
+            BulkExcelImportRow::STATUS_FINAL_DUPLICATE => 'Sudah ada di Data Pembanding',
+            BulkExcelImportRow::STATUS_SOURCE_ALREADY_IMPORTED => 'Sumber sudah pernah dimasukkan',
             default => 'Belum lengkap',
         };
     }
@@ -347,17 +347,17 @@ class P2pkImportController extends Controller
     private function batchStatusLabel(string $status): string
     {
         return match ($status) {
-            P2pkImportBatch::STATUS_PROCESSING => 'Sedang dimasukkan',
-            P2pkImportBatch::STATUS_COMPLETE => 'Selesai',
-            P2pkImportBatch::STATUS_PARTIAL => 'Sebagian perlu diperbaiki',
-            P2pkImportBatch::STATUS_FAILED => 'Perlu diperbaiki',
+            BulkExcelImportBatch::STATUS_PROCESSING => 'Sedang dimasukkan',
+            BulkExcelImportBatch::STATUS_COMPLETE => 'Selesai',
+            BulkExcelImportBatch::STATUS_PARTIAL => 'Sebagian perlu diperbaiki',
+            BulkExcelImportBatch::STATUS_FAILED => 'Perlu diperbaiki',
             default => 'Draf',
         };
     }
 
-    private function finalizeBlockReason(P2pkImportBatch $batch): ?string
+    private function finalizeBlockReason(BulkExcelImportBatch $batch): ?string
     {
-        if ($batch->status !== P2pkImportBatch::STATUS_DRAFT) {
+        if ($batch->status !== BulkExcelImportBatch::STATUS_DRAFT) {
             return null;
         }
 
@@ -370,7 +370,7 @@ class P2pkImportController extends Controller
         return $unfinished > 0 ? "Masih ada {$unfinished} data terpilih yang belum lengkap." : null;
     }
 
-    private function resultUrl(Request $request, P2pkImportRow $row): ?string
+    private function resultUrl(Request $request, BulkExcelImportRow $row): ?string
     {
         $pembanding = $row->pembanding ?: $row->conflictingPembanding;
 
@@ -379,11 +379,11 @@ class P2pkImportController extends Controller
             : null;
     }
 
-    private function retryUrl(P2pkImportBatch $batch, P2pkImportRow $row): ?string
+    private function retryUrl(BulkExcelImportBatch $batch, BulkExcelImportRow $row): ?string
     {
-        $retryableBatch = in_array($batch->status, [P2pkImportBatch::STATUS_PARTIAL, P2pkImportBatch::STATUS_FAILED], true);
-        $retryableRow = $row->status === P2pkImportRow::STATUS_READY
-            || ($row->status === P2pkImportRow::STATUS_FAILED && $row->failure_code === 'transient');
+        $retryableBatch = in_array($batch->status, [BulkExcelImportBatch::STATUS_PARTIAL, BulkExcelImportBatch::STATUS_FAILED], true);
+        $retryableRow = $row->status === BulkExcelImportRow::STATUS_READY
+            || ($row->status === BulkExcelImportRow::STATUS_FAILED && $row->failure_code === 'transient');
 
         return $retryableBatch && $retryableRow
             ? route($this->routeName('rows.retry'), [$batch, $row])
@@ -392,10 +392,10 @@ class P2pkImportController extends Controller
 
     private function routeName(string $suffix): string
     {
-        return 'app.p2pk-imports.'.$suffix;
+        return 'app.bulk-excel-imports.'.$suffix;
     }
 
-    private function ensureRowBelongsToBatch(P2pkImportBatch $batch, P2pkImportRow $row): void
+    private function ensureRowBelongsToBatch(BulkExcelImportBatch $batch, BulkExcelImportRow $row): void
     {
         abort_unless($row->batch_id === $batch->id, 404);
     }

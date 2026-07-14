@@ -6,8 +6,8 @@ use App\Models\DokumenTanah;
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
-use App\Models\P2pkImportBatch;
-use App\Models\P2pkImportRow;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
 use App\Models\Province;
@@ -33,7 +33,7 @@ beforeEach(function () {
     Village::query()->create(['id' => '9701010001', 'district_id' => '9701010', 'name' => 'Desa Draft']);
 });
 
-function p2pkDraftEditingUser(string $role = 'bulk_import'): User
+function bulkExcelImportDraftEditingUser(string $role = 'bulk_import'): User
 {
     $user = User::factory()->create(['deactivated_at' => null]);
     $user->assignRole($role);
@@ -41,20 +41,20 @@ function p2pkDraftEditingUser(string $role = 'bulk_import'): User
     return $user;
 }
 
-function p2pkDraftEditingBatch(User $owner, array $attributes = []): P2pkImportBatch
+function bulkExcelImportDraftEditingBatch(User $owner, array $attributes = []): BulkExcelImportBatch
 {
     $token = (string) Str::uuid();
-    $path = "p2pk-imports/{$owner->id}/{$token}/source.xlsx";
+    $path = "bulk-excel-imports/{$owner->id}/{$token}/source.xlsx";
     Storage::disk('local')->put($path, 'private workbook fixture');
 
-    return P2pkImportBatch::query()->create(array_replace([
+    return BulkExcelImportBatch::query()->create(array_replace([
         'owner_id' => $owner->id,
         'original_filename' => 'draft.xlsx',
         'source_disk' => 'local',
         'source_path' => $path,
         'file_checksum' => hash('sha256', $token),
         'sheet_name' => 'Data_Pembanding',
-        'status' => P2pkImportBatch::STATUS_DRAFT,
+        'status' => BulkExcelImportBatch::STATUS_DRAFT,
         'total_rows' => 0,
         'selected_rows' => 0,
         'ready_rows' => 0,
@@ -62,14 +62,14 @@ function p2pkDraftEditingBatch(User $owner, array $attributes = []): P2pkImportB
     ], $attributes));
 }
 
-function p2pkDraftEditingRow(P2pkImportBatch $batch, array $attributes = []): P2pkImportRow
+function bulkExcelImportDraftEditingRow(BulkExcelImportBatch $batch, array $attributes = []): BulkExcelImportRow
 {
     $number = $attributes['source_row_number'] ?? ($batch->rows()->count() + 2);
 
     $row = $batch->rows()->create(array_replace([
         'source_row_number' => $number,
         'source_fingerprint' => hash('sha256', "{$batch->id}:{$number}:".Str::uuid()),
-        'status' => P2pkImportRow::STATUS_INCOMPLETE,
+        'status' => BulkExcelImportRow::STATUS_INCOMPLETE,
         'is_selected' => true,
         'raw_payload' => ['Nomor Laporan Penilaian' => "LP-{$number}"],
         'mapped_payload' => [
@@ -86,13 +86,13 @@ function p2pkDraftEditingRow(P2pkImportBatch $batch, array $attributes = []): P2
     $batch->update([
         'total_rows' => $batch->rows()->count(),
         'selected_rows' => $batch->rows()->where('is_selected', true)->count(),
-        'ready_rows' => $batch->rows()->where('status', P2pkImportRow::STATUS_READY)->count(),
+        'ready_rows' => $batch->rows()->where('status', BulkExcelImportRow::STATUS_READY)->count(),
     ]);
 
     return $row;
 }
 
-function p2pkCompleteTanahDraftPayload(array $overrides = []): array
+function bulkExcelImportCompleteTanahDraftPayload(array $overrides = []): array
 {
     return array_replace([
         'jenis_listing_id' => JenisListing::query()->where('slug', 'penawaran')->value('id'),
@@ -125,11 +125,11 @@ function p2pkCompleteTanahDraftPayload(array $overrides = []): array
 }
 
 it('allows only the owner or super admin to open and change a draft row', function () {
-    $owner = p2pkDraftEditingUser();
-    $other = p2pkDraftEditingUser();
-    $superAdmin = p2pkDraftEditingUser('super_admin');
-    $batch = p2pkDraftEditingBatch($owner);
-    $row = p2pkDraftEditingRow($batch);
+    $owner = bulkExcelImportDraftEditingUser();
+    $other = bulkExcelImportDraftEditingUser();
+    $superAdmin = bulkExcelImportDraftEditingUser('super_admin');
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $row = bulkExcelImportDraftEditingRow($batch);
     $editUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}/edit";
     $updateUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
@@ -145,9 +145,9 @@ it('allows only the owner or super admin to open and change a draft row', functi
 });
 
 it('saves partial work as an incomplete draft without creating main data', function () {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $row = p2pkDraftEditingRow($batch);
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $row = bulkExcelImportDraftEditingRow($batch);
 
     $this->actingAs($owner)
         ->put("/app/pembanding-imports/{$batch->id}/rows/{$row->id}", [
@@ -157,7 +157,7 @@ it('saves partial work as an incomplete draft without creating main data', funct
         ->assertRedirect();
 
     $row->refresh();
-    expect($row->status)->toBe(P2pkImportRow::STATUS_INCOMPLETE)
+    expect($row->status)->toBe(BulkExcelImportRow::STATUS_INCOMPLETE)
         ->and($row->mapped_payload['nama_pemberi_informasi'])->toBe('Budi Pemilik')
         ->and($row->mapped_payload['lebar_depan'])->toBeNumeric()
         ->and(collect($row->missing_fields)->pluck('field'))->toContain('image');
@@ -165,10 +165,10 @@ it('saves partial work as an incomplete draft without creating main data', funct
 });
 
 it('marks a completed tanah draft ready and serves its image only through the protected route', function () {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $row = p2pkDraftEditingRow($batch);
-    $payload = p2pkCompleteTanahDraftPayload([
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $row = bulkExcelImportDraftEditingRow($batch);
+    $payload = bulkExcelImportCompleteTanahDraftPayload([
         'image' => UploadedFile::fake()->image('aset.jpg', 800, 600),
     ]);
 
@@ -181,7 +181,7 @@ it('marks a completed tanah draft ready and serves its image only through the pr
 
     $row->refresh();
     $batch->refresh();
-    expect($row->status)->toBe(P2pkImportRow::STATUS_READY)
+    expect($row->status)->toBe(BulkExcelImportRow::STATUS_READY)
         ->and($row->missing_fields)->toBeEmpty()
         ->and($row->staging_image_path)->not->toBeNull()
         ->and($batch->ready_rows)->toBe(1)
@@ -191,19 +191,19 @@ it('marks a completed tanah draft ready and serves its image only through the pr
 
     $imageUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}/image";
     $this->actingAs($owner)->get($imageUrl)->assertOk()->assertHeader('content-type', 'image/jpeg');
-    $this->actingAs(p2pkDraftEditingUser())->get($imageUrl)->assertForbidden();
+    $this->actingAs(bulkExcelImportDraftEditingUser())->get($imageUrl)->assertForbidden();
     $this->assertDatabaseCount('data_pembanding', 0);
 });
 
 it('deletes the previous private image when a draft image is replaced', function () {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $row = p2pkDraftEditingRow($batch);
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $row = bulkExcelImportDraftEditingRow($batch);
     $url = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
     $this->actingAs($owner)->post($url, [
         '_method' => 'PUT',
-        ...p2pkCompleteTanahDraftPayload([
+        ...bulkExcelImportCompleteTanahDraftPayload([
             'image' => UploadedFile::fake()->image('lama.jpg'),
         ]),
     ])->assertRedirect();
@@ -212,7 +212,7 @@ it('deletes the previous private image when a draft image is replaced', function
 
     $this->actingAs($owner)->post($url, [
         '_method' => 'PUT',
-        ...p2pkCompleteTanahDraftPayload([
+        ...bulkExcelImportCompleteTanahDraftPayload([
             'image' => UploadedFile::fake()->image('baru.png'),
         ]),
     ])->assertRedirect();
@@ -225,21 +225,21 @@ it('deletes the previous private image when a draft image is replaced', function
 });
 
 it('removes a private image and marks the selected row incomplete again', function () {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $row = p2pkDraftEditingRow($batch);
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $row = bulkExcelImportDraftEditingRow($batch);
     $url = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
     $this->actingAs($owner)->post($url, [
         '_method' => 'PUT',
-        ...p2pkCompleteTanahDraftPayload([
+        ...bulkExcelImportCompleteTanahDraftPayload([
             'image' => UploadedFile::fake()->image('aset.jpg'),
         ]),
     ])->assertRedirect();
 
     $row->refresh();
     $oldPath = $row->staging_image_path;
-    expect($row->status)->toBe(P2pkImportRow::STATUS_READY);
+    expect($row->status)->toBe(BulkExcelImportRow::STATUS_READY);
     Storage::disk('local')->assertExists($oldPath);
 
     $this->actingAs($owner)->put($url, ['remove_image' => true])->assertRedirect();
@@ -247,7 +247,7 @@ it('removes a private image and marks the selected row incomplete again', functi
     $row->refresh();
     $batch->refresh();
     expect($row->staging_image_path)->toBeNull()
-        ->and($row->status)->toBe(P2pkImportRow::STATUS_INCOMPLETE)
+        ->and($row->status)->toBe(BulkExcelImportRow::STATUS_INCOMPLETE)
         ->and(collect($row->missing_fields)->pluck('field'))->toContain('image')
         ->and($batch->selected_rows)->toBe(1)
         ->and($batch->ready_rows)->toBe(0);
@@ -256,20 +256,20 @@ it('removes a private image and marks the selected row incomplete again', functi
 });
 
 it('supports all selection modes while refusing to select duplicate rows', function () {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $ready = p2pkDraftEditingRow($batch, [
-        'status' => P2pkImportRow::STATUS_READY,
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $ready = bulkExcelImportDraftEditingRow($batch, [
+        'status' => BulkExcelImportRow::STATUS_READY,
         'is_selected' => false,
         'missing_fields' => [],
     ]);
-    $incomplete = p2pkDraftEditingRow($batch, ['is_selected' => false]);
-    $confirmation = p2pkDraftEditingRow($batch, [
-        'status' => P2pkImportRow::STATUS_NEEDS_CONFIRMATION,
+    $incomplete = bulkExcelImportDraftEditingRow($batch, ['is_selected' => false]);
+    $confirmation = bulkExcelImportDraftEditingRow($batch, [
+        'status' => BulkExcelImportRow::STATUS_NEEDS_CONFIRMATION,
         'is_selected' => false,
     ]);
-    $duplicate = p2pkDraftEditingRow($batch, [
-        'status' => P2pkImportRow::STATUS_DUPLICATE,
+    $duplicate = bulkExcelImportDraftEditingRow($batch, [
+        'status' => BulkExcelImportRow::STATUS_DUPLICATE,
         'is_selected' => false,
         'duplicate_of_row_id' => $ready->id,
     ]);
@@ -318,23 +318,23 @@ it('supports all selection modes while refusing to select duplicate rows', funct
 });
 
 it('bulk applies an allowed value only to selected nonduplicate rows and refreshes readiness counters', function () {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $imagePath = "p2pk-imports/{$owner->id}/images/ready-target.jpg";
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $imagePath = "bulk-excel-imports/{$owner->id}/images/ready-target.jpg";
     Storage::disk('local')->put($imagePath, 'private image fixture');
 
-    $almostReadyPayload = p2pkCompleteTanahDraftPayload();
+    $almostReadyPayload = bulkExcelImportCompleteTanahDraftPayload();
     unset($almostReadyPayload['bentuk_tanah_id']);
-    $almostReady = p2pkDraftEditingRow($batch, [
+    $almostReady = bulkExcelImportDraftEditingRow($batch, [
         'mapped_payload' => $almostReadyPayload,
         'missing_fields' => [['field' => 'bentuk_tanah_id', 'label' => 'Bentuk tanah']],
         'staging_image_disk' => 'local',
         'staging_image_path' => $imagePath,
     ]);
-    $selectedIncomplete = p2pkDraftEditingRow($batch);
-    $unselected = p2pkDraftEditingRow($batch, ['is_selected' => false]);
-    $duplicate = p2pkDraftEditingRow($batch, [
-        'status' => P2pkImportRow::STATUS_DUPLICATE,
+    $selectedIncomplete = bulkExcelImportDraftEditingRow($batch);
+    $unselected = bulkExcelImportDraftEditingRow($batch, ['is_selected' => false]);
+    $duplicate = bulkExcelImportDraftEditingRow($batch, [
+        'status' => BulkExcelImportRow::STATUS_DUPLICATE,
         'is_selected' => true,
         'duplicate_of_row_id' => $almostReady->id,
     ]);
@@ -357,17 +357,17 @@ it('bulk applies an allowed value only to selected nonduplicate rows and refresh
         ->and($selectedIncomplete->mapped_payload['bentuk_tanah_id'])->toBe($shapeId)
         ->and($unselected->mapped_payload)->not->toHaveKey('bentuk_tanah_id')
         ->and($duplicate->mapped_payload)->not->toHaveKey('bentuk_tanah_id')
-        ->and($almostReady->status)->toBe(P2pkImportRow::STATUS_READY)
-        ->and($selectedIncomplete->status)->toBe(P2pkImportRow::STATUS_INCOMPLETE)
+        ->and($almostReady->status)->toBe(BulkExcelImportRow::STATUS_READY)
+        ->and($selectedIncomplete->status)->toBe(BulkExcelImportRow::STATUS_INCOMPLETE)
         ->and($batch->selected_rows)->toBe(3)
         ->and($batch->ready_rows)->toBe(1);
     $this->assertDatabaseCount('data_pembanding', 0);
 });
 
 it('rejects unsafe fields from bulk apply', function (string $field, mixed $value) {
-    $owner = p2pkDraftEditingUser();
-    $batch = p2pkDraftEditingBatch($owner);
-    $row = p2pkDraftEditingRow($batch);
+    $owner = bulkExcelImportDraftEditingUser();
+    $batch = bulkExcelImportDraftEditingBatch($owner);
+    $row = bulkExcelImportDraftEditingRow($batch);
     $originalPayload = $row->mapped_payload;
 
     $this->actingAs($owner)

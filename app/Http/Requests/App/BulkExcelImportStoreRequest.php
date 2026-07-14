@@ -5,7 +5,7 @@ namespace App\Http\Requests\App;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
-class P2pkImportStoreRequest extends FormRequest
+class BulkExcelImportStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {

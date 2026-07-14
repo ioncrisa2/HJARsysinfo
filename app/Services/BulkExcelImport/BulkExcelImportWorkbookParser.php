@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Services\P2pk;
+namespace App\Services\BulkExcelImport;
 
-use App\Exceptions\InvalidP2pkWorkbookException;
+use App\Exceptions\InvalidBulkExcelImportWorkbookException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class P2pkWorkbookParser
+class BulkExcelImportWorkbookParser
 {
     public const SHEET_NAME = 'Data_Pembanding';
 
@@ -19,7 +19,7 @@ class P2pkWorkbookParser
         'Sumber Data Lainnya', 'Kontak Sumber Data',
     ];
 
-    public function __construct(private readonly P2pkValueNormalizer $normalizer) {}
+    public function __construct(private readonly BulkExcelImportValueNormalizer $normalizer) {}
 
     /** @return array{sheet_name: string, rows: array<int, array{row_number: int, values: array<string, mixed>}>} */
     public function parse(string $path): array
@@ -30,28 +30,28 @@ class P2pkWorkbookParser
             $sheetInfo = collect($reader->listWorksheetInfo($path))
                 ->firstWhere('worksheetName', self::SHEET_NAME);
             if (! $sheetInfo) {
-                throw new InvalidP2pkWorkbookException('Sheet Data_Pembanding tidak ditemukan.');
+                throw new InvalidBulkExcelImportWorkbookException('Sheet Data_Pembanding tidak ditemukan.');
             }
             if (($sheetInfo['totalRows'] ?? 0) - 1 > self::MAX_ROWS) {
-                throw new InvalidP2pkWorkbookException('File berisi lebih dari '.self::MAX_ROWS.' data. Pecah file menjadi beberapa unggahan.');
+                throw new InvalidBulkExcelImportWorkbookException('File berisi lebih dari '.self::MAX_ROWS.' data. Pecah file menjadi beberapa unggahan.');
             }
             $spreadsheet = $reader->load($path);
-        } catch (InvalidP2pkWorkbookException $exception) {
+        } catch (InvalidBulkExcelImportWorkbookException $exception) {
             throw $exception;
         } catch (\Throwable $exception) {
-            throw new InvalidP2pkWorkbookException('File Excel tidak dapat dibaca. Pastikan file tidak rusak.', previous: $exception);
+            throw new InvalidBulkExcelImportWorkbookException('File Excel tidak dapat dibaca. Pastikan file tidak rusak.', previous: $exception);
         }
 
         try {
             $sheet = $spreadsheet->getSheetByName(self::SHEET_NAME);
             if (! $sheet) {
-                throw new InvalidP2pkWorkbookException('Sheet Data_Pembanding tidak ditemukan.');
+                throw new InvalidBulkExcelImportWorkbookException('Sheet Data_Pembanding tidak ditemukan.');
             }
 
             $this->validateHeaders($sheet);
             $highestRow = $sheet->getHighestDataRow();
             if ($highestRow - 1 > self::MAX_ROWS) {
-                throw new InvalidP2pkWorkbookException('File berisi lebih dari '.self::MAX_ROWS.' data. Pecah file menjadi beberapa unggahan.');
+                throw new InvalidBulkExcelImportWorkbookException('File berisi lebih dari '.self::MAX_ROWS.' data. Pecah file menjadi beberapa unggahan.');
             }
 
             $rows = [];
@@ -68,7 +68,7 @@ class P2pkWorkbookParser
             }
 
             if ($rows === []) {
-                throw new InvalidP2pkWorkbookException('Sheet Data_Pembanding tidak memiliki data.');
+                throw new InvalidBulkExcelImportWorkbookException('Sheet Data_Pembanding tidak memiliki data.');
             }
 
             return ['sheet_name' => self::SHEET_NAME, 'rows' => $rows];
@@ -83,7 +83,7 @@ class P2pkWorkbookParser
         $headers = array_map(fn (mixed $value): ?string => $this->normalizer->text($value), $headers);
 
         if ($headers !== self::HEADERS) {
-            throw new InvalidP2pkWorkbookException('Susunan kolom Excel tidak sesuai format P2PK yang didukung.');
+            throw new InvalidBulkExcelImportWorkbookException('Susunan kolom Excel tidak sesuai format Bulk Excel Import yang didukung.');
         }
     }
 }

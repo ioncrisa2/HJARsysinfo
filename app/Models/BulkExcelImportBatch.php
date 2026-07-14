@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class P2pkImportBatch extends Model
+class BulkExcelImportBatch extends Model
 {
     public const STATUS_DRAFT = 'draft';
 
@@ -55,7 +55,7 @@ class P2pkImportBatch extends Model
 
     public function rows(): HasMany
     {
-        return $this->hasMany(P2pkImportRow::class, 'batch_id')->orderBy('source_row_number');
+        return $this->hasMany(BulkExcelImportRow::class, 'batch_id')->orderBy('source_row_number');
     }
 
     public function initiatedBy(): BelongsTo

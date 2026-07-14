@@ -12,7 +12,7 @@ use App\Http\Controllers\App\GeoLookupController;
 use App\Http\Controllers\App\LocationApiController;
 use App\Http\Controllers\App\MasterDataPageController;
 use App\Http\Controllers\App\ModerationController;
-use App\Http\Controllers\App\P2pkImportController;
+use App\Http\Controllers\App\BulkExcelImportController;
 use App\Http\Controllers\App\PembandingController;
 use App\Http\Controllers\App\PembandingExportController;
 use App\Http\Controllers\App\ProfileController;
@@ -75,36 +75,36 @@ Route::middleware(['auth', 'app.user'])
             ->middleware('permission:delete_data::pembanding')
             ->name('pembanding.destroy');
 
-        Route::get('pembanding-imports', [P2pkImportController::class, 'index'])
+        Route::get('pembanding-imports', [BulkExcelImportController::class, 'index'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.index');
-        Route::post('pembanding-imports', [P2pkImportController::class, 'store'])
+            ->name('bulk-excel-imports.index');
+        Route::post('pembanding-imports', [BulkExcelImportController::class, 'store'])
             ->middleware(['permission:bulk_import_data::pembanding', 'throttle:10,1'])
-            ->name('p2pk-imports.store');
-        Route::get('pembanding-imports/{batch}', [P2pkImportController::class, 'show'])
+            ->name('bulk-excel-imports.store');
+        Route::get('pembanding-imports/{batch}', [BulkExcelImportController::class, 'show'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.show');
-        Route::patch('pembanding-imports/{batch}/selection', [P2pkImportController::class, 'selection'])
+            ->name('bulk-excel-imports.show');
+        Route::patch('pembanding-imports/{batch}/selection', [BulkExcelImportController::class, 'selection'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.selection');
-        Route::patch('pembanding-imports/{batch}/bulk-apply', [P2pkImportController::class, 'bulkApply'])
+            ->name('bulk-excel-imports.selection');
+        Route::patch('pembanding-imports/{batch}/bulk-apply', [BulkExcelImportController::class, 'bulkApply'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.bulk-apply');
-        Route::post('pembanding-imports/{batch}/finalize', [P2pkImportController::class, 'finalize'])
+            ->name('bulk-excel-imports.bulk-apply');
+        Route::post('pembanding-imports/{batch}/finalize', [BulkExcelImportController::class, 'finalize'])
             ->middleware(['permission:bulk_import_data::pembanding', 'throttle:5,1'])
-            ->name('p2pk-imports.finalize');
-        Route::get('pembanding-imports/{batch}/rows/{row}/edit', [P2pkImportController::class, 'edit'])
+            ->name('bulk-excel-imports.finalize');
+        Route::get('pembanding-imports/{batch}/rows/{row}/edit', [BulkExcelImportController::class, 'edit'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.rows.edit');
-        Route::put('pembanding-imports/{batch}/rows/{row}', [P2pkImportController::class, 'update'])
+            ->name('bulk-excel-imports.rows.edit');
+        Route::put('pembanding-imports/{batch}/rows/{row}', [BulkExcelImportController::class, 'update'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.rows.update');
-        Route::get('pembanding-imports/{batch}/rows/{row}/image', [P2pkImportController::class, 'image'])
+            ->name('bulk-excel-imports.rows.update');
+        Route::get('pembanding-imports/{batch}/rows/{row}/image', [BulkExcelImportController::class, 'image'])
             ->middleware('permission:bulk_import_data::pembanding')
-            ->name('p2pk-imports.rows.image');
-        Route::post('pembanding-imports/{batch}/rows/{row}/retry', [P2pkImportController::class, 'retry'])
+            ->name('bulk-excel-imports.rows.image');
+        Route::post('pembanding-imports/{batch}/rows/{row}/retry', [BulkExcelImportController::class, 'retry'])
             ->middleware(['permission:bulk_import_data::pembanding', 'throttle:10,1'])
-            ->name('p2pk-imports.rows.retry');
+            ->name('bulk-excel-imports.rows.retry');
 
         Route::get('master-data', MasterDataPageController::class)
             ->middleware('permission:view_master_data|view_geo_data')

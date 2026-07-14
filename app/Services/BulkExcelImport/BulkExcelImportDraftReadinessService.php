@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Services\P2pk;
+namespace App\Services\BulkExcelImport;
 
 use App\Http\Requests\App\PembandingStoreRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-class P2pkDraftReadinessService
+class BulkExcelImportDraftReadinessService
 {
     private const FIELD_LABELS = [
         'jenis_listing_id' => 'Jenis listing', 'jenis_objek_id' => 'Jenis objek',
