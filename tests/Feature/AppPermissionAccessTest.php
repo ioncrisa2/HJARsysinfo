@@ -65,9 +65,12 @@ it('filters the shared application menu from backend permissions', function () {
 
     $response = $this->actingAs($user)->get('/app/users')->assertOk();
     $menuLabels = collect($response->viewData('page')['props']['appMenu'])
-        ->pluck('items')
-        ->flatten(1)
-        ->pluck('label')
+        ->flatMap(fn (array $section): array => collect($section['items'])
+            ->flatMap(fn (array $item): array => [
+                $item['label'],
+                ...collect($item['children'] ?? [])->pluck('label')->all(),
+            ])
+            ->all())
         ->all();
 
     expect($menuLabels)
@@ -100,18 +103,22 @@ it('builds the shared menu for every primary role', function (string $role, arra
 
 it('shares narrow frontend capabilities instead of raw permissions or panel flags', function () {
     $user = appPermissionUser(['view_search']);
-    $auth = $this->actingAs($user)->get('/app')->assertOk()->viewData('page')['props']['auth'];
+    $props = $this->actingAs($user)->get('/app')->assertOk()->viewData('page')['props'];
 
-    expect($auth)
+    expect($props['auth'])
         ->toHaveKey('user')
         ->toHaveKey('can.search', true)
-        ->not->toHaveKeys(['permissions', 'is_super_admin', 'can_bulk_import']);
+        ->not->toHaveKeys(['permissions', 'is_super_admin', 'can_bulk_import'])
+        ->and(collect($props['appMenu'])->pluck('items')->flatten(1)->pluck('label')->all())
+        ->not->toContain('Pencarian');
 });
 
 it('shows bank data children according to permissions', function () {
     $user = appPermissionUser([
         'view_any_data::pembanding',
         'bulk_import_data::pembanding',
+        'view_moderation',
+        'view_export',
     ]);
 
     $response = $this->actingAs($user)->get('/app')->assertOk();
@@ -120,9 +127,59 @@ it('shows bank data children according to permissions', function () {
     $bankData = collect($operations['items'])->firstWhere('label', 'Bank Data');
 
     expect(collect($bankData['children'])->pluck('label')->all())
-        ->toBe(['Daftar Data', 'Bulk Import'])
+        ->toBe(['Daftar Data', 'Bulk Import', 'Moderasi Data', 'Export Data'])
         ->and(collect($bankData['children'])->pluck('href')->all())
-        ->toBe(['/app/pembanding', '/app/pembanding-imports']);
+        ->toBe(['/app/pembanding', '/app/pembanding-imports', '/app/moderation', '/app/export']);
+});
+
+it('orders sidebar sections by daily workflow', function () {
+    $user = appPermissionUser([
+        'view_any_data::pembanding',
+        'view_master_data',
+        'view_any_user',
+        'view_backup',
+    ]);
+
+    $response = $this->actingAs($user)->get('/app')->assertOk();
+
+    expect(collect($response->viewData('page')['props']['appMenu'])->pluck('label')->all())
+        ->toBe(['Ringkasan', 'Operasional Data', 'Referensi Data', 'User & Akses', 'Sistem']);
+});
+
+it('separates master data and geo location navigation by permission', function (array $permissions, array $visible, array $hidden) {
+    $response = $this->actingAs(appPermissionUser($permissions))->get('/app')->assertOk();
+    $labels = collect($response->viewData('page')['props']['appMenu'])
+        ->flatMap(fn (array $section): array => collect($section['items'])->pluck('label')->all())
+        ->all();
+
+    expect($labels)->toContain(...$visible);
+    foreach ($hidden as $label) {
+        expect($labels)->not->toContain($label);
+    }
+})->with([
+    'master data only' => [['view_master_data'], ['Master Data'], ['Geo Location']],
+    'geo location only' => [['view_geo_data'], ['Geo Location'], ['Master Data']],
+]);
+
+it('builds master data as one parent with overview and every registered category', function () {
+    $response = $this->actingAs(appPermissionUser(['view_master_data']))->get('/app')->assertOk();
+    $references = collect($response->viewData('page')['props']['appMenu'])->firstWhere('label', 'Referensi Data');
+    $masterData = collect($references['items'])->firstWhere('label', 'Master Data');
+
+    expect($masterData['href'])->toBe('/app/master-data')
+        ->and($masterData['children'])->toHaveCount(10)
+        ->and(collect($masterData['children'])->pluck('label')->all())->toBe([
+            'Ringkasan',
+            'Jenis Listing',
+            'Jenis Objek',
+            'Status Pemberi Informasi',
+            'Bentuk Tanah',
+            'Kondisi Tanah',
+            'Posisi Tanah',
+            'Topografi',
+            'Dokumen Tanah',
+            'Peruntukan',
+        ]);
 });
 
 it('shows pending delete requests only to users with moderation access', function () {
@@ -246,6 +303,7 @@ it('blocks sensitive actions without their action permission', function (string 
     ['DELETE', '/app/moderation/force-delete/1'],
     ['POST', '/app/master-data/dictionaries/jenis-objek'],
     ['POST', '/app/master-data/dictionaries/jenis-objek/reorder'],
+    ['PATCH', '/app/master-data/dictionaries/jenis-objek/1/status'],
     ['DELETE', '/app/master-data/dictionaries/jenis-objek/1'],
     ['POST', '/app/geo/provinces'],
     ['DELETE', '/app/geo/provinces/11'],

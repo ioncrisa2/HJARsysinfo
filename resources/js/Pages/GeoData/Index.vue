@@ -15,7 +15,7 @@ import { useConfirm } from "primevue/useconfirm";
 import { useDebouncedWatch } from "../../composables/useDebouncedWatch";
 
 const props = defineProps({
-    title: { type: String, default: "Data Lokasi" },
+    title: { type: String, default: "Geo Location" },
     currentResource: { type: String, default: null },
     resources: { type: Array, default: () => [] },
     records: { type: Object, default: () => ({ data: [], links: [] }) },
@@ -32,6 +32,40 @@ const resourceUrl = (resource) => `/app/geo/${resource}`;
 const currentMeta = computed(() =>
     (props.resources ?? []).find((resource) => resource.slug === props.currentResource) ?? null,
 );
+
+const hierarchyTrail = computed(() => {
+    const trail = [{ label: "Provinsi", href: resourceUrl("provinces") }];
+    const province = (props.options?.provinces ?? []).find((item) => item.id === filterState.province_id);
+    const regency = regencyOptions.value.find((item) => item.id === filterState.regency_id);
+    const district = districtOptions.value.find((item) => item.id === filterState.district_id);
+
+    if (province) {
+        trail.push({
+            label: province.name,
+            href: `${resourceUrl("regencies")}?${new URLSearchParams({ province_id: province.id })}`,
+        });
+    }
+
+    if (regency) {
+        trail.push({
+            label: regency.name,
+            href: `${resourceUrl("districts")}?${new URLSearchParams({ province_id: province.id, regency_id: regency.id })}`,
+        });
+    }
+
+    if (district) {
+        trail.push({
+            label: district.name,
+            href: `${resourceUrl("villages")}?${new URLSearchParams({
+                province_id: province.id,
+                regency_id: regency.id,
+                district_id: district.id,
+            })}`,
+        });
+    }
+
+    return trail;
+});
 
 const filterState = reactive({
     search: props.filters?.search ?? "",
@@ -282,18 +316,42 @@ const childCount = (record) => {
     return null;
 };
 
+const childUrl = (record) => {
+    const params = new URLSearchParams();
+
+    if (props.currentResource === "provinces") {
+        params.set("province_id", record.id);
+        return `${resourceUrl("regencies")}?${params.toString()}`;
+    }
+
+    if (props.currentResource === "regencies") {
+        params.set("province_id", record.province_id);
+        params.set("regency_id", record.id);
+        return `${resourceUrl("districts")}?${params.toString()}`;
+    }
+
+    if (props.currentResource === "districts") {
+        params.set("province_id", record.regency?.province_id ?? "");
+        params.set("regency_id", record.regency_id);
+        params.set("district_id", record.id);
+        return `${resourceUrl("villages")}?${params.toString()}`;
+    }
+
+    return resourceUrl(props.currentResource);
+};
+
 const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(value ?? 0));
 </script>
 
 <template>
-    <AppLayout title="Data Lokasi">
+    <AppLayout title="Geo Location">
         <Head :title="`${title}`" />
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
             <aside class="lg:col-span-3">
                 <UiSurface padding="none" class="overflow-hidden">
                     <div class="border-b border-slate-100 bg-slate-50 px-4 py-4">
-                        <p class="text-balance text-sm font-bold text-slate-900">Data Lokasi</p>
+                        <p class="text-balance text-sm font-bold text-slate-900">Geo Location</p>
                         <p class="mt-1 text-pretty text-xs text-slate-500">Kelola hirarki wilayah Indonesia.</p>
                     </div>
 
@@ -348,6 +406,17 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                 <template v-else>
                     <div class="mb-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div>
+                            <nav class="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500" aria-label="Hierarki lokasi">
+                                <template v-for="(item, index) in hierarchyTrail" :key="item.href">
+                                    <i v-if="index > 0" class="pi pi-chevron-right text-[9px] text-slate-300" aria-hidden="true" />
+                                    <Link
+                                        :href="item.href"
+                                        class="rounded-sm transition hover:text-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+                                    >
+                                        {{ item.label }}
+                                    </Link>
+                                </template>
+                            </nav>
                             <h1 class="text-balance text-2xl font-black text-slate-900">{{ currentMeta?.label }}</h1>
                             <p class="mt-1 text-pretty text-sm text-slate-500">
                                 {{ formatNumber(selectedStat) }} data tersimpan. Kode wilayah mengikuti format BPS.
@@ -459,9 +528,14 @@ const formatNumber = (value) => new Intl.NumberFormat("id-ID").format(Number(val
                                             <p class="max-w-sm truncate text-xs font-medium text-slate-600">{{ parentText(record) }}</p>
                                         </td>
                                         <td v-if="hasChildCount" class="px-5 py-4">
-                                            <span class="ui-tabular rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600">
-                                                {{ formatNumber(childCount(record)) }}
-                                            </span>
+                                            <Link
+                                                :href="childUrl(record)"
+                                                class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-500"
+                                                :aria-label="`Buka ${currentMeta?.children_label} dari ${record.name}`"
+                                            >
+                                                <span class="ui-tabular">{{ formatNumber(childCount(record)) }}</span>
+                                                <i class="pi pi-arrow-right text-[10px] text-amber-600" aria-hidden="true" />
+                                            </Link>
                                         </td>
                                         <td v-if="props.can.update || props.can.delete" class="px-5 py-4">
                                             <div class="flex justify-end gap-1">

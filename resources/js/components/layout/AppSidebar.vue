@@ -16,13 +16,14 @@ const homeHref = computed(() => menuSections.value?.[0]?.items?.[0]?.href ?? PRE
 const showLabels = computed(() => props.sidebarOpen || props.mobileOverlay);
 const expandedGroups = ref({});
 
-const isActive = (href) => {
+const isActive = (href, exact = false) => {
     const url = page.url.split("?")[0];
     if (href === PREFIX) return url === PREFIX || url === `${PREFIX}/`;
+    if (exact) return url === href;
     return url === href || url.startsWith(`${href}/`);
 };
 
-const isGroupActive = (item) => item.children?.some((child) => isActive(child.href)) ?? false;
+const isGroupActive = (item) => item.children?.some((child) => isActive(child.href, child.exact)) ?? false;
 const groupKey = (section, item) => `${section.label}-${item.label}`;
 const groupId = (section, item) => `app-menu-${groupKey(section, item).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 const isGroupExpanded = (section, item) => expandedGroups.value[groupKey(section, item)] ?? isGroupActive(item);
@@ -92,21 +93,43 @@ const toggleGroup = (section, item) => {
                     <div class="space-y-1">
                         <template v-for="item in section.items" :key="item.href ?? item.label">
                             <div v-if="item.children?.length">
-                                <button
+                                <div
                                     v-if="showLabels"
-                                    type="button"
-                                    class="flex w-full items-center justify-start gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                                    class="flex items-center rounded-lg transition-all duration-200"
                                     :class="isGroupActive(item)
                                         ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-400/10'
                                         : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
-                                    :aria-expanded="isGroupExpanded(section, item) ? 'true' : 'false'"
-                                    :aria-controls="groupId(section, item)"
-                                    @click="toggleGroup(section, item)"
                                 >
-                                    <i class="pi text-base" :class="item.icon" aria-hidden="true" />
-                                    <span class="flex-1 whitespace-nowrap text-left">{{ item.label }}</span>
-                                    <i class="pi text-[10px]" :class="isGroupExpanded(section, item) ? 'pi-chevron-up' : 'pi-chevron-down'" aria-hidden="true" />
-                                </button>
+                                    <Link
+                                        :href="item.href"
+                                        class="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-l-lg px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                                        :aria-current="isActive(item.href, true) ? 'page' : undefined"
+                                    >
+                                        <i class="pi text-base" :class="item.icon" aria-hidden="true" />
+                                        <span class="truncate">{{ item.label }}</span>
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        class="flex size-11 shrink-0 items-center justify-center rounded-r-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                                        :aria-label="`${isGroupExpanded(section, item) ? 'Tutup' : 'Buka'} submenu ${item.label}`"
+                                        :aria-expanded="isGroupExpanded(section, item) ? 'true' : 'false'"
+                                        :aria-controls="groupId(section, item)"
+                                        @click="toggleGroup(section, item)"
+                                    >
+                                        <i class="pi text-[10px]" :class="isGroupExpanded(section, item) ? 'pi-chevron-up' : 'pi-chevron-down'" aria-hidden="true" />
+                                    </button>
+                                </div>
+
+                                <Link
+                                    v-else
+                                    :href="item.href"
+                                    class="flex items-center justify-center rounded-lg px-3 py-3 text-slate-400 transition-all duration-200 hover:bg-slate-800 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
+                                    :class="isGroupActive(item) ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-400/10' : ''"
+                                    :title="item.label"
+                                    :aria-label="item.label"
+                                >
+                                    <i class="pi text-lg" :class="item.icon" aria-hidden="true" />
+                                </Link>
 
                                 <div
                                     v-if="showLabels && isGroupExpanded(section, item)"
@@ -118,28 +141,16 @@ const toggleGroup = (section, item) => {
                                         :key="child.href"
                                         :href="child.href"
                                         class="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
-                                        :class="isActive(child.href)
+                                        :class="isActive(child.href, child.exact)
                                             ? 'bg-amber-500/10 text-amber-400'
                                             : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+                                        :aria-current="isActive(child.href, child.exact) ? 'page' : undefined"
                                     >
                                         <i class="pi w-4 text-center text-sm" :class="child.icon" aria-hidden="true" />
                                         <span class="whitespace-nowrap">{{ child.label }}</span>
                                     </Link>
                                 </div>
 
-                                <div v-else-if="!showLabels" class="space-y-1">
-                                    <Link
-                                        v-for="child in item.children"
-                                        :key="child.href"
-                                        :href="child.href"
-                                        class="flex items-center justify-center rounded-lg px-3 py-3 text-slate-400 transition-all duration-200 hover:bg-slate-800 hover:text-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400"
-                                        :class="isActive(child.href) ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-400/10' : ''"
-                                        :title="child.label"
-                                        :aria-label="child.label"
-                                    >
-                                        <i class="pi text-lg" :class="child.icon" aria-hidden="true" />
-                                    </Link>
-                                </div>
                             </div>
 
                             <Link

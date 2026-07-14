@@ -19,7 +19,7 @@ const props = defineProps({
             <slot />
         </div>
 
-        <p v-if="props.error" class="text-pretty text-xs font-medium text-red-600">
+        <p v-if="props.error" :id="`${props.id}_error`" class="text-pretty text-xs font-medium text-red-600" role="alert">
             {{ props.error }}
         </p>
         <p v-else-if="props.help" class="text-pretty text-xs text-slate-500">

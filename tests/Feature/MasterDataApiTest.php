@@ -3,10 +3,14 @@
 namespace Tests\Feature;
 
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Models\JenisObjek;
+use App\Models\Pembanding;
 use App\Models\Province;
 use App\Models\User;
+use App\Supports\DictionaryTypeMap;
 use Database\Seeders\MasterDataPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -24,6 +28,7 @@ class MasterDataApiTest extends TestCase
             'view_master_data',
             'create_master_data',
             'update_master_data',
+            'update_master_data_status',
             'delete_master_data',
             'reorder_master_data',
             'view_geo_data',
@@ -72,9 +77,12 @@ class MasterDataApiTest extends TestCase
         // Update item
         $update = $this->putJson("/app/master-data/dictionaries/jenis-objek/{$firstId}", [
             'name' => 'Gudang Pelabuhan',
-            'is_active' => false,
         ]);
-        $update->assertOk()->assertJsonFragment(['slug' => 'gudang_pelabuhan', 'is_active' => false]);
+        $update->assertOk()->assertJsonFragment(['slug' => 'gudang_pelabuhan']);
+
+        $this->patchJson("/app/master-data/dictionaries/jenis-objek/{$firstId}/status", [
+            'is_active' => false,
+        ])->assertOk()->assertJsonFragment(['is_active' => false]);
 
         // Reorder (second becomes first)
         $this->postJson('/app/master-data/dictionaries/jenis-objek/reorder', [
@@ -98,15 +106,15 @@ class MasterDataApiTest extends TestCase
             ->assertJsonMissing(['id' => $firstId]);
     }
 
-    public function test_location_ids_follow_bps_and_are_uppercase()
+    public function test_geo_location_ids_follow_bps_and_are_uppercase()
     {
         $this->signIn();
 
         // Province manual ID
-        $this->postJson('/app/master-data/locations/provinces', [
+        $this->post('/app/geo/provinces', [
             'id' => '99',
             'name' => 'prov test',
-        ])->assertCreated();
+        ])->assertRedirect('/app/geo/provinces');
 
         $this->assertDatabaseHas('provinces', [
             'id' => '99',
@@ -114,37 +122,40 @@ class MasterDataApiTest extends TestCase
         ]);
 
         // Regency generated (should be 9901)
-        $reg = $this->postJson('/app/master-data/locations/regencies', [
+        $this->post('/app/geo/regencies', [
             'province_id' => '99',
             'name' => 'kota uji',
-        ])->assertCreated();
+        ])->assertRedirect('/app/geo/regencies');
 
-        $regId = $reg->json('id');
+        $regId = '9901';
         $this->assertEquals('9901', $regId);
         $this->assertDatabaseHas('regencies', ['id' => '9901', 'name' => 'KOTA UJI']);
 
         // District generated (should be 9901001)
-        $dist = $this->postJson('/app/master-data/locations/districts', [
+        $this->post('/app/geo/districts', [
             'regency_id' => $regId,
             'name' => 'kecamatan uji',
-        ])->assertCreated();
-        $distId = $dist->json('id');
+        ])->assertRedirect('/app/geo/districts');
+        $distId = '9901001';
         $this->assertEquals('9901001', $distId);
         $this->assertDatabaseHas('districts', ['id' => $distId, 'name' => 'KECAMATAN UJI']);
 
         // Village generated (should be 9901001001)
-        $vill = $this->postJson('/app/master-data/locations/villages', [
+        $this->post('/app/geo/villages', [
             'district_id' => $distId,
             'name' => 'desa uji',
-        ])->assertCreated();
-        $villId = $vill->json('id');
+        ])->assertRedirect('/app/geo/villages');
+        $villId = '9901001001';
         $this->assertEquals('9901001001', $villId);
         $this->assertDatabaseHas('villages', ['id' => $villId, 'name' => 'DESA UJI']);
 
         // Filter regency by province
-        $this->getJson('/app/master-data/locations/regencies?province_id=99')
-            ->assertOk()
-            ->assertJsonFragment(['id' => $regId]);
+        $response = $this->get('/app/geo/regencies?province_id=99')->assertOk();
+        $records = collect($response->viewData('page')['props']['records']['data']);
+
+        $this->assertTrue($records->contains(fn (array $record): bool => $record['id'] === $regId));
+
+        $this->get('/app/master-data/locations/regencies?province_id=99')->assertNotFound();
     }
 
     public function test_master_data_write_routes_require_granular_permissions()
@@ -163,6 +174,119 @@ class MasterDataApiTest extends TestCase
             'name' => 'Tidak Boleh',
             'is_active' => true,
         ])->assertForbidden();
+    }
+
+    public function test_master_data_overview_and_every_registered_child_page_render()
+    {
+        $this->signIn();
+
+        $this->get('/app/master-data')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('MasterData/Index')
+                ->has('categories', 9)
+                ->where('categories.0.type', 'jenis-listing')
+                ->has('categories.0.stats.total')
+            );
+
+        foreach (DictionaryTypeMap::publicDefinitions() as $definition) {
+            $this->get("/app/master-data/{$definition['type']}")
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->component('MasterData/Show')
+                    ->where('category.type', $definition['type'])
+                    ->where('category.label', $definition['label'])
+                    ->has('items')
+                    ->has('can.create')
+                    ->has('can.update')
+                    ->has('can.update_status')
+                    ->has('can.delete')
+                    ->has('can.reorder')
+                );
+        }
+
+        $this->get('/app/master-data/tidak-valid')->assertNotFound();
+    }
+
+    public function test_status_updates_use_their_own_permission()
+    {
+        $item = JenisObjek::query()->create([
+            'name' => 'Gudang',
+            'slug' => 'gudang',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+        $user = User::factory()->create(['deactivated_at' => null]);
+        Permission::findOrCreate('view_master_data', 'web');
+        Permission::findOrCreate('update_master_data_status', 'web');
+        $user->givePermissionTo(['view_master_data', 'update_master_data_status']);
+
+        $this->actingAs($user)->withoutMiddleware(VerifyCsrfToken::class);
+
+        $this->patchJson("/app/master-data/dictionaries/jenis-objek/{$item->id}/status", [
+            'is_active' => false,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('master_jenis_objek', ['id' => $item->id, 'is_active' => false]);
+        $this->putJson("/app/master-data/dictionaries/jenis-objek/{$item->id}", [
+            'name' => 'Gudang Baru',
+        ])->assertForbidden();
+    }
+
+    public function test_used_master_data_cannot_be_deleted_and_keeps_its_reference()
+    {
+        $this->signIn();
+        $item = JenisObjek::query()->create([
+            'name' => 'Ruko',
+            'slug' => 'ruko',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+        $pembanding = Pembanding::query()->create([
+            'nama_pemberi_informasi' => 'Penguji',
+            'nomer_telepon_pemberi_informasi' => '08123456789',
+            'alamat_data' => 'Jalan Pengujian',
+            'latitude' => -6.200000,
+            'longitude' => 106.816666,
+            'jenis_objek_id' => $item->id,
+        ]);
+
+        $this->deleteJson("/app/master-data/dictionaries/jenis-objek/{$item->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('delete');
+
+        $this->assertDatabaseHas('master_jenis_objek', ['id' => $item->id]);
+        $this->assertDatabaseHas('data_pembanding', [
+            'id' => $pembanding->id,
+            'jenis_objek_id' => $item->id,
+        ]);
+
+        $pembanding->delete();
+
+        $this->deleteJson("/app/master-data/dictionaries/jenis-objek/{$item->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('delete');
+
+        $this->assertDatabaseHas('master_jenis_objek', ['id' => $item->id]);
+    }
+
+    public function test_jenis_listing_supports_its_extra_fields()
+    {
+        $this->signIn();
+
+        $this->postJson('/app/master-data/dictionaries/jenis-listing', [
+            'name' => 'Penawaran Khusus',
+            'badge_color' => '#64748b',
+            'marker_icon_url' => 'https://example.test/marker.svg',
+        ])->assertCreated()->assertJsonFragment([
+            'badge_color' => '#64748b',
+            'marker_icon_url' => 'https://example.test/marker.svg',
+        ]);
+
+        $this->assertDatabaseHas('master_jenis_listing', [
+            'slug' => 'penawaran_khusus',
+            'badge_color' => '#64748b',
+        ]);
     }
 
     public function test_legacy_manage_master_data_permission_is_migrated_to_granular_permissions()

@@ -85,7 +85,7 @@ class GeoDataController extends Controller
         ];
 
         return Inertia::render('GeoData/Index', [
-            'title' => $resource ? self::RESOURCE_MAP[$resource]['label'] : 'Data Lokasi',
+            'title' => $resource ? self::RESOURCE_MAP[$resource]['label'] : 'Geo Location',
             'currentResource' => $resource,
             'resources' => $this->resources(),
             'records' => $resource

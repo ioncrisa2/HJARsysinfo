@@ -13,19 +13,21 @@ class PosisiTanah extends Model
 
     protected $casts = [
         'sort_order' => 'integer',
-        'is_active'  => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public static function options(bool $onlyActive = true): array
     {
         $q = static::query()->orderBy('sort_order')->orderBy('name');
-        if ($onlyActive) $q->where('is_active', true);
+        if ($onlyActive) {
+            $q->where('is_active', true);
+        }
 
         return $q->pluck('name', 'slug')->all();
     }
 
     public function pembandings(): HasMany
     {
-        return $this->hasMany(\App\Models\Pembanding::class, 'posisi_tanah');
+        return $this->hasMany(Pembanding::class, 'posisi_tanah_id');
     }
 }

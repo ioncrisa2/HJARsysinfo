@@ -4,23 +4,15 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\App\Concerns\AuthorizesPermissions;
 use App\Http\Controllers\Controller;
-use App\Models\BentukTanah;
 use App\Models\District;
-use App\Models\DokumenTanah;
-use App\Models\JenisListing;
-use App\Models\JenisObjek;
-use App\Models\KondisiTanah;
 use App\Models\Pembanding;
 use App\Models\PembandingDeleteRequest;
-use App\Models\Peruntukan;
-use App\Models\PosisiTanah;
 use App\Models\Province;
 use App\Models\Regency;
-use App\Models\StatusPemberiInformasi;
-use App\Models\Topografi;
 use App\Models\User;
 use App\Models\Village;
 use App\Support\AppAccess;
+use App\Supports\DictionaryTypeMap;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -32,18 +24,6 @@ class SearchController extends Controller
     use AuthorizesPermissions;
 
     private const PER_RESOURCE_LIMIT = 40;
-
-    private array $masterResources = [
-        'bentuk-tanah' => [BentukTanah::class, 'Bentuk Tanah'],
-        'dokumen-tanah' => [DokumenTanah::class, 'Dokumen Tanah'],
-        'jenis-listing' => [JenisListing::class, 'Jenis Listing'],
-        'jenis-objek' => [JenisObjek::class, 'Jenis Objek'],
-        'kondisi-tanah' => [KondisiTanah::class, 'Kondisi Tanah'],
-        'peruntukan' => [Peruntukan::class, 'Peruntukan'],
-        'posisi-tanah' => [PosisiTanah::class, 'Posisi Tanah'],
-        'status-pemberi-informasi' => [StatusPemberiInformasi::class, 'Status Pemberi Informasi'],
-        'topografi' => [Topografi::class, 'Topografi'],
-    ];
 
     private array $geoResources = [
         'provinces' => [Province::class, 'Provinsi'],
@@ -257,7 +237,10 @@ class SearchController extends Controller
 
         $results = collect();
 
-        foreach ($this->masterResources as $slug => [$modelClass, $label]) {
+        foreach (DictionaryTypeMap::definitions() as $definition) {
+            $slug = $definition['type'];
+            $modelClass = $definition['model'];
+            $label = $definition['label'];
             $results = $results->merge(
                 $modelClass::query()
                     ->where(function ($query) use ($keyword): void {
@@ -309,7 +292,7 @@ class SearchController extends Controller
                     ->get()
                     ->map(fn ($record): array => $this->resultRow(
                         menuGroup: 'Reference Data',
-                        menuName: 'Geo Data',
+                        menuName: 'Geo Location',
                         resourceName: $label,
                         title: $record->name,
                         url: "/app/geo/{$slug}?search=".urlencode((string) $record->id),

@@ -10,7 +10,6 @@ use App\Http\Controllers\App\DictionaryApiController;
 use App\Http\Controllers\App\ExportController;
 use App\Http\Controllers\App\GeoDataController;
 use App\Http\Controllers\App\GeoLookupController;
-use App\Http\Controllers\App\LocationApiController;
 use App\Http\Controllers\App\MasterDataPageController;
 use App\Http\Controllers\App\ModerationController;
 use App\Http\Controllers\App\PembandingController;
@@ -119,36 +118,22 @@ Route::middleware(['auth', 'app.user'])
             ->middleware(['permission:bulk_import_data::pembanding', 'throttle:10,1'])
             ->name('bulk-excel-imports.rows.retry');
 
-        Route::get('master-data', MasterDataPageController::class)
-            ->middleware('permission:view_master_data|view_geo_data')
+        Route::get('master-data', [MasterDataPageController::class, 'index'])
+            ->middleware('permission:view_master_data')
             ->name('master-data.index');
 
         Route::prefix('master-data/dictionaries')->group(function () {
             Route::get('{type}', [DictionaryApiController::class, 'index'])->middleware('permission:view_master_data')->name('dictionaries.index');
             Route::post('{type}', [DictionaryApiController::class, 'store'])->middleware('permission:create_master_data')->name('dictionaries.store');
             Route::post('{type}/reorder', [DictionaryApiController::class, 'reorder'])->middleware('permission:reorder_master_data')->name('dictionaries.reorder');
+            Route::patch('{type}/{id}/status', [DictionaryApiController::class, 'updateStatus'])->middleware('permission:update_master_data_status')->whereNumber('id')->name('dictionaries.status');
             Route::put('{type}/{id}', [DictionaryApiController::class, 'update'])->middleware('permission:update_master_data')->whereNumber('id')->name('dictionaries.update');
-            Route::delete('{type}/{id}', [DictionaryApiController::class, 'destroy'])->middleware('permission:delete_master_data')->whereNumber('id')->name('dictionaries.destroy');
+            Route::delete('{type}/{id}', [DictionaryApiController::class, 'destroy'])->middleware('permission:delete_master_data|delete_any_master_data')->whereNumber('id')->name('dictionaries.destroy');
         });
 
-        Route::prefix('master-data/locations')->group(function () {
-            Route::get('provinces', [LocationApiController::class, 'provinces'])->middleware('permission:view_geo_data')->name('locations.provinces.index');
-            Route::post('provinces', [LocationApiController::class, 'storeProvince'])->middleware('permission:create_geo_data')->name('locations.provinces.store');
-            Route::put('provinces/{province}', [LocationApiController::class, 'updateProvince'])->middleware('permission:update_geo_data')->name('locations.provinces.update');
-            Route::delete('provinces/{province}', [LocationApiController::class, 'deleteProvince'])->middleware('permission:delete_geo_data')->name('locations.provinces.destroy');
-            Route::get('regencies', [LocationApiController::class, 'regencies'])->middleware('permission:view_geo_data')->name('locations.regencies.index');
-            Route::post('regencies', [LocationApiController::class, 'storeRegency'])->middleware('permission:create_geo_data')->name('locations.regencies.store');
-            Route::put('regencies/{regency}', [LocationApiController::class, 'updateRegency'])->middleware('permission:update_geo_data')->name('locations.regencies.update');
-            Route::delete('regencies/{regency}', [LocationApiController::class, 'deleteRegency'])->middleware('permission:delete_geo_data')->name('locations.regencies.destroy');
-            Route::get('districts', [LocationApiController::class, 'districts'])->middleware('permission:view_geo_data')->name('locations.districts.index');
-            Route::post('districts', [LocationApiController::class, 'storeDistrict'])->middleware('permission:create_geo_data')->name('locations.districts.store');
-            Route::put('districts/{district}', [LocationApiController::class, 'updateDistrict'])->middleware('permission:update_geo_data')->name('locations.districts.update');
-            Route::delete('districts/{district}', [LocationApiController::class, 'deleteDistrict'])->middleware('permission:delete_geo_data')->name('locations.districts.destroy');
-            Route::get('villages', [LocationApiController::class, 'villages'])->middleware('permission:view_geo_data')->name('locations.villages.index');
-            Route::post('villages', [LocationApiController::class, 'storeVillage'])->middleware('permission:create_geo_data')->name('locations.villages.store');
-            Route::put('villages/{village}', [LocationApiController::class, 'updateVillage'])->middleware('permission:update_geo_data')->name('locations.villages.update');
-            Route::delete('villages/{village}', [LocationApiController::class, 'deleteVillage'])->middleware('permission:delete_geo_data')->name('locations.villages.destroy');
-        });
+        Route::get('master-data/{type}', [MasterDataPageController::class, 'show'])
+            ->middleware('permission:view_master_data')
+            ->name('master-data.show');
 
         Route::get('lookups/regencies', [GeoLookupController::class, 'regencies'])
             ->middleware('permission:view_any_data::pembanding|create_data::pembanding|update_data::pembanding|update_own_data::pembanding|bulk_import_data::pembanding')->name('lookups.regencies');

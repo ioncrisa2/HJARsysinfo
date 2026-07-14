@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Supports\DictionaryTypeMap;
 use Illuminate\Support\Arr;
 
 class AppAccess
@@ -181,6 +182,44 @@ class AppAccess
                 ],
             ],
             [
+                'label' => 'Operasional Data',
+                'items' => [
+                    [
+                        'label' => 'Bank Data',
+                        'icon' => 'pi-folder',
+                        'children' => [
+                            ['label' => 'Daftar Data', 'href' => '/app/pembanding', 'icon' => 'pi-list', 'permissions' => ['view_any_data::pembanding']],
+                            ['label' => 'Bulk Import', 'href' => '/app/pembanding-imports', 'icon' => 'pi-file-import', 'permissions' => ['bulk_import_data::pembanding']],
+                            ['label' => 'Moderasi Data', 'href' => '/app/moderation', 'icon' => 'pi-shield', 'permissions' => ['view_moderation']],
+                            ['label' => 'Export Data', 'href' => '/app/export', 'icon' => 'pi-download', 'permissions' => ['view_export']],
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'label' => 'Referensi Data',
+                'items' => [
+                    [
+                        'label' => 'Master Data',
+                        'href' => '/app/master-data',
+                        'icon' => 'pi-box',
+                        'permissions' => ['view_master_data'],
+                        'children' => [
+                            ['label' => 'Ringkasan', 'href' => '/app/master-data', 'icon' => 'pi-th-large', 'exact' => true, 'permissions' => ['view_master_data']],
+                            ...collect(DictionaryTypeMap::publicDefinitions())
+                                ->map(fn (array $definition): array => [
+                                    'label' => $definition['label'],
+                                    'href' => "/app/master-data/{$definition['type']}",
+                                    'icon' => $definition['icon'],
+                                    'permissions' => ['view_master_data'],
+                                ])
+                                ->all(),
+                        ],
+                    ],
+                    ['label' => 'Geo Location', 'href' => '/app/geo', 'icon' => 'pi-map', 'permissions' => ['view_geo_data']],
+                ],
+            ],
+            [
                 'label' => 'User & Akses',
                 'items' => [
                     ['label' => 'Users', 'href' => '/app/users', 'icon' => 'pi-users', 'permissions' => ['view_any_user']],
@@ -189,29 +228,11 @@ class AppAccess
                 ],
             ],
             [
-                'label' => 'Operasional Data',
-                'items' => [
-                    ['label' => 'Moderasi', 'href' => '/app/moderation', 'icon' => 'pi-shield', 'permissions' => ['view_moderation']],
-                    [
-                        'label' => 'Bank Data',
-                        'icon' => 'pi-folder',
-                        'children' => [
-                            ['label' => 'Daftar Data', 'href' => '/app/pembanding', 'icon' => 'pi-list', 'permissions' => ['view_any_data::pembanding']],
-                            ['label' => 'Bulk Import', 'href' => '/app/pembanding-imports', 'icon' => 'pi-file-import', 'permissions' => ['bulk_import_data::pembanding']],
-                        ],
-                    ],
-                    ['label' => 'Master Data', 'href' => '/app/master-data', 'icon' => 'pi-box', 'permissions' => ['view_master_data', 'view_geo_data']],
-                    ['label' => 'Geo Data', 'href' => '/app/geo', 'icon' => 'pi-map', 'permissions' => ['view_geo_data']],
-                ],
-            ],
-            [
                 'label' => 'Sistem',
                 'items' => [
-                    ['label' => 'Export Data', 'href' => '/app/export', 'icon' => 'pi-download', 'permissions' => ['view_export']],
-                    ['label' => 'Backup Sistem', 'href' => '/app/backup', 'icon' => 'pi-archive', 'permissions' => ['view_backup']],
+                    ['label' => 'Backup Sistem', 'href' => '/app/backup', 'icon' => 'pi-database', 'permissions' => ['view_backup']],
                     ['label' => 'Pengaturan', 'href' => '/app/settings', 'icon' => 'pi-cog', 'permissions' => ['view_settings']],
                     ['label' => 'Activity Logs', 'href' => '/app/activity-logs', 'icon' => 'pi-list', 'permissions' => ['view_activity_log']],
-                    ['label' => 'Pencarian', 'href' => '/app/search', 'icon' => 'pi-search', 'permissions' => ['view_search']],
                 ],
             ],
         ];

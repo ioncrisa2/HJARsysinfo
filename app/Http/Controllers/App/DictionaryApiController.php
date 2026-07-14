@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Supports\DictionaryTypeMap;
+use App\Supports\Slug;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use App\Supports\DictionaryTypeMap;
-use App\Supports\Slug;
 
 class DictionaryApiController extends Controller
 {
@@ -18,6 +18,7 @@ class DictionaryApiController extends Controller
         $model = $this->resolveModel($type);
 
         $items = $model::query()
+            ->withCount(['pembandings' => fn ($query) => $query->withTrashed()])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
@@ -27,8 +28,9 @@ class DictionaryApiController extends Controller
                 'slug',
                 'sort_order',
                 'is_active',
-                'badge_color_token',
+                'badge_color',
                 'marker_icon_url',
+                'pembandings_count',
             ]))
             ->values();
 
@@ -51,16 +53,40 @@ class DictionaryApiController extends Controller
         $model = $this->resolveModel($type);
         $record = $model::findOrFail($id);
 
+        if ($request->has('is_active')) {
+            abort_unless($request->user()?->can('update_master_data_status'), 403);
+        }
+
         $data = $this->validateData($request, $model, $record->id, $type);
         $record->update($data);
 
-        return response()->json($record);
+        return response()->json($this->loadUsageCount($record));
+    }
+
+    public function updateStatus(Request $request, string $type, int|string $id): JsonResponse
+    {
+        $model = $this->resolveModel($type);
+        $record = $model::findOrFail($id);
+        $data = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $record->update(['is_active' => $data['is_active']]);
+
+        return response()->json($this->loadUsageCount($record));
     }
 
     public function destroy(string $type, int|string $id): JsonResponse
     {
         $model = $this->resolveModel($type);
         $record = $model::findOrFail($id);
+
+        if ($record->pembandings()->withTrashed()->exists()) {
+            throw ValidationException::withMessages([
+                'delete' => ["{$record->name} masih digunakan oleh Data Pembanding. Nonaktifkan data ini agar riwayat tetap utuh."],
+            ]);
+        }
+
         $record->delete();
 
         return response()->json(['success' => true]);
@@ -132,7 +158,7 @@ class DictionaryApiController extends Controller
 
         if ($type === 'jenis-listing') {
             $extra = [
-                'badge_color_token' => ['nullable', Rule::in(['gray', 'primary', 'info', 'success', 'warning', 'danger'])],
+                'badge_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
                 'marker_icon_url' => ['nullable', 'url', 'max:1000'],
             ];
         }
@@ -162,5 +188,10 @@ class DictionaryApiController extends Controller
         $max = $model::query()->max('sort_order');
 
         return $max === null ? 1 : ((int) $max + 1);
+    }
+
+    private function loadUsageCount($record)
+    {
+        return $record->loadCount(['pembandings' => fn ($query) => $query->withTrashed()]);
     }
 }

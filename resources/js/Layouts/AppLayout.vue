@@ -158,7 +158,7 @@ const breadcrumbs = computed(() => {
         pembanding: "Data Pembanding",
         "pembanding-imports": "Bulk Import",
         "master-data": "Master Data",
-        geo: "Geo Data",
+        geo: "Geo Location",
         export: "Export",
         backup: "Backup",
         search: "Search",

@@ -37,12 +37,12 @@ const buildErrorMessage = (response, parsed) => {
     }
 
     if (parsed.isJson && parsed.payload && typeof parsed.payload === "object") {
+        const validationMessage = firstValidationMessage(parsed.payload.errors);
+        if (validationMessage) return validationMessage;
+
         if (typeof parsed.payload.message === "string" && parsed.payload.message.trim() !== "") {
             return parsed.payload.message;
         }
-
-        const validationMessage = firstValidationMessage(parsed.payload.errors);
-        if (validationMessage) return validationMessage;
     }
 
     return `Permintaan gagal (HTTP ${response.status}).`;
