@@ -3,6 +3,7 @@
 use App\Http\Controllers\App\AccessControlController;
 use App\Http\Controllers\App\ActivityLogController;
 use App\Http\Controllers\App\BackupController;
+use App\Http\Controllers\App\BulkExcelImportController;
 use App\Http\Controllers\App\DashboardController;
 use App\Http\Controllers\App\DataContributorInvitationController;
 use App\Http\Controllers\App\DictionaryApiController;
@@ -12,8 +13,8 @@ use App\Http\Controllers\App\GeoLookupController;
 use App\Http\Controllers\App\LocationApiController;
 use App\Http\Controllers\App\MasterDataPageController;
 use App\Http\Controllers\App\ModerationController;
-use App\Http\Controllers\App\BulkExcelImportController;
 use App\Http\Controllers\App\PembandingController;
+use App\Http\Controllers\App\PembandingDuplicateReviewController;
 use App\Http\Controllers\App\PembandingExportController;
 use App\Http\Controllers\App\ProfileController;
 use App\Http\Controllers\App\SearchController;
@@ -56,6 +57,18 @@ Route::middleware(['auth', 'app.user'])
         Route::post('pembanding', [PembandingController::class, 'store'])
             ->middleware('permission:create_data::pembanding')
             ->name('pembanding.store');
+        Route::get('pembanding/duplicate-reviews/{submission}', [PembandingDuplicateReviewController::class, 'show'])
+            ->middleware('permission:create_data::pembanding')
+            ->name('pembanding.duplicate-reviews.show');
+        Route::get('pembanding/duplicate-reviews/{submission}/image', [PembandingDuplicateReviewController::class, 'image'])
+            ->middleware('permission:create_data::pembanding')
+            ->name('pembanding.duplicate-reviews.image');
+        Route::post('pembanding/duplicate-reviews/{submission}/use-existing/{pembanding}', [PembandingDuplicateReviewController::class, 'useExisting'])
+            ->middleware('permission:create_data::pembanding')
+            ->name('pembanding.duplicate-reviews.use-existing');
+        Route::put('pembanding/duplicate-reviews/{submission}/replace/{pembanding}', [PembandingDuplicateReviewController::class, 'replace'])
+            ->middleware('permission:create_data::pembanding')
+            ->name('pembanding.duplicate-reviews.replace');
         Route::get('pembanding/{pembanding}/history', [PembandingController::class, 'history'])
             ->middleware('permission:view_any_data::pembanding')
             ->name('pembanding.history');

@@ -7,6 +7,7 @@ use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
 use App\Models\Pembanding;
+use App\Models\PembandingDuplicateSubmission;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
 use App\Models\Province;
@@ -18,6 +19,7 @@ use App\Models\Village;
 use Database\Seeders\PembandingAccessRoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 
@@ -176,7 +178,7 @@ it('allows data contributor to create and update only their own pembanding', fun
     ]);
 });
 
-it('returns an actionable web form error for an exact duplicate', function () {
+it('redirects an exact duplicate to a persisted confirmation review', function () {
     Storage::fake('public');
     $user = roleUser('data_contributor');
     $this->actingAs($user);
@@ -189,14 +191,18 @@ it('returns an actionable web form error for an exact duplicate', function () {
 
     $record = Pembanding::query()->sole();
 
-    $this->from('/app/pembanding/create')
+    $response = $this->from('/app/pembanding/create')
         ->post('/app/pembanding', pembandingPayload([
             'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
         ]))
-        ->assertRedirect('/app/pembanding/create')
-        ->assertSessionHasErrors('duplicate')
-        ->assertSessionHas('duplicate.id', $record->id)
-        ->assertSessionHas('duplicate.url', url("/app/pembanding/{$record->id}"));
+        ->assertRedirect();
+
+    expect($response->headers->get('Location'))->toContain('/app/pembanding/duplicate-reviews/');
+    expect(Pembanding::query()->count())->toBe(1);
+
+    $submission = PembandingDuplicateSubmission::query()->sole();
+    expect($submission->user_id)->toBe($user->id)
+        ->and($submission->candidateIds())->toBe([$record->id]);
 });
 
 it('prevents data contributor from deleting any pembanding', function () {
@@ -212,4 +218,158 @@ it('prevents data contributor from deleting any pembanding', function () {
 
     $this->assertDatabaseHas('data_pembanding', ['id' => $ownRecord->id, 'deleted_at' => null]);
     $this->assertDatabaseHas('data_pembanding', ['id' => $otherRecord->id, 'deleted_at' => null]);
+});
+
+it('renders every accessible duplicate candidate in a side by side review', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $user = roleUser('data_contributor');
+    $this->actingAs($user);
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $contents = file_get_contents($image->getRealPath());
+
+    $this->post('/app/pembanding', pembandingPayload(['image' => $image]))->assertRedirect();
+    $record = Pembanding::query()->sole();
+    $copy = $record->replicate();
+    $copy->active_fingerprint = null;
+    $copy->save();
+
+    $this->post('/app/pembanding', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
+    ]))->assertRedirect();
+
+    $submission = PembandingDuplicateSubmission::query()->sole();
+
+    $this->get(route('app.pembanding.duplicate-reviews.show', $submission))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Pembanding/DuplicateReview')
+            ->where('breadcrumbs.2.label', 'Konfirmasi Duplikasi')
+            ->has('candidates', 2)
+            ->has('submission.rows', 29)
+            ->where('candidates.0.deleted', false));
+});
+
+it('refuses to overwrite a duplicate candidate that changed after detection', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $user = roleUser('pimpinan');
+    $this->actingAs($user);
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $contents = file_get_contents($image->getRealPath());
+
+    $this->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $record = Pembanding::query()->sole();
+    $this->post('/app/pembanding', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
+    ]));
+    $submission = PembandingDuplicateSubmission::query()->sole();
+
+    $record->forceFill(['updated_at' => now()->addMinute()])->saveQuietly();
+
+    $this->put(route('app.pembanding.duplicate-reviews.replace', [$submission, $record]))
+        ->assertStatus(409);
+
+    expect(PembandingDuplicateSubmission::query()->whereKey($submission->id)->exists())->toBeTrue()
+        ->and($record->refresh()->updated_by)->toBeNull();
+});
+
+it('uses an existing duplicate and removes the temporary submission', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $user = roleUser('data_contributor');
+    $this->actingAs($user);
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $contents = file_get_contents($image->getRealPath());
+
+    $this->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $record = Pembanding::query()->sole();
+    $this->post('/app/pembanding', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
+    ]));
+    $submission = PembandingDuplicateSubmission::query()->sole();
+    $temporaryPath = $submission->image_path;
+
+    $this->post(route('app.pembanding.duplicate-reviews.use-existing', [$submission, $record]))
+        ->assertRedirect(route('app.pembanding.show', $record));
+
+    expect(Pembanding::query()->count())->toBe(1)
+        ->and(PembandingDuplicateSubmission::query()->count())->toBe(0);
+    Storage::disk('local')->assertMissing($temporaryPath);
+});
+
+it('prevents a contributor from replacing another users duplicate', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $owner = roleUser('data_contributor');
+    $submitter = roleUser('data_contributor');
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $contents = file_get_contents($image->getRealPath());
+
+    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $record = Pembanding::query()->sole();
+    $this->actingAs($submitter)->post('/app/pembanding', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
+    ]));
+    $submission = PembandingDuplicateSubmission::query()->sole();
+
+    $this->actingAs($submitter)
+        ->put(route('app.pembanding.duplicate-reviews.replace', [$submission, $record]))
+        ->assertForbidden();
+
+    expect($record->refresh()->updated_by)->toBeNull()
+        ->and(PembandingDuplicateSubmission::query()->whereKey($submission->id)->exists())->toBeTrue();
+});
+
+it('allows an authorized user to replace an existing duplicate with full audit metadata', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $owner = roleUser('data_contributor');
+    $reviewer = roleUser('pimpinan');
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $contents = file_get_contents($image->getRealPath());
+
+    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $record = Pembanding::query()->sole();
+    $this->actingAs($reviewer)->post('/app/pembanding', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
+    ]));
+    $submission = PembandingDuplicateSubmission::query()->sole();
+
+    $this->actingAs($reviewer)
+        ->put(route('app.pembanding.duplicate-reviews.replace', [$submission, $record]))
+        ->assertRedirect(route('app.pembanding.show', $record));
+
+    $record->refresh();
+    expect($record->created_by)->toBe($owner->id)
+        ->and($record->updated_by)->toBe($reviewer->id)
+        ->and($record->activities()->where('event', 'updated')->where('causer_id', $reviewer->id)->exists())->toBeTrue()
+        ->and(Pembanding::query()->count())->toBe(1)
+        ->and(PembandingDuplicateSubmission::query()->count())->toBe(0);
+});
+
+it('isolates duplicate submissions by owner and deletes expired drafts', function () {
+    Storage::fake('public');
+    Storage::fake('local');
+    $owner = roleUser('data_contributor');
+    $other = roleUser('data_contributor');
+    $image = UploadedFile::fake()->image('foto.jpg');
+    $contents = file_get_contents($image->getRealPath());
+
+    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
+    ]));
+    $submission = PembandingDuplicateSubmission::query()->sole();
+
+    $this->actingAs($other)
+        ->get(route('app.pembanding.duplicate-reviews.show', $submission))
+        ->assertNotFound();
+
+    $submission->forceFill(['expires_at' => now()->subMinute()])->save();
+    $this->actingAs($owner)
+        ->get(route('app.pembanding.duplicate-reviews.show', $submission))
+        ->assertStatus(410);
+
+    expect(PembandingDuplicateSubmission::query()->whereKey($submission->id)->exists())->toBeFalse();
 });

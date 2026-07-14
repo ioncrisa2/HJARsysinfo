@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Actions\Pembanding\PreparePembandingDuplicateReviewAction;
 use App\Actions\Pembanding\SavePembandingAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingBrowseRequest;
@@ -131,13 +132,26 @@ class PembandingController extends Controller
 
     // ── Store ─────────────────────────────────────────────────────────────────
 
-    public function store(PembandingStoreRequest $request, SavePembandingAction $savePembanding): RedirectResponse
-    {
+    public function store(
+        PembandingStoreRequest $request,
+        SavePembandingAction $savePembanding,
+        PreparePembandingDuplicateReviewAction $prepareDuplicateReview,
+    ): RedirectResponse {
         Gate::authorize('create', Pembanding::class);
 
         $data = $request->validated();
         $createAnother = $request->boolean('create_another');
         $data['created_by'] = $request->user()->id;
+
+        $submission = $prepareDuplicateReview->execute(
+            $request->user()->id,
+            $data,
+            $request->file('image'),
+        );
+
+        if ($submission) {
+            return redirect()->route('app.pembanding.duplicate-reviews.show', $submission);
+        }
 
         $pembanding = $savePembanding->create($data, $request->file('image'));
 
@@ -326,6 +340,7 @@ class PembandingController extends Controller
         Gate::authorize('update', $pembanding);
 
         $data = $request->validated();
+        $data['updated_by'] = $request->user()->id;
 
         $savePembanding->update($pembanding, $data, $request->file('image'));
 

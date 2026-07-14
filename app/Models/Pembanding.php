@@ -58,6 +58,7 @@ class Pembanding extends Model
         'latitude',
         'longitude',
         'created_by',
+        'updated_by',
         'deleted_by_id',
         'deleted_reason',
     ];

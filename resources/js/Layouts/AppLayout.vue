@@ -137,6 +137,10 @@ onUnmounted(() => {
 
 // ── Breadcrumbs ──────────────────────────────────────────────────────────────
 const breadcrumbs = computed(() => {
+    if (Array.isArray(page.props.breadcrumbs) && page.props.breadcrumbs.length > 0) {
+        return page.props.breadcrumbs;
+    }
+
     const url = page.url.split("?")[0];
     const segments = url.replace(PREFIX, "").split("/").filter(Boolean);
 

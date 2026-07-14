@@ -21,18 +21,18 @@ class SavePembandingAction
         return $this->persist(new Pembanding, $data, $image);
     }
 
-    public function update(Pembanding $pembanding, array $data, ?UploadedFile $image): Pembanding
+    public function update(Pembanding $pembanding, array $data, ?UploadedFile $image, array $allowedDuplicateIds = []): Pembanding
     {
-        return $this->persist($pembanding, $data, $image);
+        return $this->persist($pembanding, $data, $image, $allowedDuplicateIds);
     }
 
-    private function persist(Pembanding $pembanding, array $data, ?UploadedFile $image): Pembanding
+    private function persist(Pembanding $pembanding, array $data, ?UploadedFile $image, array $allowedDuplicateIds = []): Pembanding
     {
         $checksum = $image
             ? $this->fingerprints->checksumUpload($image)
             : ($pembanding->image_checksum ?: $this->fingerprints->checksumStoredImage($pembanding->image));
         $fingerprint = $this->fingerprints->fingerprint($data, $checksum);
-        $this->rejectDuplicate($fingerprint, $pembanding->getKey());
+        $this->rejectDuplicate($fingerprint, $pembanding->getKey(), $allowedDuplicateIds);
 
         $newPath = $image ? $this->storeImage($image) : null;
 
@@ -59,7 +59,7 @@ class SavePembandingAction
             }
 
             if ($this->isFingerprintConflict($exception)) {
-                $this->rejectDuplicate($fingerprint, $pembanding->getKey());
+                $this->rejectDuplicate($fingerprint, $pembanding->getKey(), $allowedDuplicateIds);
             }
 
             throw $exception;
@@ -72,11 +72,12 @@ class SavePembandingAction
         }
     }
 
-    private function rejectDuplicate(string $fingerprint, int|string|null $excludeId): void
+    private function rejectDuplicate(string $fingerprint, int|string|null $excludeId, array $allowedDuplicateIds = []): void
     {
         $duplicate = Pembanding::withTrashed()
             ->where('business_fingerprint', $fingerprint)
             ->when($excludeId, fn ($query) => $query->whereKeyNot($excludeId))
+            ->when($allowedDuplicateIds, fn ($query) => $query->whereNotIn($query->qualifyColumn('id'), $allowedDuplicateIds))
             ->first();
 
         if ($duplicate) {
