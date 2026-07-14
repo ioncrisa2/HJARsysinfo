@@ -21,7 +21,6 @@ use App\Http\Controllers\App\SettingController;
 use App\Http\Controllers\App\UserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\DataContributorRegistrationController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => view('welcome'));
@@ -197,14 +196,6 @@ Route::middleware(['auth', 'app.user'])
     });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/home/{path?}', fn (Request $request, ?string $path = null) => redirect(
-        '/app'.($path ? '/'.$path : '').($request->getQueryString() ? '?'.$request->getQueryString() : '')
-    ))
-        ->where('path', '.*');
-    Route::get('/admin/{path?}', fn (Request $request, ?string $path = null) => redirect(
-        '/app'.($path ? '/'.$path : '').($request->getQueryString() ? '?'.$request->getQueryString() : '')
-    ))
-        ->where('path', '.*');
     Route::get('/profile', fn () => redirect()->route('app.profile.show'));
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

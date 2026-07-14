@@ -15,6 +15,13 @@ it('keeps authenticated features under the canonical application route group', f
     });
 });
 
+it('does not register legacy panel routes', function () {
+    $legacyRoutes = collect(Route::getRoutes()->getRoutes())
+        ->filter(fn ($route): bool => preg_match('#^(home|admin)(/|$)#', $route->uri()) === 1);
+
+    expect($legacyRoutes)->toBeEmpty();
+});
+
 it('uses AppLayout for every authenticated Inertia page', function () {
     $pageRoot = resource_path('js/Pages');
     $pages = collect(File::allFiles($pageRoot))

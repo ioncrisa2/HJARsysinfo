@@ -66,12 +66,12 @@ it('does not preserve legacy or external intended urls', function (string $inten
     'external host' => 'https://example.org/app/users',
 ]);
 
-it('preserves query strings while redirecting authenticated legacy urls', function (string $legacyUrl) {
+it('does not expose retired legacy panel urls', function (string $legacyUrl) {
     $user = makeWebLoginUser();
 
     $this->actingAs($user)
         ->get($legacyUrl)
-        ->assertRedirect('/app/pembanding?page=2&status=ready');
+        ->assertNotFound();
 })->with([
     '/home/pembanding?status=ready&page=2',
     '/admin/pembanding?status=ready&page=2',
