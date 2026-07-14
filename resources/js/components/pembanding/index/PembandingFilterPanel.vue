@@ -48,7 +48,6 @@ const fieldProps = computed(() => ({
             <PembandingFilterFields
                 v-bind="fieldProps"
                 @update:date-range="emit('update:dateRange', $event)"
-                @submit="emit('submit')"
                 @reset="emit('reset')"
             />
         </form>

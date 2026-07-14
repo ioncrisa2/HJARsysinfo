@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { Link } from "@inertiajs/vue3";
+import Select from "primevue/select";
 import { parseDateValue } from "../../../composables/useDateBridge";
 import UiEmptyState from "../../ui/UiEmptyState.vue";
 import PembandingImage from "../PembandingImage.vue";
@@ -10,7 +11,11 @@ const props = defineProps({
         type: Object,
         default: () => ({ data: [], links: [], total: 0, from: 0, to: 0 }),
     },
+    perPage: { type: Number, default: 16 },
+    perPageOptions: { type: Array, default: () => [] },
 });
+
+const emit = defineEmits(["update:perPage"]);
 
 const viewMode = ref("card");
 
@@ -19,6 +24,10 @@ const links = computed(() => props.records?.links ?? []);
 const total = computed(() => props.records?.total ?? 0);
 const from = computed(() => props.records?.from ?? 0);
 const to = computed(() => props.records?.to ?? 0);
+const perPageChoices = computed(() => props.perPageOptions.map((option) => ({
+    ...option,
+    label: String(option.value),
+})));
 
 const formatCurrency = (value) =>
     new Intl.NumberFormat("id-ID", {
@@ -63,7 +72,21 @@ const displayLabel = (label) => {
                 data
             </span>
 
-            <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+            <div class="flex items-center gap-2">
+                <label for="pembanding-per-page" class="hidden text-xs font-semibold text-slate-500 sm:block">
+                    Per halaman
+                </label>
+                <Select
+                    :model-value="props.perPage"
+                    input-id="pembanding-per-page"
+                    :options="perPageChoices"
+                    option-label="label"
+                    option-value="value"
+                    class="w-24"
+                    aria-label="Data per halaman"
+                    @update:model-value="emit('update:perPage', $event)"
+                />
+                <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
                 <button
                     type="button"
                     aria-label="Tampilan kartu"
@@ -82,6 +105,7 @@ const displayLabel = (label) => {
                 >
                     <i class="pi pi-list text-xs" />
                 </button>
+                </div>
             </div>
         </div>
 

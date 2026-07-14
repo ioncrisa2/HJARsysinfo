@@ -1,6 +1,5 @@
 <script setup>
 import { Link } from "@inertiajs/vue3";
-import Button from "primevue/button";
 import SplitButton from "primevue/splitbutton";
 
 const props = defineProps({
@@ -14,7 +13,7 @@ const props = defineProps({
     canExport: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(["exportExcel", "exportPdf", "openFilterDrawer"]);
+const emit = defineEmits(["exportExcel", "exportPdf"]);
 
 const exportItems = [
     {
@@ -36,18 +35,6 @@ const exportItems = [
 
             <div class="flex items-center gap-2 flex-wrap">
                 <!-- Filter button — drawer -->
-                <Button
-                    icon="pi pi-filter"
-                    label="Filter"
-                    size="small"
-                    severity="secondary"
-                    outlined
-                    class="!h-9"
-                    :badge="activeFilterCount > 0 ? String(activeFilterCount) : undefined"
-                    badge-severity="warn"
-                    @click="emit('openFilterDrawer')"
-                />
-
                 <!-- Export SplitButton -->
                 <SplitButton
                     v-if="canExport"
@@ -68,6 +55,10 @@ const exportItems = [
                     Tambah Data
                 </Link>
             </div>
+        </div>
+
+        <div v-if="$slots['quick-filters']" class="border-t border-slate-100 bg-slate-50/40 px-4 py-3">
+            <slot name="quick-filters" />
         </div>
 
         <!-- Stats bar -->

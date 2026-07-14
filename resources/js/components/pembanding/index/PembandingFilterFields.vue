@@ -1,9 +1,8 @@
 <script setup>
 import { computed } from "vue";
 import Button from "primevue/button";
-import Calendar from "primevue/calendar";
+import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
-import Listbox from "primevue/listbox";
 import Select from "primevue/select";
 
 const props = defineProps({
@@ -20,7 +19,7 @@ const props = defineProps({
     dateRange: { default: null },
 });
 
-const emit = defineEmits(["submit", "reset", "update:dateRange"]);
+const emit = defineEmits(["reset", "update:dateRange"]);
 
 const dateRangeModel = computed({
     get: () => props.dateRange,
@@ -132,7 +131,7 @@ const dateRangeModel = computed({
         <label class="mb-1.5 block text-xs font-semibold text-slate-600">
             Rentang Tanggal Data
         </label>
-        <Calendar
+        <DatePicker
             v-model="dateRangeModel"
             selection-mode="range"
             show-icon icon-display="input"
@@ -143,24 +142,9 @@ const dateRangeModel = computed({
         />
     </div>
 
-    <hr class="border-slate-100" />
-
-    <!-- Per page -->
-    <div>
-        <label class="mb-1.5 block text-xs font-semibold text-slate-600">
-            Data Per Halaman
-        </label>
-        <Listbox
-            v-model="props.filters.per_page"
-            :options="props.options.perPage ?? []"
-            option-label="label" option-value="value"
-            class="w-full"
-        />
-    </div>
-
     <!-- Actions -->
     <div class="flex gap-2 pt-1">
-        <Button type="submit" icon="pi pi-filter" label="Terapkan" class="flex-1" @click="emit('submit')" />
+        <Button type="submit" icon="pi pi-filter" label="Terapkan" class="flex-1" />
         <Button
             type="button" icon="pi pi-refresh" label="Reset"
             severity="secondary" outlined class="flex-1"
