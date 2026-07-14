@@ -3,7 +3,6 @@
 use App\Http\Middleware\CheckSystemMode;
 use App\Http\Middleware\EnsureAppUser;
 use App\Http\Middleware\HandleInertiaRequests;
-use App\Support\AdminAccess;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -28,13 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
         $middleware->redirectGuestsTo('/login');
-        $middleware->redirectUsersTo(function (Request $request): string {
-            if (AdminAccess::can($request->user(), AdminAccess::ACCESS_ADMIN)) {
-                return route('admin.dashboard');
-            }
-
-            return route('home.dashboard');
-        });
+        $middleware->redirectUsersTo(fn (Request $request): string => route('app.dashboard'));
         $middleware->alias([
             'app.user' => EnsureAppUser::class,
             'role' => RoleMiddleware::class,
