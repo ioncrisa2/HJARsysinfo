@@ -17,9 +17,8 @@ const page = usePage();
 
 const records = computed(() => page.props.records ?? { data: [], links: [], total: 0, from: 0, to: 0 });
 const options = computed(() => page.props.options ?? {});
-const permissions = computed(() => page.props.auth?.permissions ?? []);
-const canCreate = computed(() => permissions.value.includes("create_data::pembanding"));
-const canExport = computed(() => permissions.value.includes("export_data::pembanding"));
+const canCreate = computed(() => Boolean(page.props.can?.create));
+const canExport = computed(() => Boolean(page.props.can?.export));
 const DEFAULT_PER_PAGE = 16;
 
 const isLoading = ref(false);

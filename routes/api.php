@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DataPembandingController;
 use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\PembandingMapController;
 use App\Http\Middleware\ThrottleAuthAttempts;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,7 @@ Route::middleware('auth:sanctum')
         });
 
         Route::get('/pembandings', [DataPembandingController::class, 'index']);
+        Route::get('/pembandings/map', PembandingMapController::class);
         Route::post('/pembandings/similar', [DataPembandingController::class, 'similarByPayload']);
         Route::get('/pembandings/{id}', [DataPembandingController::class, 'show']);
         Route::get('/pembandings/{id}/history', [DataPembandingController::class, 'history']);

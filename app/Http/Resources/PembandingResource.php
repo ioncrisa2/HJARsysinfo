@@ -74,10 +74,17 @@ class PembandingResource extends JsonResource
             'lebar_jalan' => $this->lebar_jalan,
             'rasio_tapak' => $this->rasio_tapak,
             'harga' => $this->harga,
+            /** @var bool */
             'is_sewa' => $this->is_sewa,
             'jangka_waktu_sewa' => $this->jangka_waktu_sewa,
             'satuan_waktu_sewa' => $this->satuan_waktu_sewa,
+            /** @var string|null */
             'sewa_periode_label' => $this->sewa_periode_label,
+            /**
+             * @var string|null
+             *
+             * @format date
+             */
             'tanggal_data' => $this->tanggal_data,
             'catatan' => $this->catatan,
 
@@ -102,7 +109,7 @@ class PembandingResource extends JsonResource
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
 
-            // 'image' => $this->image,
+            /** @var string|null */
             'image_url' => $this->image_path,
 
             'created_by' => [

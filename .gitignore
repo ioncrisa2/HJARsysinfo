@@ -23,5 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /docs
+CLAUDE.md
+/.claude
 
 MIGRATION_PLAN.md

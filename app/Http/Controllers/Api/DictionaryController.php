@@ -5,14 +5,42 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Supports\DictionaryTypeMap;
 use App\Traits\ApiResponse;
+use Dedoc\Scramble\Attributes\Endpoint;
+use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\PathParameter;
+use Dedoc\Scramble\Attributes\QueryParameter;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
+#[Group('Dictionary', 'Referensi master data properti yang dipakai oleh client API.', weight: 2)]
 class DictionaryController extends Controller
 {
     use ApiResponse;
 
+    #[Endpoint(
+        title: 'Lihat dictionary',
+        description: 'Mengembalikan nilai master data berdasarkan tipe. Data nonaktif hanya tersedia bagi pengguna dengan permission view_master_data.'
+    )]
+    #[PathParameter(
+        'type',
+        description: 'Tipe dictionary.',
+        type: "'jenis-listing'|'jenis-objek'|'status-pemberi-informasi'|'bentuk-tanah'|'dokumen-tanah'|'posisi-tanah'|'kondisi-tanah'|'topografi'|'peruntukan'",
+        example: 'jenis-objek'
+    )]
+    #[QueryParameter(
+        'active_only',
+        description: 'Jika false, sertakan data nonaktif (memerlukan permission view_master_data).',
+        type: 'bool',
+        default: true,
+        example: true
+    )]
+    #[Response(
+        status: 200,
+        description: 'Dictionary berhasil diambil.',
+        type: "array{status: 'success', message: string, data: list<array{id: int, name: string, slug: string, sort_order: int, is_active: bool, badge_color_token: string|null, marker_icon_url: string|null}>}"
+    )]
     public function index(Request $request, string $type): JsonResponse
     {
         $model = $this->resolveModel($type);

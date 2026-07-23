@@ -113,6 +113,37 @@ it('shares narrow frontend capabilities instead of raw permissions or panel flag
         ->not->toContain('Pencarian');
 });
 
+it('shares pembanding action capabilities with its index and dashboard pages', function () {
+    $user = appPermissionUser([
+        'view_any_data::pembanding',
+        'create_data::pembanding',
+        'export_data::pembanding',
+    ]);
+
+    $indexProps = $this->actingAs($user)->get('/app/pembanding')->assertOk()->viewData('page')['props'];
+    expect($indexProps['can'])->toBe([
+        'create' => true,
+        'export' => true,
+    ]);
+
+    $dashboardProps = $this->actingAs($user)->get('/app')->assertOk()->viewData('page')['props'];
+    expect($dashboardProps['can'])->toBe([
+        'viewData' => true,
+        'createData' => true,
+    ]);
+});
+
+it('does not expose pembanding actions without their permissions', function () {
+    $user = appPermissionUser(['view_any_data::pembanding']);
+
+    $props = $this->actingAs($user)->get('/app/pembanding')->assertOk()->viewData('page')['props'];
+
+    expect($props['can'])->toBe([
+        'create' => false,
+        'export' => false,
+    ]);
+});
+
 it('shows bank data children according to permissions', function () {
     $user = appPermissionUser([
         'view_any_data::pembanding',

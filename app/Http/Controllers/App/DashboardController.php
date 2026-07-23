@@ -18,6 +18,10 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response|RedirectResponse
     {
         $isDataContributor = (bool) $request->user()?->hasRole('data_contributor');
+        $can = AppAccess::capabilityMap($request->user(), [
+            'viewData' => 'view_any_data::pembanding',
+            'createData' => 'create_data::pembanding',
+        ]);
         $canWidgets = AppAccess::capabilityMap($request->user(), AppAccess::widgetPermissionMap());
         $pendingDeleteRequests = $request->user()->can('view_moderation')
             ? PembandingDeleteRequest::query()->where('status', PembandingDeleteRequest::STATUS_PENDING)->count()
@@ -90,6 +94,7 @@ class DashboardController extends Controller
                 'mapPoints' => $mapPoints,
                 'stats' => $stats,
                 'jenisListingOptions' => $jenisListingOptions,
+                'can' => $can,
                 'canWidgets' => $canWidgets,
                 'deleteRequestAlert' => $deleteRequestAlert,
             ]);
@@ -371,6 +376,7 @@ class DashboardController extends Controller
             'topAreaActivity' => $topAreaActivity,
             'objectTypeCounts' => $objectTypeCounts,
             'jenisListingOptions' => $jenisListingOptions,
+            'can' => $can,
             'canWidgets' => $canWidgets,
             'deleteRequestAlert' => $deleteRequestAlert,
         ]);

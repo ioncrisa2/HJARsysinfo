@@ -3,14 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Locations\DistrictSearchRequest;
+use App\Http\Requests\Api\Locations\ProvinceSearchRequest;
+use App\Http\Requests\Api\Locations\RegencySearchRequest;
+use App\Http\Requests\Api\Locations\VillageSearchRequest;
 use App\Models\District;
 use App\Models\Province;
 use App\Models\Regency;
 use App\Models\Village;
 use App\Traits\ApiResponse;
+use Dedoc\Scramble\Attributes\Endpoint;
+use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+#[Group('Lokasi', 'Pencarian hierarki wilayah Indonesia.', weight: 3)]
 class LocationController extends Controller
 {
     use ApiResponse;
@@ -19,12 +26,10 @@ class LocationController extends Controller
 
     private const MAX_LIMIT = 200;
 
-    public function provinces(Request $request): JsonResponse
+    #[Endpoint(title: 'Cari provinsi', description: 'Mencari provinsi berdasarkan nama.')]
+    public function provinces(ProvinceSearchRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'q' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
-        ]);
+        $data = $request->validated();
 
         $items = Province::query()
             ->when($data['q'] ?? null, fn ($query, string $q) => $query->where('name', 'like', "%{$q}%"))
@@ -35,13 +40,10 @@ class LocationController extends Controller
         return $this->success($items, 'Data Provinsi');
     }
 
-    public function regencies(Request $request): JsonResponse
+    #[Endpoint(title: 'Cari kabupaten/kota', description: 'Mencari kabupaten atau kota, opsional dibatasi berdasarkan provinsi.')]
+    public function regencies(RegencySearchRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'province_id' => ['nullable', 'string', 'max:20'],
-            'q' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
-        ]);
+        $data = $request->validated();
 
         $query = Regency::query();
 
@@ -59,13 +61,10 @@ class LocationController extends Controller
         return $this->success($items, 'Data Kabupaten/Kota');
     }
 
-    public function districts(Request $request): JsonResponse
+    #[Endpoint(title: 'Cari kecamatan', description: 'Mencari kecamatan, opsional dibatasi berdasarkan kabupaten/kota.')]
+    public function districts(DistrictSearchRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'regency_id' => ['nullable', 'string', 'max:20'],
-            'q' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
-        ]);
+        $data = $request->validated();
 
         $query = District::query();
 
@@ -83,13 +82,10 @@ class LocationController extends Controller
         return $this->success($items, 'Data Kecamatan');
     }
 
-    public function villages(Request $request): JsonResponse
+    #[Endpoint(title: 'Cari desa/kelurahan', description: 'Mencari desa atau kelurahan, opsional dibatasi berdasarkan kecamatan.')]
+    public function villages(VillageSearchRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'district_id' => ['nullable', 'string', 'max:20'],
-            'q' => ['nullable', 'string', 'max:100'],
-            'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
-        ]);
+        $data = $request->validated();
 
         $query = Village::query();
 

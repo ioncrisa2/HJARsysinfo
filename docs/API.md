@@ -2,6 +2,25 @@
 
 Semua endpoint berada di bawah prefix `/api` dan merespons JSON.
 
+## OpenAPI / Swagger
+
+- UI dokumentasi interaktif: `GET /docs/api`.
+- Spesifikasi OpenAPI 3.1 JSON: `GET /docs/api.json`.
+- Kedua route hanya dapat diakses pada environment `local` secara default. Untuk environment lain, akses harus dibuka secara eksplisit melalui gate `viewApiDocs`.
+- Klik **Authorize** lalu masukkan access token dari endpoint login untuk mencoba endpoint yang dilindungi Sanctum.
+- Export spesifikasi statis bila diperlukan:
+
+```bash
+php artisan scramble:export --path=docs/openapi.json
+```
+
+- Untuk deployment yang memakai cache dokumentasi:
+
+```bash
+php artisan scramble:cache
+php artisan scramble:clear
+```
+
 ## Basis URL dan autentikasi
 - Skema token: Bearer (Laravel Sanctum personal access token).
 - Login mobile hanya diizinkan untuk user dengan salah satu role:
@@ -120,6 +139,18 @@ Semua endpoint lokasi read-only, memakai wrapper standar, dan menerima `limit` m
   - `limit` (integer, default 50, maksimum 200)
 
 ## Endpoint pembanding (`/api/v1`, wajib Bearer token)
+
+### GET `/api/v1/pembandings/map`
+- Fungsi: mengambil seluruh titik sebaran data pembanding untuk peta mobile.
+- Permission: `view_map`.
+- Response tidak memakai pagination.
+- Data soft-deleted dan data tanpa koordinat tidak disertakan.
+- Setiap item hanya berisi:
+  - `latitude`
+  - `longitude`
+  - `alamat_data`
+  - `image_url` (`null` jika data tidak memiliki foto)
+- `image_url` hanya URL file. Mobile harus memuat gambar secara lazy ketika marker dibuka.
 
 ### GET `/api/v1/pembandings`
 - Fungsi: daftar data pembanding dengan filter dasar.
@@ -271,6 +302,7 @@ Contoh field sewa:
 
 Gunakan `roles` dan `permissions` dari `/api/auth/me` atau response login.
 
+- Menu peta sebaran: `view_map`.
 - Tombol lihat/list: `view_any_data::pembanding`.
 - Tombol detail: `view_data::pembanding` atau `view_any_data::pembanding`.
 - Tombol tambah: `create_data::pembanding`.

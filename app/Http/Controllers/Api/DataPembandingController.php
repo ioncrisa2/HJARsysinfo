@@ -15,12 +15,16 @@ use App\Models\PembandingDeleteRequest;
 use App\Services\PembandingFactory;
 use App\Services\PembandingService;
 use App\Traits\ApiResponse;
+use Dedoc\Scramble\Attributes\Endpoint;
+use Dedoc\Scramble\Attributes\Group;
+use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
+#[Group('Data Pembanding', 'Pencarian dan pengelolaan data pembanding properti.', weight: 4)]
 class DataPembandingController extends Controller
 {
     use ApiResponse;
@@ -41,9 +45,15 @@ class DataPembandingController extends Controller
         protected SavePembandingAction $savePembanding,
     ) {}
 
-    /**
-     * GET /api/v1/pembandings
-     */
+    #[Endpoint(
+        title: 'Lihat daftar pembanding',
+        description: 'Mengembalikan data pembanding terpaginasikan dan mendukung filter lokasi, jenis objek, peruntukan, serta rentang harga.'
+    )]
+    #[Response(
+        status: 200,
+        description: 'Daftar pembanding berhasil diambil.',
+        type: "array{status: 'success', message: string, data: \Illuminate\Pagination\LengthAwarePaginator<\App\Http\Resources\PembandingResource>}"
+    )]
     public function index(PembandingIndexRequest $request)
     {
         Gate::authorize('viewAny', Pembanding::class);
@@ -70,9 +80,10 @@ class DataPembandingController extends Controller
         );
     }
 
-    /**
-     * GET /api/v1/pembandings/{pembanding}
-     */
+    #[Endpoint(
+        title: 'Lihat detail pembanding',
+        description: 'Mengembalikan satu data pembanding beserta relasi master data dan pembuatnya.'
+    )]
     public function show(string $id)
     {
         $pembanding = Pembanding::with([
@@ -104,9 +115,10 @@ class DataPembandingController extends Controller
         );
     }
 
-    /**
-     * GET /api/v1/pembandings/{pembanding}/similar
-     */
+    #[Endpoint(
+        title: 'Cari pembanding serupa berdasarkan ID',
+        description: 'Menilai kemiripan terhadap satu data pembanding yang sudah tersimpan.'
+    )]
     public function similarById(string $id, PembandingIndexRequest $request)
     {
         $pembanding = Pembanding::find($id);
@@ -132,9 +144,15 @@ class DataPembandingController extends Controller
         return $this->getSimilarResults($pembanding, $limit, $radiusMeters);
     }
 
-    /**
-     * GET /api/v1/pembandings/{pembanding}/history
-     */
+    #[Endpoint(
+        title: 'Lihat riwayat pembanding',
+        description: 'Mengembalikan maksimal 100 perubahan terbaru beserta pelaku dan nilai field sebelum/sesudah perubahan.'
+    )]
+    #[Response(
+        status: 200,
+        description: 'Riwayat perubahan berhasil diambil.',
+        type: "array{status: 'success', message: string, data: list<array{id: int, event: string, causer: string, causer_email: string|null, created_at: string|null, changes: list<array{field: string, old: mixed, new: mixed}>}>}"
+    )]
     public function history(string $id): JsonResponse
     {
         $pembanding = Pembanding::find($id);
@@ -198,9 +216,10 @@ class DataPembandingController extends Controller
         return $this->success($activities, 'Riwayat perubahan data pembanding');
     }
 
-    /**
-     * POST /api/v1/pembandings/{pembanding}/delete-request
-     */
+    #[Endpoint(
+        title: 'Ajukan penghapusan pembanding',
+        description: 'Membuat permintaan penghapusan untuk dievaluasi moderator. Hanya satu permintaan pending diperbolehkan per data.'
+    )]
     public function requestDelete(Request $request, string $id): JsonResponse
     {
         $pembanding = Pembanding::find($id);
@@ -237,9 +256,10 @@ class DataPembandingController extends Controller
         return $this->success(null, 'Permintaan hapus berhasil dikirim dan menunggu evaluasi moderator.');
     }
 
-    /**
-     * POST /api/v1/pembandings
-     */
+    #[Endpoint(
+        title: 'Tambah pembanding',
+        description: 'Menyimpan data pembanding baru beserta foto properti melalui multipart/form-data.'
+    )]
     public function store(PembandingStoreRequest $request): JsonResponse
     {
         Gate::authorize('create', Pembanding::class);
@@ -260,10 +280,10 @@ class DataPembandingController extends Controller
         );
     }
 
-    /**
-     * PUT/PATCH /api/v1/pembandings/{pembanding}
-     * or POST /api/v1/pembandings/{pembanding} with _method=PUT
-     */
+    #[Endpoint(
+        title: 'Perbarui pembanding',
+        description: 'Memperbarui data melalui PUT/PATCH, atau POST multipart dengan field _method=PUT sebagai workaround client.'
+    )]
     public function update(PembandingUpdateRequest $request, string $id): JsonResponse
     {
         $pembanding = Pembanding::find($id);
@@ -289,9 +309,10 @@ class DataPembandingController extends Controller
         );
     }
 
-    /**
-     * DELETE /api/v1/pembandings/{pembanding}
-     */
+    #[Endpoint(
+        title: 'Hapus pembanding',
+        description: 'Melakukan soft delete langsung bagi pengguna yang memiliki permission penghapusan.'
+    )]
     public function destroy(string $id): JsonResponse
     {
         $pembanding = Pembanding::find($id);
@@ -307,9 +328,10 @@ class DataPembandingController extends Controller
         return $this->success(null, 'Data pembanding berhasil dihapus.');
     }
 
-    /**
-     * POST /api/v1/pembandings/similar
-     */
+    #[Endpoint(
+        title: 'Cari pembanding serupa berdasarkan kriteria',
+        description: 'Mencari dan memberi peringkat data pembanding berdasarkan lokasi serta karakteristik properti yang dikirim.'
+    )]
     public function similarByPayload(FindSimilarPembandingRequest $request)
     {
         Gate::authorize('viewAny', Pembanding::class);

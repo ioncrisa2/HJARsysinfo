@@ -17,10 +17,15 @@ class UserResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            /** @format email */
             'email' => $this->email,
+            /** @var list<string> */
             'roles' => $this->getRoleNames()->values()->all(),
+            /** @var list<string> */
             'permissions' => $this->getAllPermissions()->pluck('name')->values()->all(),
+            /** @format date-time */
             'created_at' => $this->created_at?->toDateTimeString(),
+            /** @format date-time */
             'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
     }

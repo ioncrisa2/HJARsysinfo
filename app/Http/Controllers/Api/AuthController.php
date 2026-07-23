@@ -9,11 +9,14 @@ use App\Http\Resources\UserResource;
 use App\Services\Auth\AuthenticationService;
 use App\Services\Auth\RefreshTokenService;
 use App\Traits\ApiResponse;
+use Dedoc\Scramble\Attributes\Endpoint;
+use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
+#[Group('Autentikasi', 'Login, rotasi token, dan pengelolaan akun pengguna API.', weight: 1)]
 class AuthController extends Controller
 {
     use ApiResponse;
@@ -23,6 +26,10 @@ class AuthController extends Controller
         protected RefreshTokenService $refreshTokenService
     ) {}
 
+    #[Endpoint(
+        title: 'Login',
+        description: 'Memvalidasi kredensial dan mengembalikan access token Sanctum beserta refresh token.'
+    )]
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->only(['email', 'password']);
@@ -41,6 +48,10 @@ class AuthController extends Controller
         return $this->success($result, 'Login Success');
     }
 
+    #[Endpoint(
+        title: 'Perbarui access token',
+        description: 'Menukar refresh token yang masih valid dengan pasangan token baru.'
+    )]
     public function refresh(RefreshTokenRequest $request): JsonResponse
     {
         $refreshToken = $request->input('refresh_token');
@@ -55,6 +66,10 @@ class AuthController extends Controller
         return $this->success($result, 'Token refreshed successfully');
     }
 
+    #[Endpoint(
+        title: 'Lihat pengguna aktif',
+        description: 'Mengembalikan profil, role, dan permission milik pengguna yang terautentikasi.'
+    )]
     public function me(Request $request): JsonResponse
     {
         return $this->success(
@@ -63,6 +78,10 @@ class AuthController extends Controller
         );
     }
 
+    #[Endpoint(
+        title: 'Logout',
+        description: 'Mencabut access token aktif dan seluruh refresh token milik pengguna.'
+    )]
     public function logout(Request $request): JsonResponse
     {
         $this->authService->logout($request->user());
@@ -70,6 +89,10 @@ class AuthController extends Controller
         return $this->success(null, 'Successfully logged out');
     }
 
+    #[Endpoint(
+        title: 'Perbarui profil',
+        description: 'Memperbarui nama dan alamat email pengguna yang terautentikasi.'
+    )]
     public function updateProfile(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -87,6 +110,10 @@ class AuthController extends Controller
         );
     }
 
+    #[Endpoint(
+        title: 'Ubah password',
+        description: 'Mengganti password setelah password saat ini berhasil diverifikasi.'
+    )]
     public function updatePassword(Request $request): JsonResponse
     {
         $user = $request->user();

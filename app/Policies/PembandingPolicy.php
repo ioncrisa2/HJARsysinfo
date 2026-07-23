@@ -2,13 +2,21 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Pembanding;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class PembandingPolicy
 {
     use HandlesAuthorization;
+
+    /**
+     * Determine whether the user can view map distribution data.
+     */
+    public function viewMap(User $user): bool
+    {
+        return $user->can('view_map');
+    }
 
     /**
      * Determine whether the user can view any models.

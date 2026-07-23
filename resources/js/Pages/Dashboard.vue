@@ -16,9 +16,8 @@ import { useResponsiveCanvasChart } from "../composables/useResponsiveCanvasChar
 defineOptions({ layout: AppLayout });
 
 const page = usePage();
-const permissions = computed(() => page.props.auth?.permissions ?? []);
-const canViewData = computed(() => permissions.value.includes("view_any_data::pembanding"));
-const canCreateData = computed(() => permissions.value.includes("create_data::pembanding"));
+const canViewData = computed(() => Boolean(page.props.can?.viewData));
+const canCreateData = computed(() => Boolean(page.props.can?.createData));
 const deleteRequestAlert = computed(() => page.props.deleteRequestAlert ?? null);
 
 const dashboardVariant = computed(() => page.props.dashboardVariant ?? "default");

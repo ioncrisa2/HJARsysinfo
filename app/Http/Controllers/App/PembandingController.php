@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\Village;
 use App\Services\Pembanding\PembandingBrowseFilterService;
 use App\Services\Pembanding\PembandingFormOptionsService;
+use App\Support\AppAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -79,6 +80,10 @@ class PembandingController extends Controller
             'filters' => $filters,
             'records' => $records,
             'perPage' => $request->perPage(),
+            'can' => AppAccess::capabilityMap($request->user(), [
+                'create' => 'create_data::pembanding',
+                'export' => 'export_data::pembanding',
+            ]),
             'options' => [
                 'provinces' => $this->mapSelectOptions(
                     Province::query()->orderBy('name')->get(['id', 'name'])
