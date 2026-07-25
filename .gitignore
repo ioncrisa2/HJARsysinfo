@@ -22,7 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
-/docs
+/docs/*
+!/docs/SCORING_PEMBANDING_REFACTOR_IMPLEMENTATION_PLAN.md
 CLAUDE.md
 /.claude
 

@@ -15,6 +15,7 @@ use App\Models\StatusPemberiInformasi;
 use App\Models\Topografi;
 use App\Models\User;
 use App\Models\Village;
+use App\Services\Scoring\CandidateRetrievalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -332,7 +333,10 @@ it('falls back to nearest candidates when peruntukan match is missing', function
     $response
         ->assertOk()
         ->assertJsonPath('status', 'success')
-        ->assertJsonPath('data.0.is_fallback', true);
+        ->assertJsonPath('data.0.is_fallback', true)
+        ->assertJsonPath('data.0.retrieval_stage', 'cross_peruntukan_fallback');
+
+    expect($response->json('data.0.fallback_reason'))->toBeString()->not->toBeEmpty();
 });
 
 it('applies range_km in similar by payload endpoint', function () {
@@ -715,4 +719,440 @@ it('cannot submit duplicate pending delete request', function () {
     ]);
 
     $response->assertStatus(422);
+});
+
+it('returns additive scoring metadata when v2 is active', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+
+    ($this->makePembanding)([
+        'alamat_data' => 'Kandidat V2',
+        'latitude' => -2.5491,
+        'longitude' => 118.0151,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'luas_bangunan' => 60,
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'lebar_jalan' => 6,
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 10,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('data.0.method_version', 'heuristic-v2.0')
+        ->assertJsonPath('data.0.score', $response->json('data.0.similarity_score'))
+        ->assertJsonStructure([
+            'data' => [
+                '*' => [
+                    'score',
+                    'similarity_score',
+                    'reference_coverage',
+                    'score_coverage',
+                    'scoring_status',
+                    'method_version',
+                    'similarity_rank',
+                    'eligibility_tier',
+                    'evidence_quality',
+                    'evidence_tier',
+                    'component_scores',
+                    'warnings',
+                    'retrieval_stage',
+                    'report_readiness',
+                    'report_completeness',
+                    'report_missing_fields',
+                    'record_version',
+                ],
+            ],
+        ]);
+});
+
+it('scores a larger candidate pool before applying the result limit', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+    config()->set('pembanding_scoring.candidate_pool', [
+        'minimum' => 2,
+        'multiplier' => 2,
+        'maximum' => 10,
+    ]);
+
+    $nearestButPoor = ($this->makePembanding)([
+        'alamat_data' => 'Terdekat tetapi buruk',
+        'latitude' => -2.5490,
+        'longitude' => 118.0149,
+        'luas_tanah' => 10000,
+        'luas_bangunan' => 1000,
+        'lebar_jalan' => 25,
+    ]);
+    $fartherButSimilar = ($this->makePembanding)([
+        'alamat_data' => 'Lebih jauh tetapi mirip',
+        'latitude' => -2.5500,
+        'longitude' => 118.0149,
+        'luas_tanah' => 120,
+        'luas_bangunan' => 60,
+        'lebar_jalan' => 6,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'luas_bangunan' => 60,
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'lebar_jalan' => 6,
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 1,
+    ]);
+
+    $response->assertOk()->assertJsonCount(1, 'data');
+
+    expect($response->json('data.0.id'))->toBe($fartherButSimilar->id)
+        ->and($response->json('data.0.id'))->not->toBe($nearestButPoor->id);
+});
+
+it('uses the candidate id as the final deterministic tie breaker', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+
+    $first = ($this->makePembanding)([
+        'alamat_data' => 'Tie Candidate A',
+        'latitude' => -2.5491,
+        'longitude' => 118.0151,
+    ]);
+    $second = ($this->makePembanding)([
+        'alamat_data' => 'Tie Candidate B',
+        'latitude' => -2.5491,
+        'longitude' => 118.0151,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'luas_bangunan' => 60,
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'lebar_jalan' => 6,
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 2,
+    ]);
+
+    $response->assertOk()->assertJsonCount(2, 'data');
+
+    expect($response->json('data.0.id'))->toBe($first->id)
+        ->and($response->json('data.1.id'))->toBe($second->id);
+});
+
+it('does not let rent candidates fill a sale candidate pool', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+
+    $rentListingId = JenisListing::query()->create([
+        'slug' => 'sewa',
+        'name' => 'Sewa',
+    ])->id;
+    $rentCandidate = ($this->makePembanding)([
+        'alamat_data' => 'Kandidat Sewa',
+        'jenis_listing_id' => $rentListingId,
+        'latitude' => -2.5490,
+        'longitude' => 118.0149,
+    ]);
+    $saleCandidate = ($this->makePembanding)([
+        'alamat_data' => 'Kandidat Jual',
+        'latitude' => -2.5500,
+        'longitude' => 118.0149,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'limit' => 10,
+    ]);
+
+    $response->assertOk();
+    $ids = collect($response->json('data'))->pluck('id');
+
+    expect($ids)->toContain($saleCandidate->id)
+        ->and($ids)->not->toContain($rentCandidate->id);
+});
+
+it('requires market basis when v2 is active', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+
+    $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'peruntukan' => 'rumah_tinggal',
+    ])->assertUnprocessable()->assertJsonValidationErrors('market_basis');
+});
+
+it('keeps the v2 shadow response identical to the v1 baseline', function () {
+    ($this->makePembanding)([
+        'alamat_data' => 'Baseline A',
+        'latitude' => -2.5490,
+        'longitude' => 118.0149,
+    ]);
+    ($this->makePembanding)([
+        'alamat_data' => 'Baseline B',
+        'latitude' => -2.5500,
+        'longitude' => 118.0149,
+        'luas_tanah' => 300,
+    ]);
+    $payload = [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'limit' => 10,
+    ];
+
+    config()->set('pembanding_scoring.mode', 'v1');
+    $v1 = $this->postJson('/api/v1/pembandings/similar', $payload)->assertOk()->json('data');
+
+    config()->set('pembanding_scoring.mode', 'v2_shadow');
+    $shadow = $this->postJson('/api/v1/pembandings/similar', $payload)->assertOk()->json('data');
+
+    expect(collect($shadow)->pluck('id')->all())->toBe(collect($v1)->pluck('id')->all())
+        ->and(collect($shadow)->pluck('score')->all())->toBe(collect($v1)->pluck('score')->all())
+        ->and(collect($shadow)->pluck('rank')->all())->toBe(collect($v1)->pluck('rank')->all());
+});
+
+it('marks insufficient v2 results as not rankable and returns a warning', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+    ($this->makePembanding)();
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'peruntukan' => 'rumah_tinggal',
+        'limit' => 1,
+    ])->assertOk();
+
+    $response
+        ->assertJsonPath('data.0.scoring_status', 'insufficient_input')
+        ->assertJsonPath('data.0.rankable', false);
+
+    expect($response->json('data.0.warnings'))->not->toBeEmpty();
+});
+
+it('does not use candidates dated after the requested reference date', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+    $past = ($this->makePembanding)([
+        'alamat_data' => 'Past evidence',
+        'tanggal_data' => '2024-12-31',
+    ]);
+    $future = ($this->makePembanding)([
+        'alamat_data' => 'Future evidence',
+        'tanggal_data' => '2025-01-02',
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'reference_date' => '2025-01-01',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'limit' => 10,
+    ])->assertOk();
+
+    $ids = collect($response->json('data'))->pluck('id');
+
+    expect($ids)->toContain($past->id)
+        ->and($ids)->not->toContain($future->id);
+});
+
+it('expands the v2 candidate pool from district to regency and radius', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+    config()->set('pembanding_scoring.candidate_pool.minimum', 3);
+    config()->set('pembanding_scoring.candidate_pool.maximum', 3);
+
+    $otherDistrict = District::query()->create([
+        'id' => '710102',
+        'regency_id' => $this->regency->id,
+        'name' => 'Kecamatan Tetangga',
+    ]);
+    $otherRegency = Regency::query()->create([
+        'id' => '7102',
+        'province_id' => $this->province->id,
+        'name' => 'Kabupaten Tetangga',
+    ]);
+    $radiusDistrict = District::query()->create([
+        'id' => '710201',
+        'regency_id' => $otherRegency->id,
+        'name' => 'Kecamatan Lintas Batas',
+    ]);
+
+    ($this->makePembanding)(['alamat_data' => 'District', 'latitude' => -2.5490]);
+    ($this->makePembanding)([
+        'alamat_data' => 'Regency',
+        'district_id' => $otherDistrict->id,
+        'latitude' => -2.5491,
+    ]);
+    ($this->makePembanding)([
+        'alamat_data' => 'Radius',
+        'regency_id' => $otherRegency->id,
+        'district_id' => $radiusDistrict->id,
+        'latitude' => -2.5492,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'limit' => 3,
+    ])->assertOk();
+
+    expect(collect($response->json('data'))->pluck('retrieval_stage')->sort()->values()->all())
+        ->toBe(['district', 'radius', 'regency']);
+});
+
+it('uses land area rather than total area for gudang land substitutions', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+
+    Peruntukan::query()->create(['slug' => 'gudang', 'name' => 'Gudang']);
+    $candidate = ($this->makePembanding)([
+        'alamat_data' => 'Tanah substitusi gudang',
+        'peruntukan_id' => $this->refs['peruntukan_tanah_id'],
+        'luas_tanah' => 1000,
+        'luas_bangunan' => 800,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'peruntukan' => 'gudang',
+        'luas_tanah' => 1000,
+        'limit' => 10,
+    ])->assertOk();
+
+    expect(collect($response->json('data'))->pluck('id'))->toContain($candidate->id);
+});
+
+it('keeps report readiness separate from similarity ranking', function () {
+    config()->set('pembanding_scoring.mode', 'v2');
+
+    $incomplete = ($this->makePembanding)([
+        'alamat_data' => 'Kandidat laporan incomplete',
+        'harga' => null,
+        'latitude' => -2.5490,
+        'longitude' => 118.0149,
+    ]);
+    $ready = ($this->makePembanding)([
+        'alamat_data' => 'Kandidat laporan ready',
+        'harga' => 500000000,
+        'latitude' => -2.5490,
+        'longitude' => 118.0149,
+    ]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'tanah',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'lebar_jalan' => 6,
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 10,
+    ])->assertOk();
+
+    $items = collect($response->json('data'))->keyBy('id');
+    $incompleteResult = $items->get($incomplete->id);
+    $readyResult = $items->get($ready->id);
+
+    expect($incompleteResult['similarity_score'])->toBe($readyResult['similarity_score'])
+        ->and($incompleteResult['component_scores'])->toBe($readyResult['component_scores'])
+        ->and($incompleteResult['report_readiness'])->toBe('incomplete')
+        ->and($incompleteResult['report_missing_fields'])->toContain('harga')
+        ->and($readyResult['report_readiness'])->toBe('ready')
+        ->and($incompleteResult['rank'])->toBeLessThan($readyResult['rank']);
+});
+
+it('returns the legacy response when the v2 shadow pipeline fails', function () {
+    config()->set('pembanding_scoring.mode', 'v2_shadow');
+    config()->set('pembanding_scoring.shadow_execution.enabled', true);
+    config()->set('pembanding_scoring.shadow_execution.sample_rate', 1);
+    ($this->makePembanding)(['alamat_data' => 'Legacy tetap tersedia']);
+
+    $v2Retrieval = Mockery::mock(CandidateRetrievalService::class);
+    $v2Retrieval->shouldReceive('targetPoolSize')->once()->andReturn(300);
+    $v2Retrieval->shouldReceive('retrieve')->once()->andThrow(
+        new RuntimeException('simulated v2 failure'),
+    );
+    $this->app->instance(
+        CandidateRetrievalService::class,
+        $v2Retrieval,
+    );
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'limit' => 10,
+    ]);
+
+    $response
+        ->assertOk()
+        ->assertJsonPath('data.0.scoring_status', 'legacy')
+        ->assertJsonPath('data.0.method_version', 'legacy-v1.0');
+});
+
+it('does not execute v2 when a shadow request is not sampled', function () {
+    config()->set('pembanding_scoring.mode', 'v2_shadow');
+    config()->set('pembanding_scoring.shadow_execution.enabled', true);
+    config()->set('pembanding_scoring.shadow_execution.sample_rate', 0);
+    ($this->makePembanding)(['alamat_data' => 'Legacy tanpa shadow']);
+
+    $v2Retrieval = Mockery::mock(CandidateRetrievalService::class);
+    $v2Retrieval->shouldNotReceive('targetPoolSize');
+    $v2Retrieval->shouldNotReceive('retrieve');
+    $this->app->instance(CandidateRetrievalService::class, $v2Retrieval);
+
+    $this->postJson('/api/v1/pembandings/similar', [
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'limit' => 10,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.0.scoring_status', 'legacy')
+        ->assertJsonPath('data.0.method_version', 'legacy-v1.0');
 });

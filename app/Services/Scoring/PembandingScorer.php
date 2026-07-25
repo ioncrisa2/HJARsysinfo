@@ -85,7 +85,7 @@ class PembandingScorer
     {
         $inputLand = (float) ($input->luas_tanah ?? 0);
         $dataLand = (float) ($data->luas_tanah ?? 0);
-        
+
         $inputBuild = (float) ($input->luas_bangunan ?? 0);
         $dataBuild = (float) ($data->luas_bangunan ?? 0);
 
@@ -314,11 +314,11 @@ class PembandingScorer
 
         // Strata title (Apartment / Kios) yang tidak punya tanah akan mengacu harga /m2 bangunan.
         // Property menapak tanah akan diukur ke harga /m2 tanah.
-        
+
         if ($land > 0) {
             return $price / $land;
         }
-        
+
         if ($build > 0) {
             return $price / $build;
         }

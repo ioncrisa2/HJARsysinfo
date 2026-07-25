@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Models\District;
 use App\Models\DokumenTanah;
+use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,18 +25,32 @@ class FindSimilarPembandingRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'district_id' => ['required', 'string'],
+            'district_id' => ['required', 'string', Rule::exists((new District)->getTable(), 'id')],
+            'regency_id' => ['nullable', 'string'],
+            'market_basis' => [
+                Rule::requiredIf(fn (): bool => config('pembanding_scoring.mode') === 'v2'),
+                'nullable',
+                Rule::in(['sale', 'rent']),
+            ],
+            'evidence_type' => ['nullable', Rule::in(['transaction', 'offer', 'unknown'])],
+            'reference_date' => ['nullable', 'date_format:Y-m-d'],
+            'jenis_objek' => [
+                'nullable',
+                'string',
+                Rule::exists((new JenisObjek)->getTable(), 'slug')
+                    ->where('is_active', true),
+            ],
             'peruntukan' => [
                 'required',
                 'string',
-                Rule::exists((new Peruntukan())->getTable(), 'slug')
+                Rule::exists((new Peruntukan)->getTable(), 'slug')
                     ->where('is_active', true),
             ],
             'luas_tanah' => ['nullable', 'numeric', 'min:0'],
@@ -41,20 +58,20 @@ class FindSimilarPembandingRequest extends FormRequest
             'dokumen_tanah' => [
                 'nullable',
                 'string',
-                Rule::exists((new DokumenTanah())->getTable(), 'slug')
+                Rule::exists((new DokumenTanah)->getTable(), 'slug')
                     ->where('is_active', true),
             ],
             'lebar_jalan' => ['nullable', 'numeric', 'min:0'],
             'posisi_tanah' => [
                 'nullable',
                 'string',
-                Rule::exists((new PosisiTanah())->getTable(), 'slug')
+                Rule::exists((new PosisiTanah)->getTable(), 'slug')
                     ->where('is_active', true),
             ],
             'kondisi_tanah' => [
                 'nullable',
                 'string',
-                Rule::exists((new KondisiTanah())->getTable(), 'slug')
+                Rule::exists((new KondisiTanah)->getTable(), 'slug')
                     ->where('is_active', true),
             ],
             'harga' => ['nullable', 'numeric', 'min:0'],
@@ -69,6 +86,7 @@ class FindSimilarPembandingRequest extends FormRequest
             'latitude.between' => 'Latitude harus antara -90 dan 90',
             'longitude.between' => 'Longitude harus antara -180 dan 180',
             'peruntukan.exists' => 'Peruntukan tidak valid',
+            'jenis_objek.exists' => 'Jenis objek tidak valid',
             'dokumen_tanah.exists' => 'Dokumen tanah tidak valid',
             'posisi_tanah.exists' => 'Posisi tanah tidak valid',
             'kondisi_tanah.exists' => 'Kondisi tanah tidak valid',

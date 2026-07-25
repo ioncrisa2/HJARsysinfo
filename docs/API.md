@@ -178,9 +178,60 @@ Semua endpoint lokasi read-only, memakai wrapper standar, dan menerima `limit` m
   - `range_km` (number, 0.1-100, default 10 km)
 - Field tambahan per item:
   - `score` (float)
+  - `similarity_score` (float, alias semantik dari `score`)
+  - `reference_coverage` (float|null)
+  - `score_coverage` (float|null)
+  - `scoring_status` (`legacy`, `scored`, `insufficient_input`, atau `partial_candidate_data`)
+  - `rankable` (bool|null; `false` berarti score tidak cukup andal untuk ranking kuat)
+  - `method_version` (string)
+  - `similarity_rank` (int)
+  - `eligibility_tier` (string)
+  - `eligibility_reasons` (array)
+  - `evidence_quality` (object)
+  - `evidence_tier` (`primary`, `secondary`, `unknown`, atau `reviewer_only`)
+  - `component_scores` (object)
+  - `warnings` (array)
+  - `retrieval_stage` (`district`, `regency`, `radius`, atau `cross_peruntukan_fallback`)
+  - `fallback_reason` (string|null)
+  - `report_readiness` (`ready` atau `incomplete`)
+  - `report_completeness` (float)
+  - `report_missing_fields` (array)
+  - `record_version` (string|null; SHA-256 dari state record yang dipakai pada response)
   - `distance` (meter)
   - `priority_rank` (int)
   - `is_fallback` (bool)
+
+Mode scoring dikendalikan server melalui `PEMBANDING_SCORING_MODE`:
+
+- `v1`: hanya engine legacy.
+- `v2_shadow`: response tetap memakai V1; V2 hanya dihitung pada request yang
+  lolos sampling shadow untuk evaluasi.
+- `v2`: response dan ranking memakai similarity V2.
+
+Observability scoring dikendalikan melalui:
+
+- `PEMBANDING_SCORING_TELEMETRY`: mengaktifkan event operasional seluruh mode.
+- `PEMBANDING_SCORING_TELEMETRY_SAMPLE_RATE`: sampling event operasional rutin
+  dari `0` sampai `1`; event kegagalan tidak ikut sampling.
+- `PEMBANDING_SCORING_SHADOW_LOG`: mengaktifkan event perbandingan V1/V2.
+- `PEMBANDING_SCORING_SHADOW_EXECUTION`: mengaktifkan eksekusi V2 dalam shadow.
+- `PEMBANDING_SCORING_SHADOW_SAMPLE_RATE`: proporsi request `v2_shadow` yang
+  benar-benar menjalankan V2, dari `0` sampai `1` (default `0.1`).
+- `PEMBANDING_SCORING_LOG_LEVEL` dan `PEMBANDING_SCORING_LOG_DAYS`: level serta retensi channel `scoring`.
+
+Event `pembanding_scoring_run` mencatat latency retrieval/ranking, candidate pool,
+result count, fallback, retrieval stage, coverage, scoring status, evidence tier,
+dan missing-field counts. Event `pembanding_scoring_shadow` mencatat overlap serta
+delta V1/V2, method version, serta latency kedua pipeline. Ketiga event dalam satu
+perbandingan dapat digabungkan melalui `comparison_id` non-PII. Telemetry tidak
+menyimpan alamat, koordinat, harga, data pemberi informasi, payload mentah, atau
+daftar ID kandidat.
+
+Eksekusi V2 yang lolos sampling saat ini masih sinkron setelah V1, sehingga request
+tersebut membayar tambahan latency V2. Request yang tidak lolos sampling tidak
+menjalankan V2. Kegagalan pipeline V2 maupun logger tidak menggagalkan response
+legacy, tetapi timeout proses/DB yang lebih panjang daripada timeout request tetap
+harus dikendalikan melalui sampling, query timeout, dan observasi production.
 
 ### POST `/api/v1/pembandings/similar`
 - Cari data pembanding mirip berdasarkan payload kriteria tanpa ID referensi.
@@ -192,6 +243,11 @@ Semua endpoint lokasi read-only, memakai wrapper standar, dan menerima `limit` m
     - `district_id` (string)
     - `peruntukan` (slug dictionary aktif `peruntukan`)
   - Opsional:
+    - `regency_id` (string)
+    - `market_basis` (`sale` atau `rent`; wajib ketika server mengaktifkan mode `v2`)
+    - `evidence_type` (`transaction`, `offer`, atau `unknown`)
+    - `reference_date` (tanggal `YYYY-MM-DD`)
+    - `jenis_objek` (slug dictionary aktif `jenis_objek`)
     - `luas_tanah`, `luas_bangunan`, `lebar_jalan`, `harga` (number >= 0)
     - `dokumen_tanah` (slug dictionary aktif `dokumen_tanah`)
     - `posisi_tanah` (slug dictionary aktif `posisi_tanah`)
@@ -199,6 +255,15 @@ Semua endpoint lokasi read-only, memakai wrapper standar, dan menerima `limit` m
   - Paging:
     - `limit` (int 1-1000, default 100)
     - `range_km` (0.1-100, default 10 km)
+
+Jika `reference_date` dikirim, kandidat dengan `tanggal_data` setelah tanggal tersebut
+tidak digunakan agar historical valuation tidak memakai future evidence.
+
+Pada V2, retrieval berjalan bertahap dari district, regency, lalu radius. Candidate
+pool dinilai lebih dulu sebelum `limit` hasil diterapkan. Mode `v1` dan
+`v2_shadow` mempertahankan retrieval, fallback penalty, scoring, dan ranking legacy
+pada response; pada request yang lolos sampling, hasil V2 hanya dicatat sebagai
+telemetri agregat.
 - Respons identik dengan endpoint `/pembandings/{id}/similar`.
 
 ### POST `/api/v1/pembandings`

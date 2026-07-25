@@ -18,6 +18,8 @@ it('publishes a complete OpenAPI document for the API', function () {
     $document = $response->json();
     $dictionaryParameters = collect($document['paths']['/v1/dictionaries/{type}']['get']['parameters'])
         ->keyBy('name');
+    $similarSchema = data_get($document, 'components.schemas.SimilarPembandingResource');
+    $similarProperties = $similarSchema['properties'];
 
     expect($document['paths'])->toHaveCount(18)
         ->and(collect($document['paths'])->sum(fn (array $operations): int => count($operations)))->toBe(23)
@@ -28,5 +30,29 @@ it('publishes a complete OpenAPI document for the API', function () {
         ->and(collect(data_get($document, 'paths./v1/locations/provinces.get.parameters'))
             ->pluck('name')
             ->all())->toBe(['q', 'limit'])
-        ->and($dictionaryParameters['type']['schema']['enum'])->toContain('jenis-objek', 'peruntukan');
+        ->and($dictionaryParameters['type']['schema']['enum'])->toContain('jenis-objek', 'peruntukan')
+        ->and(data_get(
+            $document,
+            'paths./v1/pembandings/similar.post.requestBody.content.application/json.schema.$ref'
+        ))->toBe('#/components/schemas/FindSimilarPembandingRequest')
+        ->and(data_get(
+            $document,
+            'paths./v1/pembandings/similar.post.responses.200.content.application/json.schema.anyOf.0.properties.data.items.$ref'
+        ))->toBe('#/components/schemas/SimilarPembandingResource')
+        ->and(data_get(
+            $document,
+            'paths./v1/pembandings/{id}/similar.get.responses.200.content.application/json.schema.anyOf.0.properties.data.items.$ref'
+        ))->toBe('#/components/schemas/SimilarPembandingResource')
+        ->and($similarProperties['rankable']['type'])->toBe(['boolean', 'null'])
+        ->and($similarProperties['eligibility_reasons']['type'])->toBe('array')
+        ->and($similarProperties['evidence_quality']['type'])->toBe(['object', 'null'])
+        ->and($similarProperties['component_scores']['type'])->toBe('object')
+        ->and($similarProperties['warnings']['items']['type'])->toBe('string')
+        ->and($similarProperties['report_missing_fields']['items']['type'])->toBe('string')
+        ->and($similarSchema['required'])->toContain(
+            'similarity_score',
+            'rankable',
+            'component_scores',
+            'report_missing_fields',
+        );
 });

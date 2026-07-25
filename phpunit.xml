@@ -31,5 +31,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="PEMBANDING_SCORING_SHADOW_LOG" value="false"/>
+        <env name="PEMBANDING_SCORING_SHADOW_EXECUTION" value="false"/>
+        <env name="PEMBANDING_SCORING_TELEMETRY" value="false"/>
     </php>
 </phpunit>

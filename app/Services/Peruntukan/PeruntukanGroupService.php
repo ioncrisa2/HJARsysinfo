@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services\Peruntukan;
 
 class PeruntukanGroupService
@@ -71,6 +72,17 @@ class PeruntukanGroupService
         return ($groupA && $groupA === $groupB) ? 3 : 1;
     }
 
+    public function getGroup(?string $peruntukanSlug): ?string
+    {
+        if (! $peruntukanSlug) {
+            return null;
+        }
+
+        $this->buildGroupMapping();
+
+        return $this->peruntukanToGroup[strtolower($peruntukanSlug)] ?? null;
+    }
+
     protected function getAllowedByGroup(string $peruntukanSlug): array
     {
         $this->buildGroupMapping();
@@ -89,7 +101,7 @@ class PeruntukanGroupService
 
     protected function buildGroupMapping(): void
     {
-        if (!empty($this->peruntukanToGroup)) {
+        if (! empty($this->peruntukanToGroup)) {
             return;
         }
 

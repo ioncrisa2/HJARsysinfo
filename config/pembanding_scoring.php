@@ -1,0 +1,213 @@
+<?php
+
+return [
+    'mode' => env('PEMBANDING_SCORING_MODE', 'v2_shadow'),
+    'shadow_log_enabled' => (bool) env('PEMBANDING_SCORING_SHADOW_LOG', true),
+    'telemetry' => [
+        'enabled' => (bool) env('PEMBANDING_SCORING_TELEMETRY', true),
+        'sample_rate' => (float) env('PEMBANDING_SCORING_TELEMETRY_SAMPLE_RATE', 1),
+    ],
+    'shadow_execution' => [
+        'enabled' => (bool) env('PEMBANDING_SCORING_SHADOW_EXECUTION', true),
+        'sample_rate' => (float) env('PEMBANDING_SCORING_SHADOW_SAMPLE_RATE', 0.1),
+    ],
+
+    'candidate_pool' => [
+        'minimum' => 300,
+        'multiplier' => 5,
+        'maximum' => 1000,
+        'district_share' => 0.4,
+        'regency_share' => 0.3,
+    ],
+
+    'methods' => [
+        'v1' => [
+            'version' => 'legacy-v1.0',
+        ],
+        'v2' => [
+            'version' => 'heuristic-v2.0',
+            'minimum_reference_coverage' => 60,
+            'minimum_candidate_coverage' => 60,
+            'weights' => [
+                'distance' => 25,
+                'peruntukan' => 20,
+                'jenis_objek' => 15,
+                'luas_tanah' => 10,
+                'luas_bangunan' => 8,
+                'dokumen_tanah' => 8,
+                'lebar_jalan' => 6,
+                'posisi_tanah' => 4,
+                'kondisi_tanah' => 4,
+            ],
+            'distance_decay_meters' => 2500,
+            'road_width_decay_meters' => 2,
+            'same_peruntukan_group_similarity' => 0.5,
+            'default_object_similarity' => 0,
+            'default_legal_similarity' => 0.25,
+            'default_position_similarity' => 0.3,
+            'default_condition_similarity' => 0.25,
+            'peruntukan_similarity' => [
+                'rumah_tinggal' => ['tanah_kosong' => 0.55],
+                'campuran' => ['tanah_kosong' => 0.65],
+                'gudang' => ['tanah_kosong' => 0.45, 'campuran' => 0.35],
+            ],
+            'object_similarity' => [
+                'tanah' => ['tanah_kebun' => 0.65, 'sawah' => 0.55],
+                'rumah_tinggal' => ['tanah_dan_bangunan' => 0.75],
+                'ruko' => ['tanah_dan_bangunan' => 0.55],
+                'gudang' => ['pabrik' => 0.55, 'tanah_dan_bangunan' => 0.5],
+            ],
+            'legal_similarity' => [
+                'sertifikat_hak_milik' => [
+                    'sertifikat_hak_guna_bangunan' => 0.65,
+                    'akta_jual_beli' => 0.4,
+                ],
+                'sertifikat_hak_guna_bangunan' => [
+                    'sertifikat_hak_guna_usaha' => 0.45,
+                    'akta_jual_beli' => 0.45,
+                ],
+                'girik' => ['petok_desa' => 0.75, 'surat_camat' => 0.65],
+            ],
+            'position_similarity' => [
+                'interior_lot' => ['corner_lot' => 0.65, 'kuldesak_lot' => 0.55],
+                'corner_lot' => ['t_section_lot' => 0.45],
+                'tanpa_akses' => [
+                    'interior_lot' => 0.05,
+                    'corner_lot' => 0.05,
+                    't_section_lot' => 0.05,
+                ],
+            ],
+            'condition_similarity' => [
+                'matang' => ['belum_berkembang' => 0.45, 'rawa' => 0.2, 'sawah' => 0.25],
+                'belum_berkembang' => ['rawa' => 0.45, 'sawah' => 0.55],
+                'rawa' => ['sawah' => 0.4],
+            ],
+        ],
+    ],
+
+    'profiles' => [
+        'default' => [
+            'components' => [
+                'distance',
+                'peruntukan',
+                'jenis_objek',
+                'luas_tanah',
+                'luas_bangunan',
+                'dokumen_tanah',
+                'lebar_jalan',
+                'posisi_tanah',
+                'kondisi_tanah',
+            ],
+            'report_required_fields' => [
+                'jenis_listing',
+                'jenis_objek',
+                'peruntukan',
+                'tanggal_data',
+                'alamat_data',
+                'latitude',
+                'longitude',
+                'harga',
+                'luas_tanah',
+                'lebar_jalan',
+            ],
+        ],
+        'objects' => [
+            'tanah' => [
+                'components' => [
+                    'distance',
+                    'peruntukan',
+                    'jenis_objek',
+                    'luas_tanah',
+                    'dokumen_tanah',
+                    'lebar_jalan',
+                    'posisi_tanah',
+                    'kondisi_tanah',
+                ],
+            ],
+            'tanah_kebun' => [
+                'components' => [
+                    'distance',
+                    'peruntukan',
+                    'jenis_objek',
+                    'luas_tanah',
+                    'dokumen_tanah',
+                    'lebar_jalan',
+                    'posisi_tanah',
+                    'kondisi_tanah',
+                ],
+            ],
+            'sawah' => [
+                'components' => [
+                    'distance',
+                    'peruntukan',
+                    'jenis_objek',
+                    'luas_tanah',
+                    'dokumen_tanah',
+                    'lebar_jalan',
+                    'posisi_tanah',
+                    'kondisi_tanah',
+                ],
+            ],
+            'apartement' => [
+                'components' => [
+                    'distance',
+                    'peruntukan',
+                    'jenis_objek',
+                    'luas_bangunan',
+                    'dokumen_tanah',
+                    'posisi_tanah',
+                    'kondisi_tanah',
+                ],
+                'report_required_fields' => [
+                    'jenis_listing',
+                    'jenis_objek',
+                    'peruntukan',
+                    'tanggal_data',
+                    'alamat_data',
+                    'latitude',
+                    'longitude',
+                    'harga',
+                    'luas_bangunan',
+                ],
+            ],
+            'kios' => [
+                'components' => [
+                    'distance',
+                    'peruntukan',
+                    'jenis_objek',
+                    'luas_bangunan',
+                    'dokumen_tanah',
+                    'lebar_jalan',
+                    'posisi_tanah',
+                    'kondisi_tanah',
+                ],
+                'report_required_fields' => [
+                    'jenis_listing',
+                    'jenis_objek',
+                    'peruntukan',
+                    'tanggal_data',
+                    'alamat_data',
+                    'latitude',
+                    'longitude',
+                    'harga',
+                    'luas_bangunan',
+                ],
+            ],
+        ],
+    ],
+
+    'report' => [
+        'required_fields' => [ // Deprecated: kept for configuration compatibility.
+            'jenis_listing',
+            'jenis_objek',
+            'peruntukan',
+            'tanggal_data',
+            'alamat_data',
+            'latitude',
+            'longitude',
+            'harga',
+            'luas_tanah',
+            'lebar_jalan',
+        ],
+    ],
+];
