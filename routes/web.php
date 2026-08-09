@@ -3,7 +3,10 @@
 use App\Http\Controllers\App\AccessControlController;
 use App\Http\Controllers\App\ActivityLogController;
 use App\Http\Controllers\App\AppNotificationController;
+use App\Http\Controllers\App\BackupArtifactController;
 use App\Http\Controllers\App\BackupController;
+use App\Http\Controllers\App\BackupFileController;
+use App\Http\Controllers\App\BackupRestoreController;
 use App\Http\Controllers\App\BulkExcelImportController;
 use App\Http\Controllers\App\DashboardController;
 use App\Http\Controllers\App\DataContributorInvitationController;
@@ -188,9 +191,13 @@ Route::middleware(['auth', 'app.user'])
         Route::get('export/runs/{exportRun}', [ExportController::class, 'status'])->middleware('permission:export_data::pembanding')->name('export.runs.status');
         Route::get('export/runs/{exportRun}/download', [ExportController::class, 'downloadRun'])->middleware('permission:export_data::pembanding')->name('export.runs.download');
         Route::post('export/runs/{exportRun}/retry', [ExportController::class, 'retry'])->middleware('permission:export_data::pembanding')->name('export.runs.retry');
-        Route::get('backup', [BackupController::class, 'index'])->middleware('permission:view_backup')->name('backup.index');
-        Route::post('backup/database', [BackupController::class, 'database'])->middleware('permission:create_database_backup')->name('backup.database');
-        Route::post('backup/uploads', [BackupController::class, 'uploads'])->middleware('permission:create_uploads_backup')->name('backup.uploads');
+        Route::get('backup', BackupController::class)->middleware('permission:view_backup')->name('backup.index');
+        Route::post('backup/artifacts', [BackupArtifactController::class, 'store'])->middleware(['permission:create_database_backup|create_uploads_backup', 'throttle:5,1'])->name('backup.artifacts.store');
+        Route::post('backup/import', [BackupArtifactController::class, 'import'])->middleware(['permission:import_backup', 'throttle:5,1'])->name('backup.import');
+        Route::get('backup/artifacts/{artifact}/download', [BackupFileController::class, 'download'])->middleware('permission:download_backup')->name('backup.artifacts.download');
+        Route::post('backup/artifacts/{artifact}/verify', [BackupArtifactController::class, 'verify'])->middleware(['permission:verify_backup', 'throttle:10,1'])->name('backup.artifacts.verify');
+        Route::delete('backup/artifacts/{artifact}', [BackupFileController::class, 'destroy'])->middleware('permission:delete_backup')->name('backup.artifacts.destroy');
+        Route::post('backup/artifacts/{artifact}/restore-uploads', [BackupRestoreController::class, 'uploads'])->middleware(['role:super_admin', 'permission:restore_uploads_backup', 'throttle:2,10'])->name('backup.artifacts.restore-uploads');
         Route::get('search', SearchController::class)->middleware('permission:view_search')->name('search.index');
         Route::get('settings', [SettingController::class, 'index'])->middleware('permission:view_settings')->name('settings.index');
         Route::post('settings', [SettingController::class, 'update'])->middleware('permission:update_settings')->name('settings.update');

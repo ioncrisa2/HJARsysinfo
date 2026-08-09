@@ -4,122 +4,41 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\App\Concerns\AuthorizesPermissions;
 use App\Http\Controllers\Controller;
-use App\Services\Backup\SystemBackupService;
+use App\Services\Backup\BackupCatalogService;
+use App\Services\Backup\BackupReadinessService;
+use App\Services\Backup\LegacyBackupCatalogService;
 use App\Support\AppAccess;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\File;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Throwable;
 
 class BackupController extends Controller
 {
     use AuthorizesPermissions;
 
-    public function index(): Response
-    {
+    public function __invoke(
+        BackupCatalogService $catalog,
+        LegacyBackupCatalogService $legacyCatalog,
+        BackupReadinessService $readiness,
+    ): Response {
         $this->authorizePermission('view_backup');
-
-        $connectionName = (string) config('database.default');
-        $connection = config("database.connections.{$connectionName}", []);
+        $user = request()->user();
+        $can = AppAccess::capabilityMap($user, [
+            'create_database' => 'create_database_backup',
+            'create_uploads' => 'create_uploads_backup',
+            'download' => 'download_backup',
+            'import' => 'import_backup',
+            'verify' => 'verify_backup',
+            'restore_database' => 'restore_database_backup',
+            'restore_uploads' => 'restore_uploads_backup',
+            'delete' => 'delete_backup',
+        ]);
+        $can['restore_operator'] = $user?->hasRole('super_admin') ?? false;
 
         return Inertia::render('Backup/Index', [
-            'meta' => [
-                'database' => [
-                    'connection' => $connectionName,
-                    'driver' => (string) ($connection['driver'] ?? '-'),
-                    'database' => (string) ($connection['database'] ?? '-'),
-                    'host' => (string) ($connection['host'] ?? '-'),
-                ],
-                'paths' => [
-                    'database' => storage_path('app/backups/database'),
-                    'uploads' => storage_path('app/backups/uploads'),
-                    'source_uploads' => storage_path('app/public'),
-                ],
-                'requirements' => [
-                    'zip' => class_exists(\ZipArchive::class),
-                    'mysqldump' => (string) env('MYSQLDUMP_BINARY', 'mysqldump'),
-                    'database_fallback' => 'PHP PDO',
-                ],
-            ],
-            'history' => [
-                'database' => $this->backupFiles(storage_path('app/backups/database')),
-                'uploads' => $this->backupFiles(storage_path('app/backups/uploads')),
-            ],
-            'can' => AppAccess::capabilityMap(request()->user(), [
-                'database' => 'create_database_backup',
-                'uploads' => 'create_uploads_backup',
-            ]),
+            'artifacts' => collect($catalog->all())->map(fn ($item) => $item->toArray())->all(),
+            'legacyArtifacts' => $legacyCatalog->all(),
+            'readiness' => $readiness->status(),
+            'can' => $can,
         ]);
-    }
-
-    public function database(SystemBackupService $backupService): BinaryFileResponse|JsonResponse
-    {
-        $this->authorizePermission('create_database_backup');
-
-        try {
-            $path = $backupService->createDatabaseBackup();
-
-            return response()->download($path, basename($path));
-        } catch (Throwable $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function uploads(SystemBackupService $backupService): BinaryFileResponse|JsonResponse
-    {
-        $this->authorizePermission('create_uploads_backup');
-
-        try {
-            $path = $backupService->createUploadedFilesBackup();
-
-            return response()->download($path, basename($path));
-        } catch (Throwable $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    private function backupFiles(string $directory): array
-    {
-        if (! File::isDirectory($directory)) {
-            return [];
-        }
-
-        return collect(File::files($directory))
-            ->sortByDesc(fn (\SplFileInfo $file): int => $file->getMTime())
-            ->take(10)
-            ->map(fn (\SplFileInfo $file): array => [
-                'name' => $file->getFilename(),
-                'size' => $file->getSize(),
-                'size_label' => $this->formatBytes($file->getSize()),
-                'created_at' => date('Y-m-d H:i:s', $file->getMTime()),
-            ])
-            ->values()
-            ->all();
-    }
-
-    private function formatBytes(int $bytes): string
-    {
-        if ($bytes < 1024) {
-            return "{$bytes} B";
-        }
-
-        $units = ['KB', 'MB', 'GB'];
-        $value = $bytes / 1024;
-
-        foreach ($units as $unit) {
-            if ($value < 1024) {
-                return number_format($value, 1)." {$unit}";
-            }
-
-            $value /= 1024;
-        }
-
-        return number_format($value, 1).' TB';
     }
 }
