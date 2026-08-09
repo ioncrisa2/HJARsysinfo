@@ -24,6 +24,10 @@ Homestead.yaml
 Thumbs.db
 /docs/*
 !/docs/SCORING_PEMBANDING_REFACTOR_IMPLEMENTATION_PLAN.md
+!/docs/BACKUP_RESTORE.md
+!/docs/PRE_PRODUCTION_SECURITY_RELIABILITY_RECOMMENDATIONS.md
+/.playwright-cli/
+/output/playwright/
 CLAUDE.md
 /.claude
 
