@@ -30,6 +30,7 @@ class DuplicatePembandingException extends RuntimeException
 
             return response()->json([
                 'status' => 'error',
+                'code' => 'DUPLICATE_REVIEW_REQUIRED',
                 'message' => $this->getMessage(),
                 'errors' => null,
                 'duplicate' => [

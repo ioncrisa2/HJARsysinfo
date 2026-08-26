@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Pembanding\PreparePembandingDuplicateReviewAction;
 use App\Actions\Pembanding\SavePembandingAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\PembandingStoreRequest;
@@ -12,6 +13,9 @@ use App\Http\Resources\PembandingResource;
 use App\Http\Resources\SimilarPembandingResource;
 use App\Models\Pembanding;
 use App\Models\PembandingDeleteRequest;
+use App\Models\User;
+use App\Services\Pembanding\PembandingBrowseFilterService;
+use App\Services\Pembanding\PembandingFormOptionsService;
 use App\Services\PembandingFactory;
 use App\Services\PembandingService;
 use App\Traits\ApiResponse;
@@ -31,7 +35,7 @@ class DataPembandingController extends Controller
 
     protected const MAX_INDEX_LIMIT = 200;
 
-    protected const DEFAULT_INDEX_LIMIT = 50;
+    protected const DEFAULT_INDEX_LIMIT = 25;
 
     protected const MAX_SIMILAR_LIMIT = 1000;
 
@@ -43,64 +47,126 @@ class DataPembandingController extends Controller
         protected PembandingService $similarityService,
         protected PembandingFactory $factory,
         protected SavePembandingAction $savePembanding,
+        protected PembandingBrowseFilterService $browseFilterService,
+        protected PembandingFormOptionsService $formOptionsService,
+        protected PreparePembandingDuplicateReviewAction $prepareDuplicateReview,
     ) {}
 
     #[Endpoint(
         title: 'Lihat daftar pembanding',
-        description: 'Mengembalikan data pembanding terpaginasikan dan mendukung filter lokasi, jenis objek, peruntukan, serta rentang harga.'
+        description: 'Mengembalikan data pembanding terpaginasikan dengan dukungan pencarian teks, filter wilayah hierarkis, jenis objek/listing, rentang tanggal dan harga.'
     )]
-    #[Response(
-        status: 200,
-        description: 'Daftar pembanding berhasil diambil.',
-        type: "array{status: 'success', message: string, data: \Illuminate\Pagination\LengthAwarePaginator<\App\Http\Resources\PembandingResource>}"
-    )]
-    public function index(PembandingIndexRequest $request)
+    public function index(PembandingIndexRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Pembanding::class);
 
         $limit = $this->calculateLimit(
-            $request->input('limit'),
+            $request->input('per_page') ?? $request->input('limit'),
             self::DEFAULT_INDEX_LIMIT,
             self::MAX_INDEX_LIMIT
         );
 
-        $pembandings = Pembanding::query()
-            ->with(['province', 'regency', 'district', 'village', 'creator'])
-            ->filter($request->validated())
-            ->orderByDesc('tanggal_data')
+        $sort = $request->input('sort', 'tanggal_data');
+        $direction = strtolower($request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $query = Pembanding::query()
+            ->with(['province:id,name', 'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email', 'jenisListing:id,name', 'jenisObjek:id,name'])
+            ->filter($request->validated());
+
+        $query = $this->browseFilterService->apply($query, $request->validated());
+
+        if ($request->filled('min_harga')) {
+            $query->where('harga', '>=', $request->input('min_harga'));
+        }
+        if ($request->filled('max_harga')) {
+            $query->where('harga', '<=', $request->input('max_harga'));
+        }
+        if ($request->filled('min_luas_tanah')) {
+            $query->where('luas_tanah', '>=', $request->input('min_luas_tanah'));
+        }
+        if ($request->filled('max_luas_tanah')) {
+            $query->where('luas_tanah', '<=', $request->input('max_luas_tanah'));
+        }
+
+        $pembandings = $query
+            ->orderBy($sort, $direction)
+            ->orderByDesc('id')
             ->paginate($limit);
 
-        $payload = $pembandings->toArray();
-        $payload['data'] = PembandingResource::collection($pembandings->getCollection())
-            ->resolve($request);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Daftar data pembanding berhasil diambil.',
+            'data' => PembandingResource::collection($pembandings->getCollection()),
+            'meta' => [
+                'current_page' => $pembandings->currentPage(),
+                'per_page' => $pembandings->perPage(),
+                'from' => $pembandings->firstItem(),
+                'to' => $pembandings->lastItem(),
+                'total' => $pembandings->total(),
+                'last_page' => $pembandings->lastPage(),
+            ],
+            'links' => [
+                'first' => $pembandings->url(1),
+                'last' => $pembandings->url($pembandings->lastPage()),
+                'prev' => $pembandings->previousPageUrl(),
+                'next' => $pembandings->nextPageUrl(),
+            ],
+        ]);
+    }
 
-        return $this->success(
-            $payload,
-            'Semua List Data Pembanding'
-        );
+    #[Endpoint(
+        title: 'Opsi form pembuatan/edit pembanding',
+        description: 'Mengembalikan opsi dropdown (dictionary aktif, provinsi, nilai default) untuk formulir data pembanding.'
+    )]
+    public function formOptions(Request $request): JsonResponse
+    {
+        $options = $this->formOptionsService->for($request->all());
+
+        return $this->success($options, 'Opsi formulir pembanding berhasil diambil.');
+    }
+
+    #[Endpoint(
+        title: 'Daftar kontributor/pembuat data pembanding',
+        description: 'Mengembalikan daftar pengguna yang tercatat telah membuat minimal satu data pembanding.'
+    )]
+    public function creators(): JsonResponse
+    {
+        Gate::authorize('viewAny', Pembanding::class);
+
+        $creators = User::query()
+            ->whereHas('pembanding')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (User $user): array => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ]);
+
+        return $this->success($creators, 'Daftar pembuat data pembanding.');
     }
 
     #[Endpoint(
         title: 'Lihat detail pembanding',
         description: 'Mengembalikan satu data pembanding beserta relasi master data dan pembuatnya.'
     )]
-    public function show(string $id)
+    public function show(string $id): JsonResponse
     {
         $pembanding = Pembanding::with([
-            'province',
-            'regency',
-            'district',
-            'village',
-            'creator',
-            'jenisListing',
-            'jenisObjek',
-            'statusPemberiInformasi',
-            'bentukTanah',
-            'dokumenTanah',
-            'posisiTanah',
-            'kondisiTanah',
-            'topografiRef',
-            'peruntukanRef',
+            'province:id,name',
+            'regency:id,name',
+            'district:id,name',
+            'village:id,name',
+            'creator:id,name,email',
+            'updater:id,name,email',
+            'jenisListing:id,name,slug',
+            'jenisObjek:id,name,slug',
+            'statusPemberiInformasi:id,name,slug',
+            'bentukTanah:id,name,slug',
+            'dokumenTanah:id,name,slug',
+            'posisiTanah:id,name,slug',
+            'kondisiTanah:id,name,slug',
+            'topografiRef:id,name,slug',
+            'peruntukanRef:id,name,slug',
         ])->find($id);
 
         if (! $pembanding) {
@@ -119,7 +185,7 @@ class DataPembandingController extends Controller
         title: 'Cari pembanding serupa berdasarkan ID',
         description: 'Menilai kemiripan terhadap satu data pembanding yang sudah tersimpan.'
     )]
-    public function similarById(string $id, PembandingIndexRequest $request)
+    public function similarById(string $id, PembandingIndexRequest $request): JsonResponse
     {
         $pembanding = Pembanding::find($id);
 
@@ -147,11 +213,6 @@ class DataPembandingController extends Controller
     #[Endpoint(
         title: 'Lihat riwayat pembanding',
         description: 'Mengembalikan maksimal 100 perubahan terbaru beserta pelaku dan nilai field sebelum/sesudah perubahan.'
-    )]
-    #[Response(
-        status: 200,
-        description: 'Riwayat perubahan berhasil diambil.',
-        type: "array{status: 'success', message: string, data: list<array{id: int, event: string, causer: string, causer_email: string|null, created_at: string|null, changes: list<array{field: string, old: mixed, new: mixed}>}>}"
     )]
     public function history(string $id): JsonResponse
     {
@@ -241,24 +302,22 @@ class DataPembandingController extends Controller
             ->exists();
 
         if ($alreadyPending) {
-            return response()->json([
-                'message' => 'Permintaan hapus sudah diajukan dan masih menunggu evaluasi moderator.',
-            ], 422);
+            return $this->error('Permintaan hapus sudah diajukan dan masih menunggu evaluasi moderator.', 422, null, 'VALIDATION_FAILED');
         }
 
-        PembandingDeleteRequest::create([
+        $deleteRequest = PembandingDeleteRequest::create([
             'pembanding_id' => $pembanding->id,
             'requested_by_id' => $request->user()->id,
             'reason' => trim($data['reason']),
             'status' => PembandingDeleteRequest::STATUS_PENDING,
         ]);
 
-        return $this->success(null, 'Permintaan hapus berhasil dikirim dan menunggu evaluasi moderator.');
+        return $this->success($deleteRequest, 'Permintaan hapus berhasil dikirim dan menunggu evaluasi moderator.');
     }
 
     #[Endpoint(
         title: 'Tambah pembanding',
-        description: 'Menyimpan data pembanding baru beserta foto properti melalui multipart/form-data.'
+        description: 'Menyimpan data pembanding baru beserta foto properti melalui multipart/form-data. Jika terindikasi duplikat, mengembalikan HTTP 409 DUPLICATE_REVIEW_REQUIRED.'
     )]
     public function store(PembandingStoreRequest $request): JsonResponse
     {
@@ -266,6 +325,39 @@ class DataPembandingController extends Controller
 
         $data = $request->validated();
         $data['created_by'] = $request->user()->id;
+
+        if ($request->hasFile('image')) {
+            $submission = $this->prepareDuplicateReview->execute(
+                $request->user()->id,
+                $data,
+                $request->file('image'),
+            );
+
+            if ($submission) {
+                $candidateIds = $submission->candidateIds();
+                $firstCandidate = ! empty($candidateIds) ? Pembanding::withTrashed()->find($candidateIds[0]) : null;
+                $isDeleted = $firstCandidate?->trashed() ?? false;
+                $canView = $firstCandidate && ! $isDeleted && ($request->user()?->can('view', $firstCandidate) ?? false);
+
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 'DUPLICATE_REVIEW_REQUIRED',
+                    'message' => $firstCandidate && $isDeleted
+                        ? "Data identik sudah ada pada record #{$firstCandidate->id} yang telah dihapus. Pulihkan record tersebut, jangan membuat salinan baru."
+                        : 'Data terindikasi duplikat dengan data pembanding yang sudah ada.',
+                    'errors' => null,
+                    'duplicate' => [
+                        'id' => $firstCandidate?->id ?? ($candidateIds[0] ?? null),
+                        'status' => $isDeleted ? 'deleted' : 'active',
+                        'url' => $canView ? url("/api/v1/pembandings/{$firstCandidate->id}") : null,
+                        'submission_id' => $submission->id,
+                        'submission_url' => url("/api/v1/pembanding-submissions/{$submission->id}"),
+                        'expires_at' => $submission->expires_at?->toISOString(),
+                        'candidate_ids' => $candidateIds,
+                    ],
+                ], 409);
+            }
+        }
 
         $pembanding = $this->savePembanding->create($data, $request->file('image'));
 
@@ -295,12 +387,13 @@ class DataPembandingController extends Controller
         Gate::authorize('update', $pembanding);
 
         $data = $request->validated();
+        $data['updated_by'] = $request->user()->id;
 
         $this->savePembanding->update($pembanding, $data, $request->file('image'));
 
         $pembanding->load([
             'jenisListing:id,name', 'jenisObjek:id,name', 'province:id,name',
-            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email',
+            'regency:id,name', 'district:id,name', 'village:id,name', 'creator:id,name,email', 'updater:id,name,email',
         ]);
 
         return $this->success(
@@ -332,7 +425,7 @@ class DataPembandingController extends Controller
         title: 'Cari pembanding serupa berdasarkan kriteria',
         description: 'Mencari dan memberi peringkat data pembanding berdasarkan lokasi serta karakteristik properti yang dikirim.'
     )]
-    public function similarByPayload(FindSimilarPembandingRequest $request)
+    public function similarByPayload(FindSimilarPembandingRequest $request): JsonResponse
     {
         Gate::authorize('viewAny', Pembanding::class);
 
@@ -349,7 +442,7 @@ class DataPembandingController extends Controller
         return $this->getSimilarResults($input, $limit, $radiusMeters);
     }
 
-    protected function getSimilarResults(Pembanding $input, int $limit, int $radiusMeters)
+    protected function getSimilarResults(Pembanding $input, int $limit, int $radiusMeters): JsonResponse
     {
         $scored = $this->similarityService->findSimilar($input, $limit, $radiusMeters);
 
