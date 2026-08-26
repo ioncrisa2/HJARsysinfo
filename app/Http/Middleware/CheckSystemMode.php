@@ -23,14 +23,12 @@ class CheckSystemMode
                 return $next($request);
             }
 
-            if ($request->wantsJson() || $request->is('api/*')) {
-                return response()->json([
-                    'message' => 'Sistem sedang dalam pemeliharaan.',
-                    'status' => 'maintenance',
-                ], 503);
-            }
-
-            abort(503, 'Sistem sedang dalam pemeliharaan.');
+            return response()->json([
+                'status' => 'error',
+                'code' => 'MAINTENANCE_MODE',
+                'message' => 'Sistem sedang dalam pemeliharaan.',
+                'errors' => null,
+            ], 503);
         }
 
         return $next($request);
@@ -38,14 +36,14 @@ class CheckSystemMode
 
     private function isAllowedDuringRestrictedMode(Request $request): bool
     {
-        if ($request->is('login') || $request->is('logout') || $request->is('api/auth/*')) {
+        if (
+            $request->is('api/auth/*')
+            || $request->is('api/v1/auth/*')
+            || $request->is('sanctum/*')
+            || $request->is('docs*')
+            || $request->is('up')
+        ) {
             return true;
-        }
-
-        // Let unauthenticated application requests reach auth so super admins
-        // can still be redirected to login instead of being trapped behind 503.
-        if ($request->is('app') || $request->is('app/*')) {
-            return ! $request->user() || $request->user()->hasRole('super_admin');
         }
 
         return $request->user()?->hasRole('super_admin') === true;

@@ -13,15 +13,27 @@ class EnsureAppUser
         $user = $request->user();
 
         if (! $user) {
-            return redirect()->route('login');
+            return response()->json([
+                'status' => 'error',
+                'code' => 'UNAUTHENTICATED',
+                'message' => 'Unauthenticated.',
+                'errors' => null,
+            ], 401);
         }
 
         if ($user->deactivated_at !== null) {
-            auth()->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            if ($request->hasSession()) {
+                auth()->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
 
-            return redirect()->route('login')->with('error', 'Akun Anda sedang dinonaktifkan.');
+            return response()->json([
+                'status' => 'error',
+                'code' => 'USER_DEACTIVATED',
+                'message' => 'Akun Anda sedang dinonaktifkan.',
+                'errors' => null,
+            ], 403);
         }
 
         return $next($request);
