@@ -1,15 +1,10 @@
 <?php
 
 return [
-    'mode' => env('PEMBANDING_SCORING_MODE', 'v2_shadow'),
-    'shadow_log_enabled' => (bool) env('PEMBANDING_SCORING_SHADOW_LOG', true),
+    'mode' => env('PEMBANDING_SCORING_MODE', 'v2'),
     'telemetry' => [
         'enabled' => (bool) env('PEMBANDING_SCORING_TELEMETRY', true),
         'sample_rate' => (float) env('PEMBANDING_SCORING_TELEMETRY_SAMPLE_RATE', 1),
-    ],
-    'shadow_execution' => [
-        'enabled' => (bool) env('PEMBANDING_SCORING_SHADOW_EXECUTION', true),
-        'sample_rate' => (float) env('PEMBANDING_SCORING_SHADOW_SAMPLE_RATE', 0.1),
     ],
 
     'candidate_pool' => [
@@ -21,9 +16,6 @@ return [
     ],
 
     'methods' => [
-        'v1' => [
-            'version' => 'legacy-v1.0',
-        ],
         'v2' => [
             'version' => 'heuristic-v2.0',
             'minimum_reference_coverage' => 60,

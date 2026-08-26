@@ -22,19 +22,6 @@ class ScoringTelemetrySampler
         return (bool) config('pembanding_scoring.telemetry.enabled', true);
     }
 
-    public function shadowExecution(): bool
-    {
-        return $this->sampled(
-            (bool) config('pembanding_scoring.shadow_execution.enabled', true),
-            (float) config('pembanding_scoring.shadow_execution.sample_rate', 0.1),
-        );
-    }
-
-    public function shadowLog(): bool
-    {
-        return (bool) config('pembanding_scoring.shadow_log_enabled', true);
-    }
-
     private function sampled(bool $enabled, float $rate): bool
     {
         if (! $enabled || $rate <= 0) {

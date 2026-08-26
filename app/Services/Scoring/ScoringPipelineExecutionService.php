@@ -8,33 +8,32 @@ use App\Models\Pembanding;
 class ScoringPipelineExecutionService
 {
     public function __construct(
-        private readonly LegacyCandidateRetrievalService $legacyRetrieval,
-        private readonly LegacySimilarityRankingService $legacyRanking,
-        private readonly CandidateRetrievalService $v2Retrieval,
-        private readonly SimilarityRankingService $v2Ranking,
+        private readonly CandidateRetrievalService $retrieval,
+        private readonly SimilarityRankingService $ranking,
         private readonly ScoringProfile $profile,
     ) {}
 
-    public function runLegacy(
+    public function run(
         Pembanding $reference,
         int $limit,
         ?int $radiusMeters,
     ): ScoringPipelineRun {
+        $poolTarget = $this->retrieval->targetPoolSize($limit);
         [$pool, $retrievalMs] = $this->measure(
-            fn () => $this->legacyRetrieval->retrieve($reference, $limit, $radiusMeters),
+            fn () => $this->retrieval->retrieve($reference, $limit, $radiusMeters),
         );
         [$ranking, $rankingMs] = $this->measure(
-            fn () => $this->legacyRanking->rankWithOutcome($reference, $pool),
+            fn () => $this->ranking->rankWithOutcome($reference, $pool, $limit),
         );
 
         return new ScoringPipelineRun(
-            pipeline: 'legacy',
-            methodVersion: $this->profile->version('v1'),
+            pipeline: 'v2',
+            methodVersion: $this->profile->version('v2'),
             candidatePool: $pool,
             ranking: $ranking,
             retrievalMilliseconds: $retrievalMs,
             rankingMilliseconds: $rankingMs,
-            poolTarget: $limit,
+            poolTarget: $poolTarget,
             requestedResultLimit: $limit,
             radiusMeters: $radiusMeters,
         );
@@ -45,25 +44,7 @@ class ScoringPipelineExecutionService
         int $limit,
         ?int $radiusMeters,
     ): ScoringPipelineRun {
-        $poolTarget = $this->v2Retrieval->targetPoolSize($limit);
-        [$pool, $retrievalMs] = $this->measure(
-            fn () => $this->v2Retrieval->retrieve($reference, $limit, $radiusMeters),
-        );
-        [$ranking, $rankingMs] = $this->measure(
-            fn () => $this->v2Ranking->rankWithOutcome($reference, $pool, $limit),
-        );
-
-        return new ScoringPipelineRun(
-            pipeline: 'v2',
-            methodVersion: $this->profile->version(),
-            candidatePool: $pool,
-            ranking: $ranking,
-            retrievalMilliseconds: $retrievalMs,
-            rankingMilliseconds: $rankingMs,
-            poolTarget: $poolTarget,
-            requestedResultLimit: $limit,
-            radiusMeters: $radiusMeters,
-        );
+        return $this->run($reference, $limit, $radiusMeters);
     }
 
     private function measure(callable $operation): array

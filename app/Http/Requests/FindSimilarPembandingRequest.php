@@ -35,7 +35,6 @@ class FindSimilarPembandingRequest extends FormRequest
             'district_id' => ['required', 'string', Rule::exists((new District)->getTable(), 'id')],
             'regency_id' => ['nullable', 'string'],
             'market_basis' => [
-                Rule::requiredIf(fn (): bool => config('pembanding_scoring.mode') === 'v2'),
                 'nullable',
                 Rule::in(['sale', 'rent']),
             ],

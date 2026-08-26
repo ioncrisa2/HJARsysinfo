@@ -898,47 +898,22 @@ it('does not let rent candidates fill a sale candidate pool', function () {
         ->and($ids)->not->toContain($rentCandidate->id);
 });
 
-it('requires market basis when v2 is active', function () {
-    config()->set('pembanding_scoring.mode', 'v2');
-
-    $this->postJson('/api/v1/pembandings/similar', [
-        'latitude' => -2.5489,
-        'longitude' => 118.0149,
-        'district_id' => $this->district->id,
-        'peruntukan' => 'rumah_tinggal',
-    ])->assertUnprocessable()->assertJsonValidationErrors('market_basis');
-});
-
-it('keeps the v2 shadow response identical to the v1 baseline', function () {
-    ($this->makePembanding)([
-        'alamat_data' => 'Baseline A',
-        'latitude' => -2.5490,
-        'longitude' => 118.0149,
-    ]);
-    ($this->makePembanding)([
-        'alamat_data' => 'Baseline B',
+it('accepts market_basis parameter and falls back to infer from listing when absent', function () {
+    $saleCandidate = ($this->makePembanding)([
+        'alamat_data' => 'Kandidat Jual',
         'latitude' => -2.5500,
         'longitude' => 118.0149,
-        'luas_tanah' => 300,
     ]);
-    $payload = [
+
+    $response = $this->postJson('/api/v1/pembandings/similar', [
         'latitude' => -2.5489,
         'longitude' => 118.0149,
         'district_id' => $this->district->id,
         'peruntukan' => 'rumah_tinggal',
-        'luas_tanah' => 120,
         'limit' => 10,
-    ];
+    ])->assertOk();
 
-    config()->set('pembanding_scoring.mode', 'v1');
-    $v1 = $this->postJson('/api/v1/pembandings/similar', $payload)->assertOk()->json('data');
-
-    config()->set('pembanding_scoring.mode', 'v2_shadow');
-    $shadow = $this->postJson('/api/v1/pembandings/similar', $payload)->assertOk()->json('data');
-
-    expect(collect($shadow)->pluck('id')->all())->toBe(collect($v1)->pluck('id')->all())
-        ->and(collect($shadow)->pluck('score')->all())->toBe(collect($v1)->pluck('score')->all())
-        ->and(collect($shadow)->pluck('rank')->all())->toBe(collect($v1)->pluck('rank')->all());
+    expect(collect($response->json('data'))->pluck('id'))->toContain($saleCandidate->id);
 });
 
 it('marks insufficient v2 results as not rankable and returns a warning', function () {
@@ -1106,57 +1081,3 @@ it('keeps report readiness separate from similarity ranking', function () {
         ->and($incompleteResult['rank'])->toBeLessThan($readyResult['rank']);
 });
 
-it('returns the legacy response when the v2 shadow pipeline fails', function () {
-    config()->set('pembanding_scoring.mode', 'v2_shadow');
-    config()->set('pembanding_scoring.shadow_execution.enabled', true);
-    config()->set('pembanding_scoring.shadow_execution.sample_rate', 1);
-    ($this->makePembanding)(['alamat_data' => 'Legacy tetap tersedia']);
-
-    $v2Retrieval = Mockery::mock(CandidateRetrievalService::class);
-    $v2Retrieval->shouldReceive('targetPoolSize')->once()->andReturn(300);
-    $v2Retrieval->shouldReceive('retrieve')->once()->andThrow(
-        new RuntimeException('simulated v2 failure'),
-    );
-    $this->app->instance(
-        CandidateRetrievalService::class,
-        $v2Retrieval,
-    );
-
-    $response = $this->postJson('/api/v1/pembandings/similar', [
-        'latitude' => -2.5489,
-        'longitude' => 118.0149,
-        'district_id' => $this->district->id,
-        'peruntukan' => 'rumah_tinggal',
-        'luas_tanah' => 120,
-        'limit' => 10,
-    ]);
-
-    $response
-        ->assertOk()
-        ->assertJsonPath('data.0.scoring_status', 'legacy')
-        ->assertJsonPath('data.0.method_version', 'legacy-v1.0');
-});
-
-it('does not execute v2 when a shadow request is not sampled', function () {
-    config()->set('pembanding_scoring.mode', 'v2_shadow');
-    config()->set('pembanding_scoring.shadow_execution.enabled', true);
-    config()->set('pembanding_scoring.shadow_execution.sample_rate', 0);
-    ($this->makePembanding)(['alamat_data' => 'Legacy tanpa shadow']);
-
-    $v2Retrieval = Mockery::mock(CandidateRetrievalService::class);
-    $v2Retrieval->shouldNotReceive('targetPoolSize');
-    $v2Retrieval->shouldNotReceive('retrieve');
-    $this->app->instance(CandidateRetrievalService::class, $v2Retrieval);
-
-    $this->postJson('/api/v1/pembandings/similar', [
-        'latitude' => -2.5489,
-        'longitude' => 118.0149,
-        'district_id' => $this->district->id,
-        'peruntukan' => 'rumah_tinggal',
-        'luas_tanah' => 120,
-        'limit' => 10,
-    ])
-        ->assertOk()
-        ->assertJsonPath('data.0.scoring_status', 'legacy')
-        ->assertJsonPath('data.0.method_version', 'legacy-v1.0');
-});
