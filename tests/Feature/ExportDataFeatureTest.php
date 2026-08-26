@@ -41,13 +41,13 @@ function exportRecord(User $owner, array $overrides = []): Pembanding
     ], $overrides));
 }
 
-it('separates page access from file export permission', function () {
+it('separates configuration access from file export permission', function () {
     $viewer = exportUser(['view_export', 'view_any_data::pembanding']);
 
-    $this->actingAs($viewer)->get('/app/export')->assertOk()
-        ->assertInertia(fn ($page) => $page->component('Export/Index')->where('can.download', false));
+    $this->actingAs($viewer, 'sanctum')->getJson('/api/v1/exports/configuration')->assertOk()
+        ->assertJsonPath('data.can.download', false);
 
-    $this->actingAs($viewer)->get('/app/export/download?format=excel')->assertForbidden();
+    $this->actingAs($viewer, 'sanctum')->getJson('/api/v1/exports/download?format=excel')->assertForbidden();
 });
 
 it('uses canonical filters and keeps selected ids inside filter and user scope', function () {
@@ -65,11 +65,11 @@ it('uses canonical filters and keeps selected ids inside filter and user scope',
 });
 
 it('searches address and information provider consistently', function () {
-    $user = exportUser(['view_export', 'view_any_data::pembanding']);
+    $user = exportUser(['view_export', 'export_data::pembanding', 'view_any_data::pembanding']);
     exportRecord($user, ['nama_pemberi_informasi' => 'Narasumber Khusus']);
 
-    $this->actingAs($user)->get('/app/export?q=Narasumber+Khusus')->assertOk()
-        ->assertInertia(fn ($page) => $page->where('summary.total', 1));
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/exports/preview', ['q' => 'Narasumber Khusus'])->assertOk()
+        ->assertJsonPath('data.count', 1);
 });
 
 it('previews the final backend count and supports completeness scopes', function () {
@@ -77,24 +77,17 @@ it('previews the final backend count and supports completeness scopes', function
     exportRecord($user, ['image' => 'complete.jpg']);
     exportRecord($user, ['image' => null, 'harga' => 0, 'luas_tanah' => 0]);
 
-    $this->actingAs($user)->postJson('/app/export/preview', [
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/exports/preview', [
         'format' => 'pdf',
         'mode' => 'detail',
         'scope' => 'filtered',
         'dataset' => 'issues',
     ])->assertOk()
-        ->assertJsonPath('count', 1)
-        ->assertJsonPath('sync_limit', 100)
-        ->assertJsonPath('queued', false);
+        ->assertJsonPath('data.count', 1)
+        ->assertJsonPath('data.sync_limit', 100)
+        ->assertJsonPath('data.queued', false);
 
     expect(app(PembandingExportQueryService::class)->query($user, ['dataset' => 'complete'])->count())->toBe(1);
-});
-
-it('delegates the legacy endpoint to the canonical download route', function () {
-    $user = exportUser(['export_data::pembanding']);
-
-    $this->actingAs($user)->get('/app/pembanding/export?format=pdf&q=Mawar')
-        ->assertRedirect('/app/export/download?format=pdf&q=Mawar&scope=filtered');
 });
 
 it('filters sensitive columns and neutralizes spreadsheet formulas', function () {
@@ -118,11 +111,11 @@ it('creates a private queued export and only lets its owner inspect it', functio
     $stranger = exportUser(['export_data::pembanding']);
     exportRecord($owner);
 
-    $this->actingAs($owner)->post('/app/export/runs', [
+    $this->actingAs($owner, 'sanctum')->postJson('/api/v1/exports/runs', [
         'format' => 'excel',
         'profile' => 'ringkas',
         'scope' => 'filtered',
-    ])->assertRedirect();
+    ])->assertStatus(202);
 
     $run = ExportRun::query()->sole();
     expect($run->status)->toBe(ExportRun::STATUS_PENDING)
@@ -130,8 +123,8 @@ it('creates a private queued export and only lets its owner inspect it', functio
         ->and($run->total_records)->toBe(1);
     Queue::assertPushed(GeneratePembandingExport::class, fn ($job) => $job->exportRunId === $run->id);
 
-    $this->actingAs($owner)->get("/app/export/runs/{$run->id}")->assertOk();
-    $this->actingAs($stranger)->get("/app/export/runs/{$run->id}")->assertForbidden();
+    $this->actingAs($owner, 'sanctum')->getJson("/api/v1/exports/runs/{$run->id}")->assertOk();
+    $this->actingAs($stranger, 'sanctum')->getJson("/api/v1/exports/runs/{$run->id}")->assertForbidden();
 });
 
 it('generates queued files in private storage and expires them safely', function () {
@@ -172,7 +165,7 @@ it('exports valid geojson coordinates in longitude latitude order', function () 
     $user = exportUser(['export_data::pembanding', 'view_any_data::pembanding']);
     exportRecord($user, ['longitude' => 106.8, 'latitude' => -6.2]);
 
-    $response = $this->actingAs($user)->get('/app/export/download?format=geojson&profile=geospasial&scope=filtered');
+    $response = $this->actingAs($user, 'sanctum')->get('/api/v1/exports/download?format=geojson&profile=geospasial&scope=filtered');
     $response->assertOk();
     ob_start();
     $response->baseResponse->sendContent();
@@ -192,7 +185,7 @@ it('exports escaped KML points and rejects unsafe direct PDF sizes', function ()
     $user = exportUser(['export_data::pembanding', 'view_any_data::pembanding']);
     exportRecord($user, ['alamat_data' => 'Tanah & Bangunan']);
 
-    $response = $this->actingAs($user)->get('/app/export/download?format=kml&profile=geospasial&scope=filtered');
+    $response = $this->actingAs($user, 'sanctum')->get('/api/v1/exports/download?format=kml&profile=geospasial&scope=filtered');
     ob_start();
     $response->baseResponse->sendContent();
     $kml = ob_get_clean();
@@ -212,7 +205,7 @@ it('exports escaped KML points and rejects unsafe direct PDF sizes', function ()
     ])->all();
     Pembanding::query()->insert($rows);
 
-    $this->actingAs($user)->getJson('/app/export/download?format=pdf&mode=detail&scope=filtered')
+    $this->actingAs($user, 'sanctum')->getJson('/api/v1/exports/download?format=pdf&mode=detail&scope=filtered')
         ->assertUnprocessable()
         ->assertJsonValidationErrors('scope');
 });

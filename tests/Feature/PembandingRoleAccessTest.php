@@ -19,7 +19,6 @@ use App\Models\Village;
 use Database\Seeders\PembandingAccessRoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
 
@@ -66,7 +65,7 @@ function roleUser(string $role): User
 {
     $user = User::factory()->create(['deactivated_at' => null]);
     $user->assignRole($role);
-    Sanctum::actingAs($user);
+    test()->actingAs($user, 'sanctum');
 
     return $user;
 }
@@ -178,26 +177,25 @@ it('allows data contributor to create and update only their own pembanding', fun
     ]);
 });
 
-it('redirects an exact duplicate to a persisted confirmation review', function () {
+it('returns 409 duplicate review required for an exact duplicate', function () {
     Storage::fake('public');
     $user = roleUser('data_contributor');
-    $this->actingAs($user);
     $image = UploadedFile::fake()->image('foto.jpg');
     $imageContents = file_get_contents($image->getRealPath());
 
-    $this->post('/app/pembanding', pembandingPayload([
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => $image,
-    ]))->assertRedirect();
+    ]))->assertOk();
 
     $record = Pembanding::query()->sole();
 
-    $response = $this->from('/app/pembanding/create')
-        ->post('/app/pembanding', pembandingPayload([
-            'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
-        ]))
-        ->assertRedirect();
+    $response = $this->postJson('/api/v1/pembandings', pembandingPayload([
+        'image' => UploadedFile::fake()->createWithContent('foto.jpg', $imageContents),
+    ]));
 
-    expect($response->headers->get('Location'))->toContain('/app/pembanding/duplicate-reviews/');
+    $response->assertStatus(409)
+        ->assertJsonPath('code', 'DUPLICATE_REVIEW_REQUIRED');
+
     expect(Pembanding::query()->count())->toBe(1);
 
     $submission = PembandingDuplicateSubmission::query()->sole();
@@ -220,55 +218,52 @@ it('prevents data contributor from deleting any pembanding', function () {
     $this->assertDatabaseHas('data_pembanding', ['id' => $otherRecord->id, 'deleted_at' => null]);
 });
 
-it('renders every accessible duplicate candidate in a side by side review', function () {
+it('returns duplicate review details in api', function () {
     Storage::fake('public');
     Storage::fake('local');
     $user = roleUser('data_contributor');
-    $this->actingAs($user);
     $image = UploadedFile::fake()->image('foto.jpg');
     $contents = file_get_contents($image->getRealPath());
 
-    $this->post('/app/pembanding', pembandingPayload(['image' => $image]))->assertRedirect();
+    $this->postJson('/api/v1/pembandings', pembandingPayload(['image' => $image]))->assertOk();
     $record = Pembanding::query()->sole();
     $copy = $record->replicate();
     $copy->active_fingerprint = null;
     $copy->save();
 
-    $this->post('/app/pembanding', pembandingPayload([
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
-    ]))->assertRedirect();
+    ]))->assertStatus(409);
 
     $submission = PembandingDuplicateSubmission::query()->sole();
 
-    $this->get(route('app.pembanding.duplicate-reviews.show', $submission))
+    $this->getJson("/api/v1/pembanding-submissions/{$submission->id}")
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->component('Pembanding/DuplicateReview')
-            ->where('breadcrumbs.2.label', 'Konfirmasi Duplikasi')
-            ->has('candidates', 2)
-            ->has('submission.rows', 29)
-            ->where('candidates.0.deleted', false));
+        ->assertJsonPath('status', 'success')
+        ->assertJsonCount(2, 'data.candidates')
+        ->assertJsonPath('data.candidates.0.deleted', false);
 });
 
 it('refuses to overwrite a duplicate candidate that changed after detection', function () {
     Storage::fake('public');
     Storage::fake('local');
     $user = roleUser('pimpinan');
-    $this->actingAs($user);
     $image = UploadedFile::fake()->image('foto.jpg');
     $contents = file_get_contents($image->getRealPath());
 
-    $this->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $this->postJson('/api/v1/pembandings', pembandingPayload(['image' => $image]))->assertOk();
     $record = Pembanding::query()->sole();
-    $this->post('/app/pembanding', pembandingPayload([
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
-    ]));
+    ]))->assertStatus(409);
     $submission = PembandingDuplicateSubmission::query()->sole();
 
     $record->forceFill(['updated_at' => now()->addMinute()])->saveQuietly();
 
-    $this->put(route('app.pembanding.duplicate-reviews.replace', [$submission, $record]))
-        ->assertStatus(409);
+    $this->postJson("/api/v1/pembanding-submissions/{$submission->id}/resolve", [
+        'strategy' => 'replace_existing',
+        'candidate_id' => $record->id,
+    ])->assertStatus(409);
 
     expect(PembandingDuplicateSubmission::query()->whereKey($submission->id)->exists())->toBeTrue()
         ->and($record->refresh()->updated_by)->toBeNull();
@@ -278,20 +273,21 @@ it('uses an existing duplicate and removes the temporary submission', function (
     Storage::fake('public');
     Storage::fake('local');
     $user = roleUser('data_contributor');
-    $this->actingAs($user);
     $image = UploadedFile::fake()->image('foto.jpg');
     $contents = file_get_contents($image->getRealPath());
 
-    $this->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    $this->postJson('/api/v1/pembandings', pembandingPayload(['image' => $image]))->assertOk();
     $record = Pembanding::query()->sole();
-    $this->post('/app/pembanding', pembandingPayload([
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
-    ]));
+    ]))->assertStatus(409);
     $submission = PembandingDuplicateSubmission::query()->sole();
     $temporaryPath = $submission->image_path;
 
-    $this->post(route('app.pembanding.duplicate-reviews.use-existing', [$submission, $record]))
-        ->assertRedirect(route('app.pembanding.show', $record));
+    $this->postJson("/api/v1/pembanding-submissions/{$submission->id}/resolve", [
+        'strategy' => 'use_existing',
+        'candidate_id' => $record->id,
+    ])->assertOk();
 
     expect(Pembanding::query()->count())->toBe(1)
         ->and(PembandingDuplicateSubmission::query()->count())->toBe(0);
@@ -306,16 +302,20 @@ it('prevents a contributor from replacing another users duplicate', function () 
     $image = UploadedFile::fake()->image('foto.jpg');
     $contents = file_get_contents($image->getRealPath());
 
-    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    Sanctum::actingAs($owner);
+    $this->postJson('/api/v1/pembandings', pembandingPayload(['image' => $image]))->assertOk();
     $record = Pembanding::query()->sole();
-    $this->actingAs($submitter)->post('/app/pembanding', pembandingPayload([
+
+    Sanctum::actingAs($submitter);
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
-    ]));
+    ]))->assertStatus(409);
     $submission = PembandingDuplicateSubmission::query()->sole();
 
-    $this->actingAs($submitter)
-        ->put(route('app.pembanding.duplicate-reviews.replace', [$submission, $record]))
-        ->assertForbidden();
+    $this->postJson("/api/v1/pembanding-submissions/{$submission->id}/resolve", [
+        'strategy' => 'replace_existing',
+        'candidate_id' => $record->id,
+    ])->assertForbidden();
 
     expect($record->refresh()->updated_by)->toBeNull()
         ->and(PembandingDuplicateSubmission::query()->whereKey($submission->id)->exists())->toBeTrue();
@@ -329,16 +329,20 @@ it('allows an authorized user to replace an existing duplicate with full audit m
     $image = UploadedFile::fake()->image('foto.jpg');
     $contents = file_get_contents($image->getRealPath());
 
-    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload(['image' => $image]));
+    Sanctum::actingAs($owner);
+    $this->postJson('/api/v1/pembandings', pembandingPayload(['image' => $image]))->assertOk();
     $record = Pembanding::query()->sole();
-    $this->actingAs($reviewer)->post('/app/pembanding', pembandingPayload([
+
+    Sanctum::actingAs($reviewer);
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
-    ]));
+    ]))->assertStatus(409);
     $submission = PembandingDuplicateSubmission::query()->sole();
 
-    $this->actingAs($reviewer)
-        ->put(route('app.pembanding.duplicate-reviews.replace', [$submission, $record]))
-        ->assertRedirect(route('app.pembanding.show', $record));
+    $this->postJson("/api/v1/pembanding-submissions/{$submission->id}/resolve", [
+        'strategy' => 'replace_existing',
+        'candidate_id' => $record->id,
+    ])->assertOk();
 
     $record->refresh();
     expect($record->created_by)->toBe($owner->id)
@@ -356,19 +360,20 @@ it('isolates duplicate submissions by owner and deletes expired drafts', functio
     $image = UploadedFile::fake()->image('foto.jpg');
     $contents = file_get_contents($image->getRealPath());
 
-    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload(['image' => $image]));
-    $this->actingAs($owner)->post('/app/pembanding', pembandingPayload([
+    Sanctum::actingAs($owner);
+    $this->postJson('/api/v1/pembandings', pembandingPayload(['image' => $image]))->assertOk();
+    $this->postJson('/api/v1/pembandings', pembandingPayload([
         'image' => UploadedFile::fake()->createWithContent('foto.jpg', $contents),
-    ]));
+    ]))->assertStatus(409);
     $submission = PembandingDuplicateSubmission::query()->sole();
 
-    $this->actingAs($other)
-        ->get(route('app.pembanding.duplicate-reviews.show', $submission))
+    Sanctum::actingAs($other);
+    $this->getJson("/api/v1/pembanding-submissions/{$submission->id}")
         ->assertNotFound();
 
     $submission->forceFill(['expires_at' => now()->subMinute()])->save();
-    $this->actingAs($owner)
-        ->get(route('app.pembanding.duplicate-reviews.show', $submission))
+    Sanctum::actingAs($owner);
+    $this->getJson("/api/v1/pembanding-submissions/{$submission->id}")
         ->assertStatus(410);
 
     expect(PembandingDuplicateSubmission::query()->whereKey($submission->id)->exists())->toBeFalse();

@@ -4,13 +4,13 @@ use App\Actions\BulkExcelImport\ProcessBulkExcelImportRowAction;
 use App\Actions\BulkExcelImport\RefreshBulkExcelImportBatchSummaryAction;
 use App\Jobs\ProcessBulkExcelImportChunk;
 use App\Models\BentukTanah;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Models\District;
 use App\Models\DokumenTanah;
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
-use App\Models\BulkExcelImportBatch;
-use App\Models\BulkExcelImportRow;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
 use App\Models\Province;
@@ -163,10 +163,10 @@ it('rejects finalization when a selected row is not ready', function () {
         'staging_image_path' => null,
     ]);
 
-    $this->actingAs($owner)
-        ->post("/app/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
-        ->assertRedirect()
-        ->assertSessionHasErrors('finalize');
+    $this->actingAs($owner, 'sanctum')
+        ->postJson("/api/v1/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('finalize');
 
     $batch->refresh();
     expect($batch->status)->toBe(BulkExcelImportBatch::STATUS_DRAFT)
@@ -190,10 +190,10 @@ it('ignores unselected incomplete rows and dispatches selected rows in chunks of
         'staging_image_path' => null,
     ]);
 
-    $this->actingAs($owner)
-        ->post("/app/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+    $this->actingAs($owner, 'sanctum')
+        ->postJson("/api/v1/pembanding-imports/{$batch->id}/finalize", ['confirmed' => true])
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
 
     $jobs = Queue::pushed(ProcessBulkExcelImportChunk::class);
     $queuedIds = $jobs->flatMap(fn (ProcessBulkExcelImportChunk $job): array => $job->rowIds)->values();
@@ -368,10 +368,10 @@ it('allows a failed row to be manually retried as a new three-attempt cycle', fu
         'failure_code' => 'transient',
     ]);
 
-    $this->actingAs($owner)
-        ->post("/app/pembanding-imports/{$batch->id}/rows/{$row->id}/retry")
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
+    $this->actingAs($owner, 'sanctum')
+        ->postJson("/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}/retry")
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
 
     $row->refresh();
     expect($row->status)->toBe(BulkExcelImportRow::STATUS_QUEUED)

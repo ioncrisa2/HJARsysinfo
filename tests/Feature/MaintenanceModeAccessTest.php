@@ -10,27 +10,29 @@ beforeEach(function () {
     SystemSetting::set('system_mode', 'maintenance');
 });
 
-it('allows super admin to access admin pages during maintenance mode', function () {
+it('allows super admin to access api during maintenance mode', function () {
     $superAdmin = User::factory()->create(['deactivated_at' => null]);
     $superAdmin->assignRole('super_admin');
 
-    $this->actingAs($superAdmin)
-        ->get('/app/settings')
+    $this->actingAs($superAdmin, 'sanctum')
+        ->getJson('/api/v1/settings')
         ->assertOk();
 });
 
-it('blocks regular authenticated users during maintenance mode', function () {
+it('blocks regular authenticated users during maintenance mode with 503 json', function () {
     $user = User::factory()->create(['deactivated_at' => null]);
     $user->assignRole('data_contributor');
 
-    $this->actingAs($user)
-        ->get('/app')
-        ->assertStatus(503);
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/v1/dashboard')
+        ->assertStatus(503)
+        ->assertJsonPath('code', 'MAINTENANCE_MODE');
 });
 
-it('redirects guest admin requests to login during maintenance mode', function () {
-    $this->get('/app')
-        ->assertRedirect('/login');
+it('returns 401 unauthenticated for guest api requests without token', function () {
+    $this->getJson('/api/v1/dashboard')
+        ->assertStatus(401)
+        ->assertJsonPath('code', 'UNAUTHENTICATED');
 });
 
 it('reads system mode directly from database instead of stale settings cache', function () {
@@ -43,7 +45,7 @@ it('reads system mode directly from database instead of stale settings cache', f
         ['value' => 'live']
     );
 
-    $this->actingAs($user)
-        ->get('/app')
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/v1/dashboard')
         ->assertOk();
 });

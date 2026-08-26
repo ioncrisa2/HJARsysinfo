@@ -29,50 +29,43 @@ function makeWebLoginUser(array $attributes = [], ?string $role = null): User
     return $user;
 }
 
-it('redirects every role to the shared application dashboard', function (?string $role) {
+it('allows valid users to establish an authenticated web session via api', function (?string $role) {
     $user = makeWebLoginUser(['email' => ($role ?? 'regular').'@example.test'], $role);
 
-    $this->post('/login', [
+    $response = $this->postJson('/api/v1/auth/session', [
         'email' => $user->email,
         'password' => 'password',
-    ])->assertRedirect('/app');
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.email', $user->email);
+
+    $this->assertAuthenticatedAs($user, 'web');
 })->with(['super_admin', 'pimpinan', 'data_contributor', 'surveyor', 'bulk_import', null]);
 
-it('preserves an intended application url for any authenticated role', function () {
+it('rejects invalid credentials for web session', function () {
     $user = makeWebLoginUser(['email' => 'user@example.test']);
 
-    $intendedUrl = url('/app/users');
+    $response = $this->postJson('/api/v1/auth/session', [
+        'email' => $user->email,
+        'password' => 'wrong-password',
+    ]);
 
-    $this->withSession(['url.intended' => $intendedUrl])
-        ->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-        ])
-        ->assertRedirect($intendedUrl);
+    $response->assertStatus(422)
+        ->assertJsonPath('status', 'error')
+        ->assertJsonPath('code', 'INVALID_CREDENTIALS');
+
+    $this->assertGuest('web');
 });
 
-it('does not preserve legacy or external intended urls', function (string $intendedUrl) {
-    $user = makeWebLoginUser(['email' => md5($intendedUrl).'@example.test']);
-
-    $this->withSession(['url.intended' => $intendedUrl])
-        ->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-        ])
-        ->assertRedirect('/app');
-})->with([
-    'legacy home' => 'http://localhost/home',
-    'legacy admin' => 'http://localhost/admin/users',
-    'external host' => 'https://example.org/app/users',
-]);
-
-it('does not expose retired legacy panel urls', function (string $legacyUrl) {
+it('allows authenticated session to logout and clear session', function () {
     $user = makeWebLoginUser();
 
-    $this->actingAs($user)
-        ->get($legacyUrl)
-        ->assertNotFound();
-})->with([
-    '/home/pembanding?status=ready&page=2',
-    '/admin/pembanding?status=ready&page=2',
-]);
+    $this->actingAs($user, 'web')
+        ->deleteJson('/api/v1/auth/session')
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
+
+    $this->assertGuest('web');
+});

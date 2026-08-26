@@ -9,14 +9,23 @@ it('limits data contributor dashboard to map and stat card props', function () {
     $user = User::factory()->create(['deactivated_at' => null]);
     $user->assignRole('data_contributor');
 
-    $this->actingAs($user)
-        ->get('/app')
+    $response = $this->actingAs($user, 'sanctum')
+        ->getJson('/api/v1/dashboard')
         ->assertOk()
-        ->assertSee('data_contributor')
-        ->assertSee('mapPoints')
-        ->assertSee('stats')
-        ->assertDontSee('recentData')
-        ->assertDontSee('monthlyData')
-        ->assertDontSee('topContributors')
-        ->assertDontSee('objectTypeCounts');
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.dashboard_variant', 'data_contributor')
+        ->assertJsonStructure([
+            'data' => [
+                'dashboard_variant',
+                'map_points',
+                'stats',
+                'jenis_listing_options',
+                'can',
+                'can_widgets',
+                'delete_request_alert',
+            ],
+        ]);
+
+    expect($response->json('data.can.create_data'))->toBeTrue()
+        ->and($response->json('data'))->not->toHaveKeys(['recent_data', 'monthly_data', 'top_contributors']);
 });

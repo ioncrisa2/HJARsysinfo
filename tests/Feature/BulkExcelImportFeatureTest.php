@@ -75,18 +75,18 @@ it('seeds the bulk import role and permission', function () {
 });
 
 it('blocks users without bulk import access', function () {
-    $this->actingAs(User::factory()->create())
-        ->get('/app/pembanding-imports')
+    $this->actingAs(User::factory()->create(), 'sanctum')
+        ->getJson('/api/v1/pembanding-imports')
         ->assertForbidden();
 });
 
 it('allows bulk import users to load dependent location choices', function () {
     $user = bulkExcelImportRoleUser();
 
-    $this->actingAs($user)
-        ->getJson('/app/lookups/regencies?province_id=99')
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/v1/locations/regencies?province_id=99')
         ->assertOk()
-        ->assertJsonFragment(['value' => '9901']);
+        ->assertJsonFragment(['id' => '9901']);
 });
 
 it('stores workbook rows as drafts without creating main records', function () {
@@ -96,10 +96,12 @@ it('stores workbook rows as drafts without creating main records', function () {
         bulkExcelImportTestRow([0 => 'LP-002', 2 => 'Jalan Contoh 2']),
     ], name: 'Januari.xlsm');
 
-    $response = $this->actingAs($user)->post('/app/pembanding-imports', ['file' => $upload]);
+    $response = $this->actingAs($user, 'sanctum')
+        ->postJson('/api/v1/pembanding-imports', ['file' => $upload])
+        ->assertCreated()
+        ->assertJsonPath('status', 'success');
 
     $batch = BulkExcelImportBatch::query()->sole();
-    $response->assertRedirect(route('app.bulk-excel-imports.show', $batch));
     expect($batch->total_rows)->toBe(2)
         ->and($batch->selected_rows)->toBe(2)
         ->and($batch->rows)->toHaveCount(2)
@@ -116,9 +118,10 @@ it('reads only Data_Pembanding and ignores every other exported sheet', function
         extraSheets: ['Cover', 'Rekap', 'Lampiran', 'Referensi'],
     );
 
-    $this->actingAs($user)
-        ->post('/app/pembanding-imports', ['file' => $upload])
-        ->assertRedirect();
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/v1/pembanding-imports', ['file' => $upload])
+        ->assertCreated()
+        ->assertJsonPath('status', 'success');
 
     $batch = BulkExcelImportBatch::query()->sole();
     expect($batch->sheet_name)->toBe(BulkExcelImportWorkbookParser::SHEET_NAME)
@@ -129,23 +132,21 @@ it('reads only Data_Pembanding and ignores every other exported sheet', function
 it('keeps super admin bulk import inside the shared application', function () {
     $superAdmin = bulkExcelImportRoleUser('super_admin');
 
-    $response = $this->actingAs($superAdmin)->get('/app/pembanding-imports');
+    $response = $this->actingAs($superAdmin, 'sanctum')->getJson('/api/v1/pembanding-imports');
+    $response->assertOk()->assertJsonPath('status', 'success');
 
-    $response->assertOk();
-    expect($response->viewData('page')['component'])->toBe('PembandingImports/Index');
-
-    $this->actingAs($superAdmin)->post('/app/pembanding-imports', [
+    $this->actingAs($superAdmin, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => bulkExcelImportTestUpload([bulkExcelImportTestRow()]),
-    ])->assertRedirect('/app/pembanding-imports/1');
+    ])->assertCreated();
 });
 
 it('marks exact repeated source rows as unselected duplicates', function () {
     $user = bulkExcelImportRoleUser();
     $first = bulkExcelImportTestRow();
 
-    $this->actingAs($user)->post('/app/pembanding-imports', [
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => bulkExcelImportTestUpload([$first, $first, bulkExcelImportTestRow([0 => 'LP-003'])]),
-    ])->assertRedirect();
+    ])->assertCreated();
 
     $rows = BulkExcelImportRow::query()->orderBy('source_row_number')->get();
     expect($rows)->toHaveCount(3)
@@ -166,9 +167,9 @@ it('parses a 93 row workbook and finds seven repeated source occurrences', funct
         ->all();
     $rows = [...$uniqueRows, ...array_slice($uniqueRows, 0, 7)];
 
-    $this->actingAs($user)->post('/app/pembanding-imports', [
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => bulkExcelImportTestUpload($rows, name: 'Januari.xlsm'),
-    ])->assertRedirect();
+    ])->assertCreated();
 
     $batch = BulkExcelImportBatch::query()->sole();
     expect($batch->total_rows)->toBe(93)
@@ -196,14 +197,14 @@ it('reopens the existing draft when the same user uploads the same file', functi
     $user = bulkExcelImportRoleUser();
     $contents = bulkExcelImportTestUpload([bulkExcelImportTestRow()])->getContent();
 
-    $this->actingAs($user)->post('/app/pembanding-imports', [
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => UploadedFile::fake()->createWithContent('pertama.xlsx', $contents),
-    ])->assertRedirect();
+    ])->assertCreated();
     $batch = BulkExcelImportBatch::query()->sole();
 
-    $this->actingAs($user)->post('/app/pembanding-imports', [
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => UploadedFile::fake()->createWithContent('kedua.xlsx', $contents),
-    ])->assertRedirect(route('app.bulk-excel-imports.show', $batch));
+    ])->assertSuccessful();
 
     $this->assertDatabaseCount('bulk_excel_import_batches', 1);
     $this->assertDatabaseCount('bulk_excel_import_rows', 1);
@@ -214,11 +215,10 @@ it('rejects workbooks with a different column contract', function () {
     $headers = BulkExcelImportWorkbookParser::HEADERS;
     $headers[0] = 'Nomor Berbeda';
 
-    $this->actingAs($user)
-        ->from('/app/pembanding-imports')
-        ->post('/app/pembanding-imports', ['file' => bulkExcelImportTestUpload([bulkExcelImportTestRow()], $headers)])
-        ->assertRedirect('/app/pembanding-imports')
-        ->assertSessionHasErrors('file');
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/v1/pembanding-imports', ['file' => bulkExcelImportTestUpload([bulkExcelImportTestRow()], $headers)])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('file');
 
     $this->assertDatabaseCount('bulk_excel_import_batches', 0);
     expect(Storage::disk('local')->allFiles('bulk-excel-imports'))->toBeEmpty();
@@ -227,9 +227,9 @@ it('rejects workbooks with a different column contract', function () {
 it('marks invalid coordinates and unresolved locations for user confirmation', function () {
     $user = bulkExcelImportRoleUser();
 
-    $this->actingAs($user)->post('/app/pembanding-imports', [
+    $this->actingAs($user, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => bulkExcelImportTestUpload([bulkExcelImportTestRow([4 => 'Desa Tidak Ada', 8 => '112.584118,112.584118'])]),
-    ])->assertRedirect();
+    ])->assertCreated();
 
     $row = BulkExcelImportRow::query()->sole();
     expect($row->status)->toBe(BulkExcelImportRow::STATUS_NEEDS_CONFIRMATION)
@@ -241,11 +241,11 @@ it('prevents users from viewing another users draft while allowing super admin r
     $other = bulkExcelImportRoleUser();
     $superAdmin = bulkExcelImportRoleUser('super_admin');
 
-    $this->actingAs($owner)->post('/app/pembanding-imports', [
+    $this->actingAs($owner, 'sanctum')->postJson('/api/v1/pembanding-imports', [
         'file' => bulkExcelImportTestUpload([bulkExcelImportTestRow()]),
     ]);
     $batch = BulkExcelImportBatch::query()->sole();
 
-    $this->actingAs($other)->get("/app/pembanding-imports/{$batch->id}")->assertForbidden();
-    $this->actingAs($superAdmin)->get("/app/pembanding-imports/{$batch->id}")->assertOk();
+    $this->actingAs($other, 'sanctum')->getJson("/api/v1/pembanding-imports/{$batch->id}")->assertForbidden();
+    $this->actingAs($superAdmin, 'sanctum')->getJson("/api/v1/pembanding-imports/{$batch->id}")->assertOk();
 });

@@ -25,16 +25,18 @@ it('stores public registration request from a valid one-time invitation token', 
     $creator = User::factory()->create();
     $invite = createContributorInvite($creator, 'plain-token');
 
-    $this->get('/register-data-contributor/plain-token')
+    $this->getJson('/api/v1/public/data-contributor-registration/plain-token')
         ->assertOk()
-        ->assertViewHas('page', fn (array $page): bool => $page['component'] === 'Auth/DataContributorRegister');
+        ->assertJsonPath('status', 'success')
+        ->assertJsonPath('data.valid', true);
 
-    $this->post('/register-data-contributor/plain-token', [
+    $this->postJson('/api/v1/public/data-contributor-registration/plain-token', [
         'display_name' => 'Budi Santoso',
         'phone' => '0812-3456-7890',
         'password' => 'password123',
         'password_confirmation' => 'password123',
-    ])->assertRedirect('/register-data-contributor/submitted');
+    ])->assertCreated()
+        ->assertJsonPath('status', 'success');
 
     $registrationRequest = DataContributorRegistrationRequest::query()->firstOrFail();
 
@@ -51,9 +53,9 @@ it('stores public registration request from a valid one-time invitation token', 
     expect($invite->status)->toBe(DataContributorInvite::STATUS_SUBMITTED)
         ->and($invite->used_at)->not->toBeNull();
 
-    $this->get('/register-data-contributor/plain-token')
+    $this->getJson('/api/v1/public/data-contributor-registration/plain-token')
         ->assertOk()
-        ->assertViewHas('page', fn (array $page): bool => $page['component'] === 'Auth/DataContributorRegisterInvalid');
+        ->assertJsonPath('data.valid', false);
 });
 
 it('accepts a pending request and creates a data contributor user with the stored password hash', function () {
@@ -71,9 +73,10 @@ it('accepts a pending request and creates a data contributor user with the store
         'submitted_at' => now(),
     ]);
 
-    $this->actingAs($superAdmin)
-        ->post("/app/data-contributor-registration-requests/{$registrationRequest->id}/accept")
-        ->assertRedirect('/app/data-contributor-invitations');
+    $this->actingAs($superAdmin, 'sanctum')
+        ->postJson("/api/v1/data-contributor-registration-requests/{$registrationRequest->id}/accept")
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
 
     $user = User::query()->where('email', 'sari.data@kjpp-hjar.co.id')->firstOrFail();
 
@@ -95,9 +98,10 @@ it('allows invitation administration based on permission without requiring a spe
     Permission::findOrCreate('manage_data_contributor_invitations', 'web');
     $user->givePermissionTo('manage_data_contributor_invitations');
 
-    $this->actingAs($user)
-        ->post('/app/data-contributor-invitations')
-        ->assertRedirect('/app/data-contributor-invitations');
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/v1/data-contributor-invitations')
+        ->assertCreated()
+        ->assertJsonPath('status', 'success');
 
     $this->assertDatabaseHas('data_contributor_invites', [
         'created_by' => $user->id,
@@ -126,15 +130,17 @@ it('allows super admin to delete only unused invitations', function () {
         'submitted_at' => now(),
     ]);
 
-    $this->actingAs($superAdmin)
-        ->delete("/app/data-contributor-invitations/{$unusedInvite->id}")
-        ->assertRedirect('/app/data-contributor-invitations?tab=tokens');
+    $this->actingAs($superAdmin, 'sanctum')
+        ->deleteJson("/api/v1/data-contributor-invitations/{$unusedInvite->id}")
+        ->assertOk()
+        ->assertJsonPath('status', 'success');
 
     $this->assertDatabaseMissing('data_contributor_invites', ['id' => $unusedInvite->id]);
 
-    $this->actingAs($superAdmin)
-        ->delete("/app/data-contributor-invitations/{$submittedInvite->id}")
-        ->assertSessionHas('error', 'Invitation hanya bisa dihapus jika belum digunakan.');
+    $this->actingAs($superAdmin, 'sanctum')
+        ->deleteJson("/api/v1/data-contributor-invitations/{$submittedInvite->id}")
+        ->assertStatus(422)
+        ->assertJsonPath('status', 'error');
 
     $this->assertDatabaseHas('data_contributor_invites', ['id' => $submittedInvite->id]);
 });

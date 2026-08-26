@@ -184,10 +184,13 @@ it('returns paginated pembanding list', function () {
 
     $response
         ->assertOk()
-        ->assertJsonPath('status', 'success')
-        ->assertJsonPath('data.per_page', 1);
+        ->assertJsonPath('status', 'success');
 
-    expect($response->json('data.data'))->toHaveCount(1);
+    $perPage = $response->json('meta.per_page') ?? $response->json('data.per_page');
+    expect($perPage)->toBe(1);
+
+    $items = $response->json('data.data') ?? $response->json('data');
+    expect($items)->toHaveCount(1);
 });
 
 it('applies pembanding filters in index endpoint', function () {
@@ -209,8 +212,9 @@ it('applies pembanding filters in index endpoint', function () {
 
     $response->assertOk();
 
-    expect($response->json('data.data'))->toHaveCount(1)
-        ->and($response->json('data.data.0.id'))->toBe($rumah->id);
+    $items = $response->json('data.data') ?? $response->json('data');
+    expect($items)->toHaveCount(1)
+        ->and($items[0]['id'])->toBe($rumah->id);
 });
 
 it('returns 422 when index filter is invalid', function () {

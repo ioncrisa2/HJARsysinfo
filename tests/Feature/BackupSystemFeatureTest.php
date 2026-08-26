@@ -195,16 +195,15 @@ it('rejects a generated package whose payload exceeds the configured bound', fun
         ->and(app(BackupCatalogService::class)->all())->toBeEmpty();
 });
 
-it('does not expose database host or absolute backup paths on the page', function () {
+it('does not expose database host or absolute backup paths in api catalog', function () {
     Permission::findOrCreate('view_backup', 'web');
     $user = User::factory()->create();
     $user->givePermissionTo('view_backup');
 
-    $response = $this->actingAs($user)->get('/app/backup')->assertOk();
-    $page = $response->viewData('page');
-    $serialized = json_encode($page['props'], JSON_THROW_ON_ERROR);
+    $response = $this->actingAs($user, 'sanctum')->getJson('/api/v1/backup/artifacts')->assertOk();
+    $serialized = json_encode($response->json(), JSON_THROW_ON_ERROR);
 
-    expect($page['component'])->toBe('Backup/Index')
+    expect($response->json('status'))->toBe('success')
         ->and($serialized)->not->toContain((string) config('database.connections.mysql.host'))
         ->and($serialized)->not->toContain(storage_path());
 });
@@ -218,8 +217,8 @@ it('downloads catalog artifacts only with the dedicated permission', function ()
     $user->givePermissionTo(['view_backup', 'download_backup']);
     $artifact = app(SystemBackupService::class)->create(BackupType::Uploads, $user);
 
-    $response = $this->actingAs($user)
-        ->get("/app/backup/artifacts/{$artifact->id}/download")
+    $response = $this->actingAs($user, 'sanctum')
+        ->get("/api/v1/backup/artifacts/{$artifact->id}/download")
         ->assertOk();
 
     expect($response->headers->get('cache-control'))
@@ -234,10 +233,10 @@ it('returns not found for unknown backup downloads and deletes', function () {
     }
     $user->givePermissionTo(['view_backup', 'download_backup', 'delete_backup']);
 
-    $this->actingAs($user)
-        ->get('/app/backup/artifacts/unknown-backup-id/download')
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/v1/backup/artifacts/unknown-backup-id/download')
         ->assertNotFound();
-    $this->actingAs($user)
-        ->delete('/app/backup/artifacts/unknown-backup-id')
+    $this->actingAs($user, 'sanctum')
+        ->deleteJson('/api/v1/backup/artifacts/unknown-backup-id')
         ->assertNotFound();
 });

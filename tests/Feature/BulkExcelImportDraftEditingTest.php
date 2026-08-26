@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\BentukTanah;
+use App\Models\BulkExcelImportBatch;
+use App\Models\BulkExcelImportRow;
 use App\Models\District;
 use App\Models\DokumenTanah;
 use App\Models\JenisListing;
 use App\Models\JenisObjek;
 use App\Models\KondisiTanah;
-use App\Models\BulkExcelImportBatch;
-use App\Models\BulkExcelImportRow;
 use App\Models\Peruntukan;
 use App\Models\PosisiTanah;
 use App\Models\Province;
@@ -130,14 +130,13 @@ it('allows only the owner or super admin to open and change a draft row', functi
     $superAdmin = bulkExcelImportDraftEditingUser('super_admin');
     $batch = bulkExcelImportDraftEditingBatch($owner);
     $row = bulkExcelImportDraftEditingRow($batch);
-    $editUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}/edit";
-    $updateUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
+    $rowUrl = "/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
-    $this->actingAs($owner)->get($editUrl)->assertOk();
-    $this->actingAs($superAdmin)->get($editUrl)->assertOk();
-    $this->actingAs($other)->get($editUrl)->assertForbidden();
-    $this->actingAs($other)->put($updateUrl, ['nama_pemberi_informasi' => 'Tidak Berhak'])->assertForbidden();
-    $this->actingAs($other)->patch("/app/pembanding-imports/{$batch->id}/selection", [
+    $this->actingAs($owner, 'sanctum')->getJson($rowUrl)->assertOk();
+    $this->actingAs($superAdmin, 'sanctum')->getJson($rowUrl)->assertOk();
+    $this->actingAs($other, 'sanctum')->getJson($rowUrl)->assertForbidden();
+    $this->actingAs($other, 'sanctum')->putJson($rowUrl, ['nama_pemberi_informasi' => 'Tidak Berhak'])->assertForbidden();
+    $this->actingAs($other, 'sanctum')->patchJson("/api/v1/pembanding-imports/{$batch->id}/selection", [
         'action' => 'clear_all',
     ])->assertForbidden();
 
@@ -149,12 +148,12 @@ it('saves partial work as an incomplete draft without creating main data', funct
     $batch = bulkExcelImportDraftEditingBatch($owner);
     $row = bulkExcelImportDraftEditingRow($batch);
 
-    $this->actingAs($owner)
-        ->put("/app/pembanding-imports/{$batch->id}/rows/{$row->id}", [
+    $this->actingAs($owner, 'sanctum')
+        ->putJson("/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}", [
             'nama_pemberi_informasi' => 'Budi Pemilik',
             'lebar_depan' => 10,
         ])
-        ->assertRedirect();
+        ->assertOk();
 
     $row->refresh();
     expect($row->status)->toBe(BulkExcelImportRow::STATUS_INCOMPLETE)
@@ -172,12 +171,12 @@ it('marks a completed tanah draft ready and serves its image only through the pr
         'image' => UploadedFile::fake()->image('aset.jpg', 800, 600),
     ]);
 
-    $this->actingAs($owner)
-        ->post("/app/pembanding-imports/{$batch->id}/rows/{$row->id}", [
+    $this->actingAs($owner, 'sanctum')
+        ->post("/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}", [
             '_method' => 'PUT',
             ...$payload,
         ])
-        ->assertRedirect();
+        ->assertOk();
 
     $row->refresh();
     $batch->refresh();
@@ -189,9 +188,9 @@ it('marks a completed tanah draft ready and serves its image only through the pr
     Storage::disk('local')->assertExists($row->staging_image_path);
     Storage::disk('public')->assertMissing($row->staging_image_path);
 
-    $imageUrl = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}/image";
-    $this->actingAs($owner)->get($imageUrl)->assertOk()->assertHeader('content-type', 'image/jpeg');
-    $this->actingAs(bulkExcelImportDraftEditingUser())->get($imageUrl)->assertForbidden();
+    $imageUrl = "/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}/image";
+    $this->actingAs($owner, 'sanctum')->get($imageUrl)->assertOk()->assertHeader('content-type', 'image/jpeg');
+    $this->actingAs(bulkExcelImportDraftEditingUser(), 'sanctum')->get($imageUrl)->assertForbidden();
     $this->assertDatabaseCount('data_pembanding', 0);
 });
 
@@ -199,23 +198,23 @@ it('deletes the previous private image when a draft image is replaced', function
     $owner = bulkExcelImportDraftEditingUser();
     $batch = bulkExcelImportDraftEditingBatch($owner);
     $row = bulkExcelImportDraftEditingRow($batch);
-    $url = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
+    $url = "/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
-    $this->actingAs($owner)->post($url, [
+    $this->actingAs($owner, 'sanctum')->post($url, [
         '_method' => 'PUT',
         ...bulkExcelImportCompleteTanahDraftPayload([
             'image' => UploadedFile::fake()->image('lama.jpg'),
         ]),
-    ])->assertRedirect();
+    ])->assertOk();
     $oldPath = $row->fresh()->staging_image_path;
     Storage::disk('local')->assertExists($oldPath);
 
-    $this->actingAs($owner)->post($url, [
+    $this->actingAs($owner, 'sanctum')->post($url, [
         '_method' => 'PUT',
         ...bulkExcelImportCompleteTanahDraftPayload([
             'image' => UploadedFile::fake()->image('baru.png'),
         ]),
-    ])->assertRedirect();
+    ])->assertOk();
     $newPath = $row->fresh()->staging_image_path;
 
     expect($newPath)->not->toBe($oldPath);
@@ -228,21 +227,21 @@ it('removes a private image and marks the selected row incomplete again', functi
     $owner = bulkExcelImportDraftEditingUser();
     $batch = bulkExcelImportDraftEditingBatch($owner);
     $row = bulkExcelImportDraftEditingRow($batch);
-    $url = "/app/pembanding-imports/{$batch->id}/rows/{$row->id}";
+    $url = "/api/v1/pembanding-imports/{$batch->id}/rows/{$row->id}";
 
-    $this->actingAs($owner)->post($url, [
+    $this->actingAs($owner, 'sanctum')->post($url, [
         '_method' => 'PUT',
         ...bulkExcelImportCompleteTanahDraftPayload([
             'image' => UploadedFile::fake()->image('aset.jpg'),
         ]),
-    ])->assertRedirect();
+    ])->assertOk();
 
     $row->refresh();
     $oldPath = $row->staging_image_path;
     expect($row->status)->toBe(BulkExcelImportRow::STATUS_READY);
     Storage::disk('local')->assertExists($oldPath);
 
-    $this->actingAs($owner)->put($url, ['remove_image' => true])->assertRedirect();
+    $this->actingAs($owner, 'sanctum')->putJson($url, ['remove_image' => true])->assertOk();
 
     $row->refresh();
     $batch->refresh();
@@ -273,40 +272,40 @@ it('supports all selection modes while refusing to select duplicate rows', funct
         'is_selected' => false,
         'duplicate_of_row_id' => $ready->id,
     ]);
-    $url = "/app/pembanding-imports/{$batch->id}/selection";
+    $url = "/api/v1/pembanding-imports/{$batch->id}/selection";
 
-    $this->actingAs($owner)->patch($url, [
+    $this->actingAs($owner, 'sanctum')->patchJson($url, [
         'action' => 'set_rows',
         'row_ids' => [$incomplete->id],
         'is_selected' => true,
-    ])->assertRedirect();
+    ])->assertOk();
     $batch->refresh();
     expect($incomplete->fresh()->is_selected)->toBeTrue()
         ->and($duplicate->fresh()->is_selected)->toBeFalse()
         ->and($batch->selected_rows)->toBe(1)
         ->and($batch->ready_rows)->toBe(0);
 
-    $this->actingAs($owner)->patch($url, [
+    $this->actingAs($owner, 'sanctum')->patchJson($url, [
         'action' => 'set_rows',
         'row_ids' => [$duplicate->id],
         'is_selected' => true,
-    ])->assertSessionHasErrors('selection');
+    ])->assertStatus(422)->assertJsonValidationErrors('selection');
     $batch->refresh();
     expect($duplicate->fresh()->is_selected)->toBeFalse()
         ->and($batch->selected_rows)->toBe(1);
 
-    $this->actingAs($owner)->patch($url, ['action' => 'select_all'])->assertRedirect();
+    $this->actingAs($owner, 'sanctum')->patchJson($url, ['action' => 'select_all'])->assertOk();
     $batch->refresh();
     expect($batch->selected_rows)->toBe(3)
         ->and($batch->ready_rows)->toBe(1)
         ->and($duplicate->fresh()->is_selected)->toBeFalse();
 
-    $this->actingAs($owner)->patch($url, ['action' => 'clear_all'])->assertRedirect();
+    $this->actingAs($owner, 'sanctum')->patchJson($url, ['action' => 'clear_all'])->assertOk();
     $batch->refresh();
     expect($batch->selected_rows)->toBe(0)
         ->and($batch->ready_rows)->toBe(0);
 
-    $this->actingAs($owner)->patch($url, ['action' => 'select_ready'])->assertRedirect();
+    $this->actingAs($owner, 'sanctum')->patchJson($url, ['action' => 'select_ready'])->assertOk();
     $batch->refresh();
     expect($ready->fresh()->is_selected)->toBeTrue()
         ->and($incomplete->fresh()->is_selected)->toBeFalse()
@@ -341,12 +340,12 @@ it('bulk applies an allowed value only to selected nonduplicate rows and refresh
     $batch->update(['selected_rows' => 99, 'ready_rows' => 99]);
     $shapeId = BentukTanah::query()->where('slug', 'persegi_panjang')->value('id');
 
-    $this->actingAs($owner)
-        ->patch("/app/pembanding-imports/{$batch->id}/bulk-apply", [
+    $this->actingAs($owner, 'sanctum')
+        ->patchJson("/api/v1/pembanding-imports/{$batch->id}/bulk-apply", [
             'field' => 'bentuk_tanah_id',
             'value' => $shapeId,
         ])
-        ->assertRedirect();
+        ->assertOk();
 
     $almostReady->refresh();
     $selectedIncomplete->refresh();
@@ -370,12 +369,13 @@ it('rejects unsafe fields from bulk apply', function (string $field, mixed $valu
     $row = bulkExcelImportDraftEditingRow($batch);
     $originalPayload = $row->mapped_payload;
 
-    $this->actingAs($owner)
-        ->patch("/app/pembanding-imports/{$batch->id}/bulk-apply", [
+    $this->actingAs($owner, 'sanctum')
+        ->patchJson("/api/v1/pembanding-imports/{$batch->id}/bulk-apply", [
             'field' => $field,
             'value' => $value,
         ])
-        ->assertSessionHasErrors('field');
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('field');
 
     expect($row->fresh()->mapped_payload)->toBe($originalPayload);
     $this->assertDatabaseCount('data_pembanding', 0);
