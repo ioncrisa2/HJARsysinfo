@@ -33,6 +33,9 @@ Thumbs.db
 CLAUDE.md
 /.claude
 
+# Local Docker development (do not commit)
+/Dockerfile.dev
+/docker-compose.dev.yml
+
 MIGRATION_PLAN.md
 .impeccable/
-
