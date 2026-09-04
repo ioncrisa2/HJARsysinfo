@@ -55,8 +55,10 @@ return [
 API Comparable Data untuk autentikasi, master data lokasi dan properti,
 serta pengelolaan data pembanding.
 
-Gunakan endpoint **Login** untuk memperoleh access token, lalu masukkan token
-tersebut melalui tombol **Authorize** dengan skema Bearer.
+Web SPA harus memperoleh CSRF cookie melalui `/sanctum/csrf-cookie`, lalu login
+melalui `/api/v1/auth/session` dengan credentials/cookies aktif. Integrasi mobile
+lama tetap dapat memperoleh access token melalui `/api/auth/login` dan memakai
+skema Bearer.
 MARKDOWN,
     ],
 

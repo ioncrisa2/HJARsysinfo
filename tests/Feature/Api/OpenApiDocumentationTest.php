@@ -12,7 +12,13 @@ it('publishes a complete OpenAPI document for the API', function () {
         ->assertJsonPath('info.title', 'Comparable Data API')
         ->assertJsonPath('components.securitySchemes.http.type', 'http')
         ->assertJsonPath('components.securitySchemes.http.scheme', 'bearer')
+        ->assertJsonPath('components.securitySchemes.sessionCookie.type', 'apiKey')
+        ->assertJsonPath('components.securitySchemes.sessionCookie.in', 'cookie')
         ->assertJsonPath('paths./auth/login.post.security', [])
+        ->assertJsonPath('paths./v1/auth/session.post.security', [])
+        ->assertJsonPath('paths./v1/auth/session.delete.security.0.sessionCookie', [])
+        ->assertJsonPath('paths./v1/auth/me.get.security.0.sessionCookie', [])
+        ->assertJsonPath('paths./v1/auth/me.get.security.1.http', [])
         ->assertJsonPath('paths./v1/pembandings.get.summary', 'Lihat daftar pembanding');
 
     $document = $response->json();
