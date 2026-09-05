@@ -3,7 +3,7 @@
     "info": {
         "title": "Comparable Data API",
         "version": "1.0.0",
-        "description": "API Comparable Data untuk autentikasi, master data lokasi dan properti,\nserta pengelolaan data pembanding.\n\nGunakan endpoint **Login** untuk memperoleh access token, lalu masukkan token\ntersebut melalui tombol **Authorize** dengan skema Bearer."
+        "description": "API Comparable Data untuk autentikasi, master data lokasi dan properti,\nserta pengelolaan data pembanding.\n\nWeb SPA harus memperoleh CSRF cookie melalui `/sanctum/csrf-cookie`, lalu login\nmelalui `/api/v1/auth/session` dengan credentials/cookies aktif. Integrasi mobile\ndapat memperoleh access token melalui `/api/auth/login` dan memakai\nskema Bearer.\n\nAPI data `/api/v1/*` digunakan bersama oleh web dan mobile sesuai permission.\nProfil dan password menggunakan `/api/v1/auth/me`, `/api/v1/auth/profile`, dan\n`/api/v1/auth/profile/password`. Endpoint profil `/api/auth/*` adalah alias lama\nuntuk kompatibilitas. Resolusi duplikat memakai\n`POST /api/v1/pembanding-submissions/{submission}/resolution`; `/resolve` adalah alias lama.\nEndpoint bertanda deprecated masih tersedia, tetapi integrasi baru harus memakai URL utama.\n\nUpdate pembanding menerima PUT/PATCH untuk JSON dan POST untuk multipart upload.\nUpdate settings menerima PUT untuk JSON dan POST untuk multipart upload."
     },
     "servers": [
         {
@@ -12,8 +12,16 @@
     ],
     "tags": [
         {
-            "name": "Autentikasi",
-            "description": "Login, sesi web, rotasi token, dan pengelolaan profil pengguna API."
+            "name": "Autentikasi Web",
+            "description": "Login dan logout menggunakan session cookie serta CSRF."
+        },
+        {
+            "name": "Autentikasi Mobile",
+            "description": "Login, refresh, dan logout menggunakan Bearer token."
+        },
+        {
+            "name": "API Bersama - Profil",
+            "description": "Profil dan password untuk web maupun mobile. Gunakan endpoint /api/v1/auth/*."
         },
         {
             "name": "Dictionary",
@@ -90,13 +98,165 @@
         }
     ],
     "paths": {
+        "/v1/auth/session": {
+            "post": {
+                "operationId": "auth.sessionLogin",
+                "description": "Memvalidasi kredensial pengguna web SPA dan menginisialisasi sesi stateful cookie.",
+                "summary": "Login Web SPA (Session Cookie)",
+                "tags": [
+                    "Autentikasi Web"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "remember": {
+                                        "type": [
+                                            "boolean",
+                                            "null"
+                                        ]
+                                    }
+                                },
+                                "required": [
+                                    "email",
+                                    "password"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "const": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Login berhasil."
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "const": "error"
+                                        },
+                                        "code": {
+                                            "type": "string",
+                                            "const": "USER_DEACTIVATED"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Akun Anda sedang dinonaktifkan."
+                                        },
+                                        "errors": {
+                                            "type": "null"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "code",
+                                        "message",
+                                        "errors"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            },
+            "delete": {
+                "operationId": "auth.sessionLogout",
+                "description": "Mengakhiri sesi web SPA dan menginvaliasi session cookie.",
+                "summary": "Logout Web SPA",
+                "tags": [
+                    "Autentikasi Web"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "const": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Logout berhasil."
+                                        },
+                                        "data": {
+                                            "type": "null"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    }
+                ]
+            }
+        },
         "/auth/login": {
             "post": {
                 "operationId": "auth.login",
                 "description": "Memvalidasi kredensial mobile dan mengembalikan access token Sanctum beserta refresh token.",
                 "summary": "Login Mobile / Token Bearer",
                 "tags": [
-                    "Autentikasi"
+                    "Autentikasi Mobile"
                 ],
                 "requestBody": {
                     "required": true,
@@ -236,7 +396,7 @@
                 "description": "Menukar refresh token yang masih valid dengan pasangan access token baru.",
                 "summary": "Perbarui access token mobile",
                 "tags": [
-                    "Autentikasi"
+                    "Autentikasi Mobile"
                 ],
                 "requestBody": {
                     "required": true,
@@ -341,201 +501,13 @@
                 "security": []
             }
         },
-        "/auth/me": {
-            "get": {
-                "operationId": "auth.me_0",
-                "description": "Mengembalikan profil, role, dan daftar permission pengguna yang saat ini login.",
-                "summary": "Lihat data pengguna aktif",
-                "tags": [
-                    "Autentikasi"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "User data retrieved successfully"
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/UserResource"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/auth/profile": {
-            "put": {
-                "operationId": "auth.updateProfile_0",
-                "description": "Memperbarui nama dan alamat email pengguna yang sedang login.",
-                "summary": "Perbarui profil",
-                "tags": [
-                    "Autentikasi"
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string",
-                                        "maxLength": 255
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "maxLength": 255
-                                    }
-                                },
-                                "required": [
-                                    "name",
-                                    "email"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Profile updated successfully"
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/UserResource"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/auth/profile/password": {
-            "put": {
-                "operationId": "auth.updatePassword_0",
-                "description": "Mengganti password pengguna setelah password saat ini berhasil diverifikasi.",
-                "summary": "Ubah password",
-                "tags": [
-                    "Autentikasi"
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "current_password": {
-                                        "type": "string"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "minLength": 8
-                                    },
-                                    "password_confirmation": {
-                                        "type": "string",
-                                        "minLength": 8
-                                    }
-                                },
-                                "required": [
-                                    "current_password",
-                                    "password",
-                                    "password_confirmation"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Password updated successfully"
-                                        },
-                                        "data": {
-                                            "type": "null"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
         "/auth/logout": {
             "post": {
                 "operationId": "auth.logout",
                 "description": "Mencabut access token aktif dan seluruh refresh token milik pengguna.",
                 "summary": "Logout Mobile (Revoke Token)",
                 "tags": [
-                    "Autentikasi"
+                    "Autentikasi Mobile"
                 ],
                 "responses": {
                     "200": {
@@ -569,163 +541,22 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
-        "/v1/auth/session": {
-            "post": {
-                "operationId": "auth.sessionLogin",
-                "description": "Memvalidasi kredensial pengguna web SPA dan menginisialisasi sesi stateful cookie.",
-                "summary": "Login Web SPA (Session Cookie)",
-                "tags": [
-                    "Autentikasi"
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email"
-                                    },
-                                    "password": {
-                                        "type": "string"
-                                    },
-                                    "remember": {
-                                        "type": [
-                                            "boolean",
-                                            "null"
-                                        ]
-                                    }
-                                },
-                                "required": [
-                                    "email",
-                                    "password"
-                                ]
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Login berhasil."
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/UserResource"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "error"
-                                        },
-                                        "code": {
-                                            "type": "string",
-                                            "const": "USER_DEACTIVATED"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Akun Anda sedang dinonaktifkan."
-                                        },
-                                        "errors": {
-                                            "type": "null"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "code",
-                                        "message",
-                                        "errors"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    }
-                },
-                "security": []
-            },
-            "delete": {
-                "operationId": "auth.sessionLogout",
-                "description": "Mengakhiri sesi web SPA dan menginvaliasi session cookie.",
-                "summary": "Logout Web SPA",
-                "tags": [
-                    "Autentikasi"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "const": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "const": "Logout berhasil."
-                                        },
-                                        "data": {
-                                            "type": "null"
-                                        }
-                                    },
-                                    "required": [
-                                        "status",
-                                        "message",
-                                        "data"
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "$ref": "#/components/responses/AuthenticationException"
-                    }
-                }
-            }
-        },
-        "/v1/auth/me": {
+        "/auth/me": {
             "get": {
-                "operationId": "auth.me_0",
-                "description": "Mengembalikan profil, role, dan daftar permission pengguna yang saat ini login.",
+                "operationId": "auth.me_0.legacy",
+                "description": "Mengembalikan profil, role, dan daftar permission pengguna yang saat ini login.\n\nAlias kompatibilitas. Gunakan `/api/v1/auth/me` untuk integrasi baru. URL lama tetap tersedia sampai migrasi klien selesai.",
                 "summary": "Lihat data pengguna aktif",
+                "deprecated": true,
                 "tags": [
-                    "Autentikasi"
+                    "API Bersama - Profil"
                 ],
                 "responses": {
                     "200": {
@@ -759,16 +590,25 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
-        "/v1/auth/profile": {
+        "/auth/profile": {
             "put": {
-                "operationId": "auth.updateProfile_0",
-                "description": "Memperbarui nama dan alamat email pengguna yang sedang login.",
+                "operationId": "auth.updateProfile_0.legacy",
+                "description": "Memperbarui nama dan alamat email pengguna yang sedang login.\n\nAlias kompatibilitas. Gunakan `/api/v1/auth/profile` untuk integrasi baru. URL lama tetap tersedia sampai migrasi klien selesai.",
                 "summary": "Perbarui profil",
+                "deprecated": true,
                 "tags": [
-                    "Autentikasi"
+                    "API Bersama - Profil"
                 ],
                 "requestBody": {
                     "required": true,
@@ -830,16 +670,25 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
-        "/v1/auth/profile/password": {
+        "/auth/profile/password": {
             "put": {
-                "operationId": "auth.updatePassword_0",
-                "description": "Mengganti password pengguna setelah password saat ini berhasil diverifikasi.",
+                "operationId": "auth.updatePassword_0.legacy",
+                "description": "Mengganti password pengguna setelah password saat ini berhasil diverifikasi.\n\nAlias kompatibilitas. Gunakan `/api/v1/auth/profile/password` untuk integrasi baru. URL lama tetap tersedia sampai migrasi klien selesai.",
                 "summary": "Ubah password",
+                "deprecated": true,
                 "tags": [
-                    "Autentikasi"
+                    "API Bersama - Profil"
                 ],
                 "requestBody": {
                     "required": true,
@@ -904,7 +753,227 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
+            }
+        },
+        "/v1/auth/me": {
+            "get": {
+                "operationId": "auth.me_0",
+                "description": "Mengembalikan profil, role, dan daftar permission pengguna yang saat ini login.",
+                "summary": "Lihat data pengguna aktif",
+                "tags": [
+                    "API Bersama - Profil"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "const": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "User data retrieved successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
+            }
+        },
+        "/v1/auth/profile": {
+            "put": {
+                "operationId": "auth.updateProfile_0",
+                "description": "Memperbarui nama dan alamat email pengguna yang sedang login.",
+                "summary": "Perbarui profil",
+                "tags": [
+                    "API Bersama - Profil"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "maxLength": 255
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "email"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "const": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Profile updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/UserResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
+            }
+        },
+        "/v1/auth/profile/password": {
+            "put": {
+                "operationId": "auth.updatePassword_0",
+                "description": "Mengganti password pengguna setelah password saat ini berhasil diverifikasi.",
+                "summary": "Ubah password",
+                "tags": [
+                    "API Bersama - Profil"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "minLength": 8
+                                    }
+                                },
+                                "required": [
+                                    "current_password",
+                                    "password",
+                                    "password_confirmation"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "const": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Password updated successfully"
+                                        },
+                                        "data": {
+                                            "type": "null"
+                                        }
+                                    },
+                                    "required": [
+                                        "status",
+                                        "message",
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/dictionaries": {
@@ -1325,7 +1394,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/dictionaries/{type}": {
@@ -1433,7 +1510,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "dictionary.store",
@@ -1484,7 +1569,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/dictionaries/{type}/reorder": {
@@ -1562,7 +1655,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/dictionaries/{type}/{id}": {
@@ -1663,7 +1764,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "delete": {
                 "operationId": "dictionary.destroy",
@@ -1777,7 +1886,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/dictionaries/{type}/{id}/status": {
@@ -1866,7 +1983,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/dashboard": {
@@ -2620,7 +2745,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/locations/provinces": {
@@ -2699,7 +2832,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/locations/regencies": {
@@ -2791,7 +2932,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/locations/districts": {
@@ -2883,7 +3032,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/locations/villages": {
@@ -2975,7 +3132,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings": {
@@ -3336,7 +3501,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "dataPembanding.store",
@@ -3480,7 +3653,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/map": {
@@ -3551,7 +3732,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/form-options": {
@@ -3851,7 +4040,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/creators": {
@@ -3912,7 +4109,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/similar": {
@@ -4005,7 +4210,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/{id}/similar": {
@@ -4369,7 +4582,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/{id}/history": {
@@ -4457,7 +4678,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/{id}": {
@@ -4545,7 +4774,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "dataPembanding.update_1",
@@ -4644,7 +4881,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "put": {
                 "operationId": "dataPembanding.update_2",
@@ -4743,7 +4988,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "patch": {
                 "operationId": "dataPembanding.update_3",
@@ -4842,7 +5095,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "delete": {
                 "operationId": "dataPembanding.destroy",
@@ -4928,7 +5189,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembandings/{id}/delete-request": {
@@ -5038,7 +5307,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-submissions/{submission}": {
@@ -5237,7 +5514,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-submissions/{submission}/image": {
@@ -5277,7 +5562,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-submissions/{submission}/resolution": {
@@ -5422,14 +5715,23 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-submissions/{submission}/resolve": {
             "post": {
-                "operationId": "pembandingDuplicateReview.resolve_0",
-                "description": "Menyelesaikan konflik duplikat dengan strategi use_existing (batalkan input baru) atau replace_existing (timpa record lama).",
+                "operationId": "pembandingDuplicateReview.resolve_0.legacy",
+                "description": "Menyelesaikan konflik duplikat dengan strategi use_existing (batalkan input baru) atau replace_existing (timpa record lama).\n\nAlias kompatibilitas. Gunakan `/api/v1/pembanding-submissions/{submission}/resolution` untuk integrasi baru. URL lama tetap tersedia sampai migrasi klien selesai.",
                 "summary": "Resolusi tinjauan duplikat",
+                "deprecated": true,
                 "tags": [
                     "Data Pembanding"
                 ],
@@ -5567,7 +5869,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/geo/{resource}": {
@@ -6126,7 +6436,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "geoData.store",
@@ -6222,7 +6540,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/geo/{resource}/{id}": {
@@ -6344,7 +6670,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "delete": {
                 "operationId": "geoData.destroy",
@@ -6468,7 +6802,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports": {
@@ -6675,7 +7017,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "bulkExcelImport.store",
@@ -6837,7 +7187,15 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}": {
@@ -7330,7 +7688,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}/selection": {
@@ -7493,7 +7859,15 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}/bulk-apply": {
@@ -7677,7 +8051,15 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}/finalize": {
@@ -7848,7 +8230,15 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}/rows/{row}": {
@@ -8244,7 +8634,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "put": {
                 "operationId": "bulkExcelImport.updateRow",
@@ -8465,7 +8863,15 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}/rows/{row}/image": {
@@ -8516,7 +8922,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/pembanding-imports/{batch}/rows/{row}/retry": {
@@ -8714,7 +9128,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/roles/options": {
@@ -8772,7 +9194,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/users/{user}/status": {
@@ -8847,7 +9277,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/users/bulk-delete": {
@@ -8923,7 +9361,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/users": {
@@ -9042,7 +9488,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "user.store",
@@ -9096,7 +9550,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/users/{user}": {
@@ -9153,7 +9615,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "put": {
                 "operationId": "user.update",
@@ -9221,7 +9691,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "delete": {
                 "operationId": "user.destroy",
@@ -9309,7 +9787,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/roles": {
@@ -9388,7 +9874,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "accessControl.storeRole",
@@ -9446,7 +9940,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/roles/{role}": {
@@ -9520,7 +10022,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "delete": {
                 "operationId": "accessControl.destroyRole",
@@ -9638,7 +10148,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/permissions": {
@@ -9716,7 +10234,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "accessControl.storePermission",
@@ -9796,7 +10322,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/permissions/{permission}": {
@@ -9916,7 +10450,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/public/data-contributor-registration/{token}": {
@@ -10288,7 +10830,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "dataContributorInvitation.store",
@@ -10352,7 +10902,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/data-contributor-invitations/{invite}": {
@@ -10442,7 +11000,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/data-contributor-registration-requests": {
@@ -10620,7 +11186,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/data-contributor-registration-requests/{registrationRequest}/accept": {
@@ -10717,7 +11291,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/data-contributor-registration-requests/{registrationRequest}/reject": {
@@ -10789,7 +11371,15 @@
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/moderation": {
@@ -11006,7 +11596,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/moderation/delete-requests/{id}/approve": {
@@ -11092,7 +11690,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/moderation/delete-requests/{id}/reject": {
@@ -11167,7 +11773,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/moderation/pembandings/{id}/restore": {
@@ -11220,7 +11834,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/moderation/pembandings/{id}": {
@@ -11273,7 +11895,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/configuration": {
@@ -11687,7 +12317,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/preview": {
@@ -11762,7 +12400,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/runs": {
@@ -12170,7 +12816,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "export.storeRun",
@@ -12290,7 +12944,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/runs/{exportRun}": {
@@ -12639,7 +13301,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/runs/{exportRun}/download": {
@@ -12903,7 +13573,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/runs/{exportRun}/retry": {
@@ -13061,7 +13739,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/exports/download": {
@@ -13339,7 +14025,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/search": {
@@ -13540,7 +14234,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/notifications": {
@@ -13690,7 +14392,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/notifications/{id}/read": {
@@ -13743,7 +14453,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/notifications/read-all": {
@@ -13786,7 +14504,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/activity-logs": {
@@ -13977,7 +14703,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/activity-logs/{id}": {
@@ -14095,7 +14829,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/settings": {
@@ -14154,7 +14896,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "put": {
                 "operationId": "setting.update_1",
@@ -14260,7 +15010,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "setting.update_2",
@@ -14366,7 +15124,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/settings/clear-cache": {
@@ -14409,7 +15175,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/settings/public": {
@@ -14705,7 +15479,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             },
             "post": {
                 "operationId": "backupArtifact.store",
@@ -14868,7 +15650,15 @@
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/backup/imports": {
@@ -15001,7 +15791,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/backup/artifacts/{artifact}/download": {
@@ -15049,7 +15847,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/backup/artifacts/{artifact}/verify": {
@@ -15150,7 +15956,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/backup/artifacts/{artifact}": {
@@ -15206,7 +16020,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/backup/artifacts/{artifact}/restore-uploads": {
@@ -15366,7 +16188,15 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         },
         "/v1/backup/artifacts/{artifact}/restore-database": {
@@ -15424,12 +16254,26 @@
                     "401": {
                         "$ref": "#/components/responses/AuthenticationException"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "sessionCookie": []
+                    },
+                    {
+                        "http": []
+                    }
+                ]
             }
         }
     },
     "components": {
         "securitySchemes": {
+            "sessionCookie": {
+                "type": "apiKey",
+                "description": "Laravel Sanctum first-party SPA session cookie. Obtain CSRF cookies first via /sanctum/csrf-cookie.",
+                "in": "cookie",
+                "name": "laravel-session"
+            },
             "http": {
                 "type": "http",
                 "scheme": "bearer"

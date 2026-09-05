@@ -54,16 +54,35 @@ class AppServiceProvider extends ServiceProvider
                     ->setDescription('Laravel Sanctum first-party SPA session cookie. Obtain CSRF cookies first via /sanctum/csrf-cookie.')
             );
 
-            foreach ($openApi->paths as $path) {
-                if ($path->path === 'v1/auth/session' && isset($path->operations['delete'])) {
-                    $path->operations['delete']->security = [new SecurityRequirement('sessionCookie')];
-                }
+            $aliases = [
+                'auth/me' => 'v1/auth/me',
+                'auth/profile' => 'v1/auth/profile',
+                'auth/profile/password' => 'v1/auth/profile/password',
+                'v1/pembanding-submissions/{submission}/resolve' => 'v1/pembanding-submissions/{submission}/resolution',
+            ];
 
-                if ($path->path === 'v1/auth/me' && isset($path->operations['get'])) {
-                    $path->operations['get']->security = [
-                        new SecurityRequirement('sessionCookie'),
-                        new SecurityRequirement('http'),
-                    ];
+            foreach ($openApi->paths as $path) {
+                foreach ($path->operations as $method => $operation) {
+                    // MiddlewareAuthSecurityStrategy marks public operations with [].
+                    // Protected operations inherit the default security (null).
+                    if ($operation->security === null) {
+                        $operation->security = [
+                            new SecurityRequirement('sessionCookie'),
+                            new SecurityRequirement('http'),
+                        ];
+                    }
+
+                    if ($path->path === 'v1/auth/session' && $method === 'delete') {
+                        $operation->security = [new SecurityRequirement('sessionCookie')];
+                    } elseif ($path->path === 'auth/logout') {
+                        $operation->security = [new SecurityRequirement('http')];
+                    }
+
+                    if (isset($aliases[$path->path])) {
+                        $operation->deprecated = true;
+                        $operation->operationId .= '.legacy';
+                        $operation->description .= "\n\nAlias kompatibilitas. Gunakan `/api/{$aliases[$path->path]}` untuk integrasi baru. URL lama tetap tersedia sampai migrasi klien selesai.";
+                    }
                 }
             }
         });

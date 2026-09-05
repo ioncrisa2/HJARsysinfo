@@ -16,9 +16,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
-#[Group('Autentikasi', 'Login, sesi web, rotasi token, dan pengelolaan profil pengguna API.', weight: 1)]
+#[Group('API Bersama - Profil', 'Profil dan password untuk web maupun mobile. Gunakan endpoint /api/v1/auth/*.', weight: 2)]
 class AuthController extends Controller
 {
     use ApiResponse;
@@ -28,6 +27,7 @@ class AuthController extends Controller
         protected RefreshTokenService $refreshTokenService
     ) {}
 
+    #[Group('Autentikasi Web', 'Login dan logout menggunakan session cookie serta CSRF.', weight: 0)]
     #[Endpoint(
         title: 'Login Web SPA (Session Cookie)',
         description: 'Memvalidasi kredensial pengguna web SPA dan menginisialisasi sesi stateful cookie.'
@@ -66,6 +66,7 @@ class AuthController extends Controller
         return $this->success(new UserResource($user), 'Login berhasil.');
     }
 
+    #[Group('Autentikasi Web', 'Login dan logout menggunakan session cookie serta CSRF.', weight: 0)]
     #[Endpoint(
         title: 'Logout Web SPA',
         description: 'Mengakhiri sesi web SPA dan menginvaliasi session cookie.'
@@ -82,6 +83,7 @@ class AuthController extends Controller
         return $this->success(null, 'Logout berhasil.');
     }
 
+    #[Group('Autentikasi Mobile', 'Login, refresh, dan logout menggunakan Bearer token.', weight: 1)]
     #[Endpoint(
         title: 'Login Mobile / Token Bearer',
         description: 'Memvalidasi kredensial mobile dan mengembalikan access token Sanctum beserta refresh token.'
@@ -104,6 +106,7 @@ class AuthController extends Controller
         return $this->success($result, 'Login Success');
     }
 
+    #[Group('Autentikasi Mobile', 'Login, refresh, dan logout menggunakan Bearer token.', weight: 1)]
     #[Endpoint(
         title: 'Perbarui access token mobile',
         description: 'Menukar refresh token yang masih valid dengan pasangan access token baru.'
@@ -140,6 +143,7 @@ class AuthController extends Controller
         );
     }
 
+    #[Group('Autentikasi Mobile', 'Login, refresh, dan logout menggunakan Bearer token.', weight: 1)]
     #[Endpoint(
         title: 'Logout Mobile (Revoke Token)',
         description: 'Mencabut access token aktif dan seluruh refresh token milik pengguna.'

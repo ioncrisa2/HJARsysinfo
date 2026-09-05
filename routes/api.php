@@ -29,14 +29,15 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Legacy Mobile Bearer Authentication Routes (/api/auth/*)
+| Mobile Bearer Authentication & Legacy Profile Aliases (/api/auth/*)
 |--------------------------------------------------------------------------
 */
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware(ThrottleAuthAttempts::class);
     Route::post('/refresh', [AuthController::class, 'refresh']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'app.user'])->group(function () {
+        // Compatibility aliases; new web/mobile clients use /api/v1/auth/* for profiles.
         Route::get('/me', [AuthController::class, 'me']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
         Route::put('/profile/password', [AuthController::class, 'updatePassword']);
@@ -67,7 +68,7 @@ Route::prefix('v1')->group(function () {
     // ── Authenticated Endpoints (Sanctum Session / Bearer Token) ─────────
     Route::middleware(['auth:sanctum', 'app.user'])->group(function () {
 
-        // Session & Profile
+        // Web session and shared web/mobile profile endpoints
         Route::prefix('auth')->group(function () {
             Route::delete('/session', [AuthController::class, 'sessionLogout']);
             Route::get('/me', [AuthController::class, 'me']);
@@ -141,6 +142,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{submission}', [PembandingDuplicateReviewController::class, 'show'])->middleware('permission:create_data::pembanding');
             Route::get('/{submission}/image', [PembandingDuplicateReviewController::class, 'image'])->middleware('permission:create_data::pembanding');
             Route::post('/{submission}/resolution', [PembandingDuplicateReviewController::class, 'resolve'])->middleware('permission:create_data::pembanding');
+            // Compatibility alias; /resolution is the canonical endpoint.
             Route::post('/{submission}/resolve', [PembandingDuplicateReviewController::class, 'resolve'])->middleware('permission:create_data::pembanding');
         });
 

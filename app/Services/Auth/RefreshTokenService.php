@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 class RefreshTokenService
 {
     protected const TOKEN_LENGTH = 64;
+
     protected const TOKEN_EXPIRY_DAYS = 30;
 
     public function __construct(
@@ -43,7 +44,8 @@ class RefreshTokenService
 
             $user = $storedToken->user;
 
-            if (! $user) {
+            if (! $user || $user->deactivated_at !== null
+                || ! $user->hasAnyRole(config('mobile.allowed_roles', []))) {
                 return null;
             }
 

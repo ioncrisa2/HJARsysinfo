@@ -57,8 +57,18 @@ serta pengelolaan data pembanding.
 
 Web SPA harus memperoleh CSRF cookie melalui `/sanctum/csrf-cookie`, lalu login
 melalui `/api/v1/auth/session` dengan credentials/cookies aktif. Integrasi mobile
-lama tetap dapat memperoleh access token melalui `/api/auth/login` dan memakai
+dapat memperoleh access token melalui `/api/auth/login` dan memakai
 skema Bearer.
+
+API data `/api/v1/*` digunakan bersama oleh web dan mobile sesuai permission.
+Profil dan password menggunakan `/api/v1/auth/me`, `/api/v1/auth/profile`, dan
+`/api/v1/auth/profile/password`. Endpoint profil `/api/auth/*` adalah alias lama
+untuk kompatibilitas. Resolusi duplikat memakai
+`POST /api/v1/pembanding-submissions/{submission}/resolution`; `/resolve` adalah alias lama.
+Endpoint bertanda deprecated masih tersedia, tetapi integrasi baru harus memakai URL utama.
+
+Update pembanding menerima PUT/PATCH untuk JSON dan POST untuk multipart upload.
+Update settings menerima PUT untuk JSON dan POST untuk multipart upload.
 MARKDOWN,
     ],
 

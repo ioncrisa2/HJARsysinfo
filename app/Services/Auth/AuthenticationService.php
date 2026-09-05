@@ -21,6 +21,10 @@ class AuthenticationService
             return null;
         }
 
+        if ($user->deactivated_at !== null) {
+            throw new AuthorizationException('Akun Anda sedang dinonaktifkan.');
+        }
+
         if (! $this->canAccessMobile($user)) {
             throw new AuthorizationException('Akun ini tidak diizinkan mengakses mobile app.');
         }

@@ -4,6 +4,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
 it('publishes a complete OpenAPI document for the API', function () {
+    config(['docs.pin' => '']);
     Gate::define('viewApiDocs', fn (?User $user): bool => true);
 
     $response = $this->getJson('/docs/api.json')
@@ -21,7 +22,27 @@ it('publishes a complete OpenAPI document for the API', function () {
         ->assertJsonPath('paths./v1/auth/me.get.security.1.http', [])
         ->assertJsonPath('paths./v1/pembandings.get.summary', 'Lihat daftar pembanding');
 
+    $response
+        ->assertJsonPath('paths./v1/auth/session.post.tags.0', 'Autentikasi Web')
+        ->assertJsonPath('paths./auth/login.post.tags.0', 'Autentikasi Mobile')
+        ->assertJsonPath('paths./v1/auth/me.get.tags.0', 'API Bersama - Profil')
+        ->assertJsonPath('paths./v1/pembandings.get.security.0.sessionCookie', [])
+        ->assertJsonPath('paths./v1/pembandings.get.security.1.http', []);
+
+    foreach (['me' => 'get', 'profile' => 'put', 'profile/password' => 'put'] as $suffix => $method) {
+        $response->assertJsonPath("paths./auth/{$suffix}.{$method}.deprecated", true)
+            ->assertJsonMissingPath("paths./v1/auth/{$suffix}.{$method}.deprecated");
+        expect($response->json("paths./auth/{$suffix}.{$method}.description"))->toContain("/api/v1/auth/{$suffix}");
+    }
+    $response->assertJsonPath('paths./v1/pembanding-submissions/{submission}/resolve.post.deprecated', true)
+        ->assertJsonMissingPath('paths./v1/pembanding-submissions/{submission}/resolution.post.deprecated')
+        ->assertJsonMissingPath('paths./auth/login.post.deprecated')
+        ->assertJsonMissingPath('paths./auth/refresh.post.deprecated')
+        ->assertJsonMissingPath('paths./auth/logout.post.deprecated');
+
     $document = $response->json();
+    $operationIds = collect($document['paths'])->flatMap(fn (array $operations) => collect($operations)->pluck('operationId'));
+    expect($operationIds->unique()->count())->toBe($operationIds->count());
     $dictionaryParameters = collect($document['paths']['/v1/dictionaries/{type}']['get']['parameters'])
         ->keyBy('name');
     $similarSchema = data_get($document, 'components.schemas.SimilarPembandingResource');
