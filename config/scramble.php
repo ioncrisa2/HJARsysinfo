@@ -1,6 +1,6 @@
 <?php
 
-use Dedoc\Scramble\Http\Middleware\RestrictedDocsAccess;
+use App\Http\Middleware\DocsPinAccess;
 use Dedoc\Scramble\SecurityDocumentation\MiddlewareAuthSecurityStrategy;
 
 return [
@@ -151,7 +151,7 @@ MARKDOWN,
 
     'middleware' => [
         'web',
-        RestrictedDocsAccess::class,
+        DocsPinAccess::class,
     ],
 
     'extensions' => [],
