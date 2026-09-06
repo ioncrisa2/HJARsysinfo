@@ -37,7 +37,8 @@ class AccessControlController extends Controller
     {
         $this->authorizePermission('view_access_control');
 
-        $roles = Role::query()
+        // Sanctum changes the default guard; users() must resolve the web user model.
+        $roles = (new Role(['guard_name' => self::GUARD]))->newQuery()
             ->where('guard_name', self::GUARD)
             ->with(['permissions:id,name'])
             ->withCount(['permissions', 'users'])
@@ -145,7 +146,8 @@ class AccessControlController extends Controller
     {
         $this->authorizePermission('view_access_control');
 
-        $permissions = Permission::query()
+        // A WHERE clause alone does not set the guard used by the users() relation.
+        $permissions = (new Permission(['guard_name' => self::GUARD]))->newQuery()
             ->where('guard_name', self::GUARD)
             ->withCount(['roles', 'users'])
             ->orderBy('name')
