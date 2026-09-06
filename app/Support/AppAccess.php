@@ -149,6 +149,10 @@ class AppAccess
             return false;
         }
 
+        if ($user->hasRole('super_admin')) {
+            return true;
+        }
+
         foreach (Arr::wrap($permissions) as $permission) {
             if ($user->can($permission)) {
                 return true;

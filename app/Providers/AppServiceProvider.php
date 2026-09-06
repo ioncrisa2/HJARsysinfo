@@ -34,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // URL::forceScheme('https');
+        Gate::before(function ($user, $ability) {
+            return $user->hasRole('super_admin') ? true : null;
+        });
+
         Gate::policy(Activity::class, ActivityPolicy::class);
         Gate::policy(Pembanding::class, PembandingPolicy::class);
         Gate::define('exportPembanding', fn ($user): bool => $user->can('export_data::pembanding'));

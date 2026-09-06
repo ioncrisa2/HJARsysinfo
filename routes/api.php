@@ -174,16 +174,16 @@ Route::prefix('v1')->group(function () {
 
         // Access Control (Roles & Permissions)
         Route::prefix('roles')->group(function () {
-            Route::get('/', [AccessControlController::class, 'roles'])->middleware('permission:view_access_control');
-            Route::post('/', [AccessControlController::class, 'storeRole'])->middleware('permission:create_role');
-            Route::put('/{role}', [AccessControlController::class, 'updateRole'])->middleware('permission:update_role');
-            Route::delete('/{role}', [AccessControlController::class, 'destroyRole'])->middleware('permission:delete_role');
+            Route::get('/', [AccessControlController::class, 'roles'])->middleware('role_or_permission:super_admin|view_access_control');
+            Route::post('/', [AccessControlController::class, 'storeRole'])->middleware('role_or_permission:super_admin|create_role');
+            Route::put('/{role}', [AccessControlController::class, 'updateRole'])->middleware('role_or_permission:super_admin|update_role');
+            Route::delete('/{role}', [AccessControlController::class, 'destroyRole'])->middleware('role_or_permission:super_admin|delete_role');
         });
 
         Route::prefix('permissions')->group(function () {
-            Route::get('/', [AccessControlController::class, 'permissions'])->middleware('permission:view_access_control');
-            Route::post('/', [AccessControlController::class, 'storePermission'])->middleware('permission:create_permission');
-            Route::delete('/{permission}', [AccessControlController::class, 'destroyPermission'])->middleware('permission:delete_permission');
+            Route::get('/', [AccessControlController::class, 'permissions'])->middleware('role_or_permission:super_admin|view_access_control');
+            Route::post('/', [AccessControlController::class, 'storePermission'])->middleware('role_or_permission:super_admin|create_permission');
+            Route::delete('/{permission}', [AccessControlController::class, 'destroyPermission'])->middleware('role_or_permission:super_admin|delete_permission');
         });
 
         // Contributor Invitations & Requests
