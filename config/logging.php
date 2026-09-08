@@ -51,6 +51,12 @@ return [
     */
 
     'channels' => [
+        'integration' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/integration.log'),
+            'level' => 'info',
+            'days' => 14,
+        ],
 
         'stack' => [
             'driver' => 'stack',

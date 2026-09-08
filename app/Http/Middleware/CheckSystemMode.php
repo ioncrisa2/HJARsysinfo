@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\SystemSetting;
+use App\Support\IntegrationAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,6 +37,10 @@ class CheckSystemMode
 
     private function isAllowedDuringRestrictedMode(Request $request): bool
     {
+        if (IntegrationAccess::key($request)) {
+            return false;
+        }
+
         if (
             $request->is('api/auth/*')
             || $request->is('api/v1/auth/*')

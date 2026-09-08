@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\IntegrationAccess;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class PembandingResource extends JsonResource
@@ -65,8 +66,8 @@ class PembandingResource extends JsonResource
                 'name' => $this->topografiRef?->name,
             ],
 
-            'nama_pemberi_informasi' => $this->nama_pemberi_informasi,
-            'nomer_telepon_pemberi_informasi' => $this->nomer_telepon_pemberi_informasi,
+            'nama_pemberi_informasi' => $this->when(! IntegrationAccess::key($request), $this->nama_pemberi_informasi),
+            'nomer_telepon_pemberi_informasi' => $this->when(! IntegrationAccess::key($request), $this->nomer_telepon_pemberi_informasi),
             'luas_tanah' => $this->luas_tanah,
             'luas_bangunan' => $this->luas_bangunan,
             'tahun_bangun' => $this->tahun_bangun,
@@ -86,7 +87,7 @@ class PembandingResource extends JsonResource
              * @format date
              */
             'tanggal_data' => $this->tanggal_data,
-            'catatan' => $this->catatan,
+            'catatan' => $this->when(! IntegrationAccess::key($request), $this->catatan),
 
             'province' => [
                 'id' => $this->province?->id,
@@ -112,10 +113,10 @@ class PembandingResource extends JsonResource
             /** @var string|null */
             'image_url' => $this->image_path,
 
-            'created_by' => [
+            'created_by' => $this->when(! IntegrationAccess::key($request), [
                 'id' => $this->creator?->id,
                 'name' => $this->creator?->name,
-            ],
+            ]),
         ];
     }
 }

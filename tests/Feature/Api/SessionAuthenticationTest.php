@@ -94,6 +94,10 @@ it('invalidates the authenticated session on logout', function () {
 });
 
 it('rejects a stateful mutation with an invalid csrf token', function () {
+    // Laravel skips CSRF verification while running unit tests. Exercise the
+    // production middleware branch explicitly for this security assertion.
+    $this->app->detectEnvironment(fn () => 'local');
+
     $user = createSessionApiTestUser();
     $this->actingAs($user, 'web');
     session(['_token' => 'valid-csrf-token']);

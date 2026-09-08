@@ -18,10 +18,10 @@ use App\Services\Pembanding\PembandingBrowseFilterService;
 use App\Services\Pembanding\PembandingFormOptionsService;
 use App\Services\PembandingFactory;
 use App\Services\PembandingService;
+use App\Support\IntegrationAccess;
 use App\Traits\ApiResponse;
 use Dedoc\Scramble\Attributes\Endpoint;
 use Dedoc\Scramble\Attributes\Group;
-use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -58,7 +58,7 @@ class DataPembandingController extends Controller
     )]
     public function index(PembandingIndexRequest $request): JsonResponse
     {
-        Gate::authorize('viewAny', Pembanding::class);
+        IntegrationAccess::authorize('pembandings:read', 'viewAny', Pembanding::class);
 
         $limit = $this->calculateLimit(
             $request->input('per_page') ?? $request->input('limit'),
@@ -173,7 +173,7 @@ class DataPembandingController extends Controller
             return $this->notFound("Data Pembanding dengan ID {$id} tidak ditemukan");
         }
 
-        Gate::authorize('view', $pembanding);
+        IntegrationAccess::authorize('pembandings:read', 'view', $pembanding);
 
         return $this->success(
             new PembandingResource($pembanding),
@@ -193,7 +193,7 @@ class DataPembandingController extends Controller
             return $this->notFound("Data pembanding dengan ID {$id} tidak ditemukan.");
         }
 
-        Gate::authorize('view', $pembanding);
+        IntegrationAccess::authorize('pembandings:similar', 'view', $pembanding);
 
         $limit = $this->calculateLimit(
             $request->input('limit'),
@@ -427,7 +427,7 @@ class DataPembandingController extends Controller
     )]
     public function similarByPayload(FindSimilarPembandingRequest $request): JsonResponse
     {
-        Gate::authorize('viewAny', Pembanding::class);
+        IntegrationAccess::authorize('pembandings:similar', 'viewAny', Pembanding::class);
 
         $validated = $request->validated();
 

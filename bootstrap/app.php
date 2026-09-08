@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ApiStatusController;
+use App\Http\Middleware\AuthenticateDataConsumer;
+use App\Http\Middleware\AuthenticateIntegrationKey;
 use App\Http\Middleware\CheckSystemMode;
 use App\Http\Middleware\EnsureAppUser;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -37,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         $middleware->alias([
             'app.user' => EnsureAppUser::class,
+            'consumer' => AuthenticateDataConsumer::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
@@ -45,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             CheckSystemMode::class,
         ]);
         $middleware->api(append: [
+            AuthenticateIntegrationKey::class,
             CheckSystemMode::class,
         ]);
     })

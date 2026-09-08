@@ -14,6 +14,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity;
@@ -52,6 +53,11 @@ class AppServiceProvider extends ServiceProvider
 
         Scramble::afterOpenApiGenerated(function (OpenApi $openApi): void {
             $openApi->components->addSecurityScheme(
+                'integrationKey',
+                SecurityScheme::http('bearer')->as('integrationKey')
+                    ->setDescription('API key aplikasi berawalan hjar_int_. Diterbitkan admin melalui /api/v1/integrations/{integration}/keys; hanya berlaku untuk endpoint dengan cakupan integrasi yang sesuai.')
+            );
+            $openApi->components->addSecurityScheme(
                 'sessionCookie',
                 SecurityScheme::apiKey('cookie', (string) config('session.cookie'))
                     ->as('sessionCookie')
@@ -74,6 +80,21 @@ class AppServiceProvider extends ServiceProvider
                             new SecurityRequirement('sessionCookie'),
                             new SecurityRequirement('http'),
                         ];
+                    }
+
+                    $route = collect(Route::getRoutes()->getRoutes())
+                        ->first(fn ($route) => $route->uri() === 'api/'.ltrim($path->path, '/')
+                            && in_array(strtoupper($method), $route->methods(), true));
+                    $consumer = collect($route?->gatherMiddleware() ?? [])
+                        ->first(fn ($middleware) => is_string($middleware) && str_starts_with($middleware, 'consumer:'));
+                    if ($consumer) {
+                        $scope = explode(',', substr($consumer, strlen('consumer:')))[0];
+                        $operation->security = [
+                            new SecurityRequirement('sessionCookie'),
+                            new SecurityRequirement('http'),
+                            new SecurityRequirement('integrationKey'),
+                        ];
+                        $operation->description .= "\n\nMenerima API key integrasi dengan cakupan `{$scope}`. API key dikirim melalui Authorization: Bearer. Respons pembanding untuk integrasi tidak menyertakan nama/telepon sumber, catatan bebas, atau identitas pembuat.";
                     }
 
                     if ($path->path === 'v1/auth/session' && $method === 'delete') {

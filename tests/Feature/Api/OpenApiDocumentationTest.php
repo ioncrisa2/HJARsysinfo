@@ -13,6 +13,7 @@ it('publishes a complete OpenAPI document for the API', function () {
         ->assertJsonPath('info.title', 'Comparable Data API')
         ->assertJsonPath('components.securitySchemes.http.type', 'http')
         ->assertJsonPath('components.securitySchemes.http.scheme', 'bearer')
+        ->assertJsonPath('components.securitySchemes.integrationKey.scheme', 'bearer')
         ->assertJsonPath('components.securitySchemes.sessionCookie.type', 'apiKey')
         ->assertJsonPath('components.securitySchemes.sessionCookie.in', 'cookie')
         ->assertJsonPath('paths./auth/login.post.security', [])
@@ -23,6 +24,11 @@ it('publishes a complete OpenAPI document for the API', function () {
         ->assertJsonPath('paths./v1/pembandings.get.summary', 'Lihat daftar pembanding');
 
     $response
+        ->assertJsonPath('paths./v1/pembandings.get.security.2.integrationKey', [])
+        ->assertJsonPath('paths./v1/pembandings/similar.post.security.2.integrationKey', [])
+        ->assertJsonPath('paths./v1/locations/districts.get.security.2.integrationKey', [])
+        ->assertJsonPath('paths./v1/dictionaries/{type}.get.security.2.integrationKey', [])
+        ->assertJsonMissingPath('paths./v1/integrations.get.security.2.integrationKey')
         ->assertJsonPath('paths./v1/auth/session.post.tags.0', 'Autentikasi Web')
         ->assertJsonPath('paths./auth/login.post.tags.0', 'Autentikasi Mobile')
         ->assertJsonPath('paths./v1/auth/me.get.tags.0', 'API Bersama - Profil')

@@ -49,6 +49,7 @@ class AppAccess
             'delete_any_permission',
 
             'manage_data_contributor_invitations',
+            'manage_integrations',
 
             'view_moderation',
             'approve_delete_request',

@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\DataPembandingController;
 use App\Http\Controllers\Api\DictionaryController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\GeoDataController;
+use App\Http\Controllers\Api\IntegrationController;
 use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\ModerationController;
 use App\Http\Controllers\Api\PembandingDuplicateReviewController;
@@ -66,6 +67,10 @@ Route::prefix('v1')->group(function () {
     });
 
     // ── Authenticated Endpoints (Sanctum Session / Bearer Token) ─────────
+    // Register before the legacy POST /pembandings/{id} multipart route.
+    Route::post('/pembandings/similar', [DataPembandingController::class, 'similarByPayload'])
+        ->middleware('consumer:pembandings:similar,view_any_data::pembanding');
+
     Route::middleware(['auth:sanctum', 'app.user'])->group(function () {
 
         // Web session and shared web/mobile profile endpoints
@@ -92,7 +97,6 @@ Route::prefix('v1')->group(function () {
         // Dictionaries & Master Data
         Route::prefix('dictionaries')->group(function () {
             Route::get('/', [DictionaryController::class, 'definitions']);
-            Route::get('/{type}', [DictionaryController::class, 'index']);
             Route::post('/{type}', [DictionaryController::class, 'store'])->middleware('permission:create_master_data');
             Route::post('/{type}/reorder', [DictionaryController::class, 'reorder'])->middleware('permission:reorder_master_data');
             Route::put('/{type}/{id}', [DictionaryController::class, 'update'])->middleware('permission:update_master_data');
@@ -101,12 +105,6 @@ Route::prefix('v1')->group(function () {
         });
 
         // Location Master Data & Geo Administration
-        Route::prefix('locations')->group(function () {
-            Route::get('/provinces', [LocationController::class, 'provinces']);
-            Route::get('/regencies', [LocationController::class, 'regencies']);
-            Route::get('/districts', [LocationController::class, 'districts']);
-            Route::get('/villages', [LocationController::class, 'villages']);
-        });
 
         Route::prefix('geo')->group(function () {
             Route::get('/{resource?}', [GeoDataController::class, 'index'])->middleware('permission:view_geo_data');
@@ -117,15 +115,11 @@ Route::prefix('v1')->group(function () {
 
         // Data Pembanding
         Route::prefix('pembandings')->group(function () {
-            Route::get('/', [DataPembandingController::class, 'index'])->middleware('permission:view_any_data::pembanding');
             Route::get('/map', PembandingMapController::class)->middleware('permission:view_map');
             Route::get('/form-options', [DataPembandingController::class, 'formOptions'])
                 ->middleware('permission:create_data::pembanding|update_data::pembanding|update_own_data::pembanding');
             Route::get('/creators', [DataPembandingController::class, 'creators'])->middleware('permission:view_any_data::pembanding');
-            Route::post('/similar', [DataPembandingController::class, 'similarByPayload'])->middleware('permission:view_any_data::pembanding');
-            Route::get('/{id}/similar', [DataPembandingController::class, 'similarById'])->middleware('permission:view_any_data::pembanding');
             Route::get('/{id}/history', [DataPembandingController::class, 'history'])->middleware('permission:view_any_data::pembanding');
-            Route::get('/{id}', [DataPembandingController::class, 'show'])->middleware('permission:view_any_data::pembanding');
 
             Route::middleware('throttle:api-write')->group(function () {
                 Route::post('/', [DataPembandingController::class, 'store'])->middleware('permission:create_data::pembanding');
@@ -234,6 +228,18 @@ Route::prefix('v1')->group(function () {
             Route::post('/clear-cache', [SettingController::class, 'clearCache'])->middleware('permission:clear_cache');
         });
 
+        Route::prefix('integrations')->middleware('permission:manage_integrations')->group(function () {
+            Route::get('/', [IntegrationController::class, 'index']);
+            Route::get('/scopes', [IntegrationController::class, 'scopes']);
+            Route::get('/{integration}', [IntegrationController::class, 'show']);
+            Route::middleware('throttle:api-write')->group(function () {
+                Route::post('/', [IntegrationController::class, 'store']);
+                Route::patch('/{integration}', [IntegrationController::class, 'update']);
+                Route::post('/{integration}/keys', [IntegrationController::class, 'issueKey']);
+                Route::delete('/{integration}/keys/{key}', [IntegrationController::class, 'revokeKey']);
+            });
+        });
+
         // Backup & Restore
         Route::prefix('backup')->group(function () {
             Route::get('/artifacts', [BackupController::class, 'index'])->middleware('permission:view_backup');
@@ -250,4 +256,19 @@ Route::prefix('v1')->group(function () {
 
     });
 
+    // Explicit shared read/search routes. Keep these after specific pembanding routes.
+    Route::get('/pembandings', [DataPembandingController::class, 'index'])
+        ->middleware('consumer:pembandings:read,view_any_data::pembanding');
+    Route::get('/pembandings/{id}', [DataPembandingController::class, 'show'])
+        ->middleware('consumer:pembandings:read,view_any_data::pembanding');
+    Route::get('/pembandings/{id}/similar', [DataPembandingController::class, 'similarById'])
+        ->middleware('consumer:pembandings:similar,view_any_data::pembanding');
+    Route::prefix('locations')->middleware('consumer:locations:read')->group(function () {
+        Route::get('/provinces', [LocationController::class, 'provinces']);
+        Route::get('/regencies', [LocationController::class, 'regencies']);
+        Route::get('/districts', [LocationController::class, 'districts']);
+        Route::get('/villages', [LocationController::class, 'villages']);
+    });
+    Route::get('/dictionaries/{type}', [DictionaryController::class, 'index'])
+        ->middleware('consumer:dictionaries:read');
 });

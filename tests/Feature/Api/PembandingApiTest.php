@@ -15,9 +15,9 @@ use App\Models\StatusPemberiInformasi;
 use App\Models\Topografi;
 use App\Models\User;
 use App\Models\Village;
-use App\Services\Scoring\CandidateRetrievalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
@@ -174,6 +174,23 @@ beforeEach(function () {
             'image' => UploadedFile::fake()->image('foto.jpg'),
         ], $overrides);
     };
+
+    $this->similarPayload = fn (array $overrides = []) => array_merge([
+        'latitude' => -2.5489,
+        'longitude' => 118.0149,
+        'district_id' => $this->district->id,
+        'market_basis' => 'sale',
+        'jenis_objek' => 'rumah_tinggal',
+        'peruntukan' => 'rumah_tinggal',
+        'luas_tanah' => 120,
+        'luas_bangunan' => 60,
+        'dokumen_tanah' => 'sertifikat_hak_milik',
+        'lebar_jalan' => 6,
+        'posisi_tanah' => 'interior_lot',
+        'kondisi_tanah' => 'matang',
+        'limit' => 10,
+        'range_km' => 10,
+    ], $overrides);
 });
 
 it('returns paginated pembanding list', function () {
@@ -1081,3 +1098,74 @@ it('keeps report readiness separate from similarity ranking', function () {
         ->and($incompleteResult['rank'])->toBeLessThan($readyResult['rank']);
 });
 
+it('ranks matching property specifications above a changed specification', function (string $field, mixed $value, float $expectedScore) {
+    $houseId = JenisObjek::query()->create(['slug' => 'rumah_tinggal', 'name' => 'Rumah Tinggal'])->id;
+    $overrides = [$field => $value];
+    if ($field === 'dokumen_tanah_id') {
+        $overrides[$field] = DokumenTanah::query()->create([
+            'slug' => 'sertifikat_hak_guna_bangunan',
+            'name' => 'Sertifikat Hak Guna Bangunan',
+        ])->id;
+    }
+
+    // Create the weaker candidate first so an insertion-order sort cannot pass.
+    $different = ($this->makePembanding)(array_merge(['jenis_objek_id' => $houseId], $overrides));
+    $exact = ($this->makePembanding)(['jenis_objek_id' => $houseId]);
+
+    $response = $this->postJson('/api/v1/pembandings/similar', ($this->similarPayload)())
+        ->assertOk()->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.id', $exact->id)
+        ->assertJsonPath('data.1.id', $different->id)
+        ->assertJsonPath('data.0.rankable', true)
+        ->assertJsonPath('data.0.scoring_status', 'scored');
+
+    expect((float) $response->json('data.0.similarity_score'))->toBe(100.0)
+        ->and((float) $response->json('data.1.similarity_score'))->toBe($expectedScore);
+})->with([
+    'land area doubles' => ['luas_tanah', 240, 95.0],
+    'building area doubles' => ['luas_bangunan', 120, 96.0],
+    'SHM changes to HGB' => ['dokumen_tanah_id', null, 97.2],
+]);
+
+it('returns consistent candidate scores through the id and JSON endpoints without storing the JSON reference', function () {
+    $houseId = JenisObjek::query()->create(['slug' => 'rumah_tinggal', 'name' => 'Rumah Tinggal'])->id;
+    $reference = ($this->makePembanding)(['jenis_objek_id' => $houseId]);
+    ($this->makePembanding)(['jenis_objek_id' => $houseId, 'latitude' => -2.55]);
+    ($this->makePembanding)(['jenis_objek_id' => $houseId, 'luas_bangunan' => 120]);
+    $count = Pembanding::query()->count();
+
+    $byId = $this->getJson("/api/v1/pembandings/{$reference->id}/similar?limit=10&range_km=10")
+        ->assertOk()->assertJsonCount(2, 'data');
+    $byPayload = $this->postJson('/api/v1/pembandings/similar', ($this->similarPayload)())
+        ->assertOk()->assertJsonCount(3, 'data');
+
+    $project = fn (array $item) => Arr::only($item, [
+        'id', 'similarity_score', 'component_scores', 'distance', 'rankable',
+        'scoring_status', 'reference_coverage', 'score_coverage', 'eligibility_tier',
+    ]);
+    expect(collect($byId->json('data'))->pluck('id'))->not->toContain($reference->id)
+        ->and(collect($byId->json('data'))->map($project)->all())->toBe(
+            collect($byPayload->json('data'))->reject(fn ($item) => $item['id'] === $reference->id)
+                ->map($project)->values()->all(),
+        )
+        ->and(Pembanding::query()->count())->toBe($count);
+});
+
+it('protects both similarity endpoints when the user lacks browse permission', function () {
+    $reference = ($this->makePembanding)();
+    $this->user->revokePermissionTo('view_any_data::pembanding');
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $this->getJson("/api/v1/pembandings/{$reference->id}/similar")->assertForbidden();
+    $this->postJson('/api/v1/pembandings/similar', ($this->similarPayload)())->assertForbidden();
+});
+
+it('returns no candidates when the only stored candidate is soft deleted', function () {
+    $houseId = JenisObjek::query()->create(['slug' => 'rumah_tinggal', 'name' => 'Rumah Tinggal'])->id;
+    $candidate = ($this->makePembanding)(['jenis_objek_id' => $houseId]);
+    $candidate->delete();
+
+    $this->postJson('/api/v1/pembandings/similar', ($this->similarPayload)())
+        ->assertOk()->assertJsonCount(0, 'data');
+    $this->getJson("/api/v1/pembandings/{$candidate->id}/similar")->assertNotFound();
+});
