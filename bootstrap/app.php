@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ApiStatusController;
 use App\Http\Middleware\AuthenticateDataConsumer;
 use App\Http\Middleware\AuthenticateIntegrationKey;
 use App\Http\Middleware\CheckSystemMode;
@@ -29,9 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function (): void {
-            // Keep status reachable when cookies, sessions, or APP_KEY fail.
-            Route::get('/', ApiStatusController::class)->name('api.status');
-            Route::get('/status', ApiStatusController::class);
+            Route::redirect('/', '/docs/api');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
