@@ -20,8 +20,11 @@ class ThrottleAuthAttempts
             $seconds = RateLimiter::availableIn($key);
 
             return response()->json([
-                'message' => "Too many login attempts. Please try again in {$seconds} seconds.",
-            ], 429);
+                'status' => 'error',
+                'code' => 'RATE_LIMITED',
+                'message' => "Terlalu banyak percobaan login. Coba lagi dalam {$seconds} detik.",
+                'errors' => null,
+            ], 429, ['Retry-After' => (string) $seconds]);
         }
 
         RateLimiter::hit($key, self::DECAY_MINUTES * 60);

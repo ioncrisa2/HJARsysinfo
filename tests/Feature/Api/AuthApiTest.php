@@ -4,6 +4,7 @@ use App\Models\RefreshToken;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -127,6 +128,25 @@ it('validates required fields for login request', function () {
     $response
         ->assertStatus(422)
         ->assertJsonValidationErrors(['email', 'password', 'device_name']);
+});
+
+it('returns the standard API error envelope when login attempts are limited', function () {
+    $key = 'login_mobile@example.com_127.0.0.1';
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        RateLimiter::hit($key, 900);
+    }
+
+    $this->postJson('/api/auth/login', [
+        'email' => 'mobile@example.com',
+        'password' => 'secret123',
+        'device_name' => 'pest-test',
+    ])
+        ->assertStatus(429)
+        ->assertHeader('Retry-After')
+        ->assertJsonStructure(['status', 'code', 'message', 'errors'])
+        ->assertJsonPath('status', 'error')
+        ->assertJsonPath('code', 'RATE_LIMITED')
+        ->assertJsonPath('errors', null);
 });
 
 it('can refresh token and revoke previous refresh token', function () {
